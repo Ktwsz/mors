@@ -5,7 +5,7 @@
 #include <minizinc/flattener.hh>
 #include <minizinc/model.hh>
 
-namespace frontend {
+namespace parser {
 namespace {
 void ind(int const indent) {
   for (int i = 0; i < indent; i += 2)

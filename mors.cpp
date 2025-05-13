@@ -1,5 +1,5 @@
 #include "lib.hpp"
 
 int main() {
-  frontend::say_hello();
+  parser::say_hello();
 }

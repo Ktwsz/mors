@@ -1,6 +1,6 @@
 #pragma once
 
-namespace frontend {
+namespace parser {
 
 void say_hello();
 
