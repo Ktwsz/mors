@@ -1,5 +1,6 @@
 include "cumulative.mzn";
 include "disjunctive_strict_opt.mzn";
+include "lex_less.mzn";
 
 int: n; % number of tasks
 set of int: TASK = 1..n;
@@ -25,6 +26,7 @@ constraint forall(r in RESOURCE)
                  (cumulative(s,d,[res[r,t]|t in TASK],L[r]));
 
 constraint fzn_disjunctive_strict_opt(d, L);
+constraint lex_less(pre[.., 1], pre[.., 2]);
 
 solve minimize max(t in TASK)(s[t] + d[t]);
 

@@ -4,6 +4,7 @@ set(EXTERNAL_INSTALL_LOCATION ${CMAKE_BINARY_DIR}/external)
 
 ExternalProject_Add(libminizinc
     GIT_REPOSITORY https://github.com/MiniZinc/libminizinc.git
+    GIT_TAG 2.9.2
     CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${EXTERNAL_INSTALL_LOCATION}
 )
 

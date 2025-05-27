@@ -73,6 +73,20 @@ struct PrintModelVisitor {
     std::cout << std::endl;
   }
 
+  void print_ite(MiniZinc::ITE *ite, int const indent) {
+    for (unsigned int i = 0; i < ite->size(); i++) {
+        ind(indent);
+        std::cout << "if-condition: ";
+        match_expr(ite->ifExpr(i), indent + 2);
+        ind(indent);
+        std::cout << "if-body: ";
+        match_expr(ite->thenExpr(i), indent + 2);
+    }
+    ind(indent);
+    std::cout << "else: " << std::endl;
+    match_expr(ite->elseExpr(), indent + 2);
+  }
+
   void print_let_expr(MiniZinc::Let *let, int const indent) {
     ind(indent);
     std::cout << "let: " << std::endl;
@@ -122,9 +136,11 @@ struct PrintModelVisitor {
     case MiniZinc::Expression::E_COMP:
       std::cout << "E_COMP" << std::endl;
       break;
-    case MiniZinc::Expression::E_ITE:
-      std::cout << "E_ITE" << std::endl;
+    case MiniZinc::Expression::E_ITE: {
+      auto *ite = MiniZinc::Expression::cast<MiniZinc::ITE>(expr);
+      print_ite(ite, indent);
       break;
+    }
     case MiniZinc::Expression::E_BINOP:
       std::cout << "E_BINOP" << std::endl;
       break;
@@ -188,8 +204,9 @@ void say_hello() {
 
     std::cout << "-----------" << std::endl;
   } catch (MiniZinc::Exception const &e) {
+    std::cout << "parsing failed: " << std::endl;
     std::cout << e.msg() << std::endl;
   }
 }
 
-} // namespace frontend
+} // namespace parser
