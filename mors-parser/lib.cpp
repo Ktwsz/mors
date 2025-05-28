@@ -15,6 +15,7 @@ void ind(int const indent) {
 struct PrintModelVisitor {
   MiniZinc::Model const &model;
   MiniZinc::EnvI &env;
+  IR::Data &data;
 
   static bool enterModel(MiniZinc::Model *) { return true; }
   /// Enter item
@@ -57,6 +58,7 @@ struct PrintModelVisitor {
     std::cout << "variable declaration" << std::endl;
     ind(indent + 2);
     std::cout << "id: " << var_decl->id()->v().c_str() << std::endl;
+    data.ids.push_back(var_decl->id()->v().c_str());
   }
 
   void print_fn_call(MiniZinc::Call *call, int const indent) {
@@ -75,12 +77,12 @@ struct PrintModelVisitor {
 
   void print_ite(MiniZinc::ITE *ite, int const indent) {
     for (unsigned int i = 0; i < ite->size(); i++) {
-        ind(indent);
-        std::cout << "if-condition: ";
-        match_expr(ite->ifExpr(i), indent + 2);
-        ind(indent);
-        std::cout << "if-body: ";
-        match_expr(ite->thenExpr(i), indent + 2);
+      ind(indent);
+      std::cout << "if-condition: ";
+      match_expr(ite->ifExpr(i), indent + 2);
+      ind(indent);
+      std::cout << "if-body: ";
+      match_expr(ite->thenExpr(i), indent + 2);
     }
     ind(indent);
     std::cout << "else: " << std::endl;
@@ -173,7 +175,8 @@ struct PrintModelVisitor {
 };
 } // namespace
 
-void say_hello() {
+IR::Data main() {
+    IR::Data data{};
   try {
     auto flt = MiniZinc::Flattener(
         std::cout, std::cerr, "/home/ktwsz/studia/libminizinc/share/minizinc");
@@ -199,7 +202,7 @@ void say_hello() {
 
     std::cout << "--- AST ---" << std::endl;
 
-    PrintModelVisitor vis{model, flt.getEnv()->envi()};
+    PrintModelVisitor vis{model, flt.getEnv()->envi(), data};
     MiniZinc::iter_items<PrintModelVisitor>(vis, &model);
 
     std::cout << "-----------" << std::endl;
@@ -207,6 +210,7 @@ void say_hello() {
     std::cout << "parsing failed: " << std::endl;
     std::cout << e.msg() << std::endl;
   }
+  return data;
 }
 
 } // namespace parser

@@ -5,11 +5,21 @@ project(mors VERSION 1.0)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
 
 add_executable(mors mors.cpp)
 
 add_subdirectory(mors-parser)
-target_link_libraries(mors PUBLIC mors-parser)
-target_include_directories(mors PUBLIC "${PROJECT_BINARY_DIR}" "${PROJECT_SOURCE_DIR}/mors-parser")
+add_subdirectory(ir)
+
+add_dependencies(mors ir_python)
+
+target_link_libraries(mors PUBLIC mors-parser 
+                                  ${Python3_LIBRARIES})
+
+target_include_directories(mors PUBLIC "${PROJECT_BINARY_DIR}"
+                                       "${PROJECT_SOURCE_DIR}/mors-parser"
+                                       "${PROJECT_SOURCE_DIR}/pybind11/include"
+                                       ${Python3_INCLUDE_DIRS})
 
 

@@ -1,7 +1,9 @@
 #pragma once
 
+#include "ir.hpp"
+
 namespace parser {
 
-void say_hello();
+IR::Data main();
 
-}
+} // namespace parser

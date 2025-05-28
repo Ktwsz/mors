@@ -13,4 +13,5 @@ include_directories(${EXTERNAL_INSTALL_LOCATION}/include)
 add_library(mors-parser STATIC lib.cpp)
 
 add_dependencies(mors-parser libminizinc)
+target_include_directories(mors-parser PUBLIC "${PROJECT_SOURCE_DIR}/ir")
 target_link_libraries(mors-parser ${EXTERNAL_INSTALL_LOCATION}/lib/libmzn.a)
