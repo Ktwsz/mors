@@ -4,6 +4,6 @@
 
 namespace parser {
 
-IR::Data main();
+IR::Data main(std::vector<std::string> &args);
 
 } // namespace parser

@@ -1,14 +1,20 @@
 #include "lib.hpp"
 
 #include <iostream>
+#include <ranges>
 
 #include <pybind11/embed.h>
 #include <pybind11/pybind11.h>
 
 namespace py = pybind11;
 
-int main() {
-  auto const result = parser::main();
+int main(int argc, char **argv) {
+  auto args =
+      std::ranges::iota_view(1, argc) |
+      std::views::transform([&argv](int i) { return std::string{argv[i]}; }) |
+      std::ranges::to<std::vector<std::string>>();
+
+  auto const result = parser::main(args);
 
   py::scoped_interpreter _;
 

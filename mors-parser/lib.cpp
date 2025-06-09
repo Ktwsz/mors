@@ -175,26 +175,14 @@ struct PrintModelVisitor {
 };
 } // namespace
 
-IR::Data main() {
-    IR::Data data{};
+IR::Data main(std::vector<std::string> &args) {
+  IR::Data data{};
   try {
-    auto flt = MiniZinc::Flattener(
-        std::cout, std::cerr, "/home/ktwsz/studia/libminizinc/share/minizinc");
-    int i = 0;
-    std::vector<std::string> arg0 = {"cumulative.mzn"};
-    flt.processOption(i, arg0);
+    auto flt = MiniZinc::Flattener{std::cout, std::cerr, args[0]};
 
-    std::vector<std::string> arg1 = {"cumulative.dzn"};
-    flt.processOption(i, arg1);
-
-    std::vector<std::string> arg2 = {
-        "--instance-check-only", "-I",
-        "/home/ktwsz/studia/libminizinc/share/minizinc/solvers/cp-sat"};
-    flt.processOption(i, arg2);
-
-    std::vector<std::string> arg3 = {
-        "-I", "/home/ktwsz/studia/libminizinc/share/minizinc/solvers/cp-sat"};
-    flt.processOption(i, arg3);
+    for (int i = 1; i < args.size(); i++) {
+      flt.processOption(i, args);
+    }
 
     flt.flatten("", "stdin");
 
