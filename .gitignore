@@ -2,3 +2,6 @@
 build/
 share/
 **/__pycache__/
+*.so
+CMakeUserPresets.json
+.clangd
