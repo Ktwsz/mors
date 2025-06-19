@@ -20,4 +20,4 @@
 
 
 ### Run commands
-`./build/Debug/mors aaa  models/m_cumulative.mzn models/m_cumulative.dzn --instance-check-only -I /home/ktwsz/studia/libminizinc/share/minizinc/solvers/cp-sat`
+`./build/Debug/mors models/m_cumulative.mzn models/m_cumulative.dzn`

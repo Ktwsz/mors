@@ -1,4 +1,5 @@
 #include "lib.hpp"
+#include "parser_opts.hpp"
 
 #include <iostream>
 
@@ -10,31 +11,23 @@ namespace py = pybind11;
 
 int main(int argc, char **argv) {
 
-  std::string model_path;
-  std::vector<std::string> infiles;
-  std::string stdlib_dir;
-  bool verbose;
+  parser::ParserOpts opts{};
   bool help;
 
   auto cli =
-      (clipp::value("model.mzn", model_path),
-       clipp::opt_values("data.dzn", infiles),
-       clipp::option("--stdlib-dir") & clipp::value("dir", stdlib_dir),
-       clipp::option("--verbose").set(verbose),
+      (clipp::value("model.mzn", opts.model_path),
+       clipp::opt_values("data.dzn", opts.infiles),
+       clipp::option("--stdlib-dir") & clipp::value("dir", opts.stdlib_dir),
+       (clipp::option("-I", "--search-dir") & clipp::value("dir", opts.ortools_include_dir)).doc("Additionally search for included files in <dir>."),
+       clipp::option("--verbose").set(opts.verbose),
        clipp::option("-h", "--help").set(help).doc("Print this help message."));
 
-  if (!clipp::parse(argc, argv, cli))
+  if (!clipp::parse(argc, argv, cli) || help) {
     std::cout << clipp::make_man_page(cli, argv[0]);
+    return 0;
+  }
 
-  std::cout << help << std::endl;
-
-  if (help)
-    std::cout << clipp::make_man_page(cli, argv[0]);
-
-  return 0;
-
-  std::vector<std::string> args{"aaa", "bbb"};
-  auto const result = parser::main(args);
+  auto const result = parser::main(opts);
 
   py::scoped_interpreter _;
 

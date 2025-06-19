@@ -1,9 +1,10 @@
 #pragma once
 
 #include "ir.hpp"
+#include "parser_opts.hpp"
 
 namespace parser {
 
-IR::Data main(std::vector<std::string> &args);
+IR::Data main(ParserOpts &);
 
 } // namespace parser
