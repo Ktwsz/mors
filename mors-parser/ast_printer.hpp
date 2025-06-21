@@ -13,7 +13,6 @@ struct PrintModelVisitor {
 
   std::string input_model_path;
 
-
   static bool enterModel(MiniZinc::Model *);
   static bool enter(MiniZinc::Item * /*m*/);
 
@@ -32,11 +31,17 @@ struct PrintModelVisitor {
 
   void print_var_decl(MiniZinc::VarDecl *var_decl, int const indent);
 
+  void print_type_inst(MiniZinc::TypeInst *var_decl, int const indent);
+
   void print_fn_call(MiniZinc::Call *call, int const indent);
 
   void print_ite(MiniZinc::ITE *ite, int const indent);
 
   void print_let_expr(MiniZinc::Let *let, int const indent);
+
+  void print_int_lit(MiniZinc::IntLit *int_lit, int const indent);
+
+  void print_bin_op(MiniZinc::BinOp *bin_op, int const indent);
 
   void match_expr(MiniZinc::Expression *expr, int const indent = 0);
 };

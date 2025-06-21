@@ -54,16 +54,16 @@ IR::Data main(ParserOpts &opts) {
 
     PrintModelVisitor vis{model, flt.getEnv()->envi(), data, opts.model_path};
 
-    // std::cout << "--- VAR DECLS ---" << std::endl;
-    // for (auto &var_decl: model.vardecls()) {
-    //     vis.print_var_decl(var_decl.e(), 0);
-    // }
+    std::cout << "--- VAR DECLS ---" << std::endl;
+    for (auto &var_decl: model.vardecls()) {
+        vis.print_var_decl(var_decl.e(), 0);
+    }
 
-    fmt::println("--- AST ---");
-
-    MiniZinc::iter_items<PrintModelVisitor>(vis, &model);
-
-    fmt::println("-----------");
+    // fmt::println("--- AST ---");
+    //
+    // MiniZinc::iter_items<PrintModelVisitor>(vis, &model);
+    //
+    // fmt::println("-----------");
   } catch (MiniZinc::Exception const &e) {
     fmt::println("parsing failed: ");
     fmt::println("{}", e.msg());

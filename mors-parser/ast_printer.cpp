@@ -46,6 +46,12 @@ void PrintModelVisitor::vFunctionI(MiniZinc::FunctionI *functionI) {}
 
 void PrintModelVisitor::print_var_decl(MiniZinc::VarDecl *var_decl,
                                        int const indent) {
+  if (indent == 0 &&
+      !var_decl->item()->loc().filename().endsWith(input_model_path))
+    return;
+
+  data.ids.push_back(var_decl->id()->v().c_str());
+
   ind(indent);
   fmt::println("variable declaration");
 
@@ -53,13 +59,47 @@ void PrintModelVisitor::print_var_decl(MiniZinc::VarDecl *var_decl,
   fmt::println("id: {}", var_decl->id()->v().c_str());
 
   ind(indent + 2);
+  fmt::println("toplevel: {}", var_decl->toplevel());
+
+  ind(indent + 2);
+  fmt::println("introduced: {}", var_decl->introduced());
+
+  print_type_inst(var_decl->ti(), indent + 2);
+
+  ind(indent + 2);
   if (var_decl->item()->loc().filename().empty())
     fmt::println("loc: empty");
   else
-    fmt::println("loc: {}", var_decl->item()->loc().filename().empty());
+    fmt::println("loc: {}", var_decl->item()->loc().filename().c_str());
 
-  // if (varDecl->loc().filename().endsWith(input_model_path)) {
-  data.ids.push_back(var_decl->id()->v().c_str());
+  ind(indent + 2);
+  if (var_decl->e() == nullptr) {
+    fmt::println("expr: null");
+  } else {
+    fmt::println("expr: ");
+    match_expr(var_decl->e(), indent + 2);
+  }
+}
+
+void PrintModelVisitor::print_type_inst(MiniZinc::TypeInst *type_inst,
+                                        int const indent) {
+  ind(indent);
+  fmt::println("type:");
+
+  ind(indent + 2);
+  fmt::println("ranges:");
+
+  for (auto const &r : type_inst->ranges()) {
+    print_type_inst(r, indent + 4);
+  }
+
+  ind(indent + 2);
+  if (type_inst->domain() == nullptr) {
+    fmt::println("domain: null");
+  } else {
+    fmt::println("domain: ");
+    match_expr(type_inst->domain());
+  }
 }
 
 void PrintModelVisitor::print_fn_call(MiniZinc::Call *call, int const indent) {
@@ -114,12 +154,46 @@ void PrintModelVisitor::print_let_expr(MiniZinc::Let *let, int const indent) {
   fmt::print("\n");
 }
 
+void PrintModelVisitor::print_int_lit(MiniZinc::IntLit *int_lit,
+                                      int const indent) {
+  ind(indent + 2);
+  fmt::println("integer");
+  ind(indent + 2);
+  fmt::println("value: {}", MiniZinc::IntLit::v(int_lit).toInt());
+}
+
+void PrintModelVisitor::print_bin_op(MiniZinc::BinOp *bin_op,
+                                     int const indent) {
+  ind(indent);
+  fmt::println("Bin Op");
+
+  ind(indent + 2);
+  fmt::println("lhs: ");
+  match_expr(bin_op->lhs(), indent + 4);
+
+  ind(indent + 2);
+  fmt::print("op: ");
+  switch (bin_op->op()) {
+  case MiniZinc::BOT_DOTDOT: {
+    fmt::println("..");
+  }
+  default:
+    fmt::println("other");
+  }
+
+  ind(indent + 2);
+  fmt::println("rhs: ");
+  match_expr(bin_op->rhs(), indent + 4);
+}
+
 void PrintModelVisitor::match_expr(MiniZinc::Expression *expr,
                                    int const indent) {
   switch (MiniZinc::Expression::eid(expr)) {
-  case MiniZinc::Expression::E_INTLIT:
-    fmt::println("E_INTLIT");
+  case MiniZinc::Expression::E_INTLIT: {
+    auto *int_lit = MiniZinc::Expression::cast<MiniZinc::IntLit>(expr);
+    print_int_lit(int_lit, indent);
     break;
+  }
   case MiniZinc::Expression::E_FLOATLIT:
     fmt::println("E_FLOATLIT");
     break;
@@ -155,9 +229,11 @@ void PrintModelVisitor::match_expr(MiniZinc::Expression *expr,
     print_ite(ite, indent);
     break;
   }
-  case MiniZinc::Expression::E_BINOP:
-    fmt::println("E_BINOP");
+  case MiniZinc::Expression::E_BINOP: {
+    auto *bin_op = MiniZinc::Expression::cast<MiniZinc::BinOp>(expr);
+    print_bin_op(bin_op, indent);
     break;
+  }
   case MiniZinc::Expression::E_UNOP:
     fmt::println("E_UNOP");
     break;
