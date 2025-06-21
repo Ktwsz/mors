@@ -4,6 +4,7 @@
 #include <iostream>
 
 #include <clipp.h>
+#include <fmt/base.h>
 #include <pybind11/embed.h>
 #include <pybind11/pybind11.h>
 
@@ -18,7 +19,9 @@ int main(int argc, char **argv) {
       (clipp::value("model.mzn", opts.model_path),
        clipp::opt_values("data.dzn", opts.infiles),
        clipp::option("--stdlib-dir") & clipp::value("dir", opts.stdlib_dir),
-       (clipp::option("-I", "--search-dir") & clipp::value("dir", opts.ortools_include_dir)).doc("Additionally search for included files in <dir>."),
+       (clipp::option("-I", "--search-dir") &
+        clipp::value("dir", opts.ortools_include_dir))
+           .doc("Additionally search for included files in <dir>."),
        clipp::option("--verbose").set(opts.verbose),
        clipp::option("-h", "--help").set(help).doc("Print this help message."));
 
@@ -41,7 +44,7 @@ int main(int argc, char **argv) {
     hello_world(result);
 
   } catch (py::error_already_set e) {
-    std::cout << "python binding err:" << std::endl;
-    std::cout << e.what() << std::endl;
+    fmt::println("python binding err:");
+    fmt::println("{}", e.what());
   }
 }

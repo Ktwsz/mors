@@ -11,6 +11,8 @@ struct PrintModelVisitor {
   MiniZinc::EnvI &env;
   IR::Data &data;
 
+  std::string input_model_path;
+
 
   static bool enterModel(MiniZinc::Model *);
   static bool enter(MiniZinc::Item * /*m*/);

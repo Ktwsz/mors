@@ -1,10 +1,13 @@
 #include "ast_printer.hpp"
 
+#include <fmt/base.h>
+#include <fmt/format.h>
+
 namespace parser {
 namespace {
 void ind(int const indent) {
   for (int i = 0; i < indent; i += 2)
-    std::cout << "| ";
+    fmt::print("| ");
 }
 } // namespace
 
@@ -13,119 +16,139 @@ bool PrintModelVisitor::enterModel(MiniZinc::Model *) { return true; }
 bool PrintModelVisitor::enter(MiniZinc::Item * /*m*/) { return true; }
 
 void PrintModelVisitor::vIncludeI(MiniZinc::IncludeI *include) {
-  std::cout << "includeI: " << include->f().c_str() << std::endl;
+  fmt::println("includeI: {}", include->f().c_str());
 }
 
 void PrintModelVisitor::vVarDeclI(MiniZinc::VarDeclI *varDecl) {
-  if (!varDecl->loc().filename().empty() &&
-      varDecl->loc().filename().endsWith("cumulative.mzn")) {
-    match_expr(varDecl->e());
-  }
+  // if (varDecl->loc().filename().endsWith(input_model_path)) {
+  match_expr(varDecl->e());
+  // }
 }
 
 void PrintModelVisitor::vAssignI(MiniZinc::AssignI * /*ai*/) {
-  std::cout << "assignI" << std::endl;
+  fmt::println("assignI");
 }
 
 void PrintModelVisitor::vConstraintI(MiniZinc::ConstraintI *constraint) {
-  std::cout << "constraint expr" << std::endl;
+  fmt::println("constraint expr");
   match_expr(constraint->e());
 }
 
-void PrintModelVisitor::vSolveI(MiniZinc::SolveI * /*si*/) { std::cout << "solveI" << std::endl; }
+void PrintModelVisitor::vSolveI(MiniZinc::SolveI * /*si*/) {
+  fmt::println("solveI");
+}
 
 void PrintModelVisitor::vOutputI(MiniZinc::OutputI * /*oi*/) {
-  std::cout << "output expr" << std::endl;
+  fmt::println("output expr");
 }
 
-void PrintModelVisitor::vFunctionI(MiniZinc::FunctionI *functionI) {
-  /*std::cout << "functionI: id=" << functionI->id().c_str() << std::endl;*/
-}
+void PrintModelVisitor::vFunctionI(MiniZinc::FunctionI *functionI) {}
 
-void PrintModelVisitor::print_var_decl(MiniZinc::VarDecl *var_decl, int const indent) {
+void PrintModelVisitor::print_var_decl(MiniZinc::VarDecl *var_decl,
+                                       int const indent) {
   ind(indent);
-  std::cout << "variable declaration" << std::endl;
+  fmt::println("variable declaration");
+
   ind(indent + 2);
-  std::cout << "id: " << var_decl->id()->v().c_str() << std::endl;
+  fmt::println("id: {}", var_decl->id()->v().c_str());
+
+  ind(indent + 2);
+  if (var_decl->item()->loc().filename().empty())
+    fmt::println("loc: empty");
+  else
+    fmt::println("loc: {}", var_decl->item()->loc().filename().empty());
+
+  // if (varDecl->loc().filename().endsWith(input_model_path)) {
   data.ids.push_back(var_decl->id()->v().c_str());
 }
 
 void PrintModelVisitor::print_fn_call(MiniZinc::Call *call, int const indent) {
   auto const functionItem = model.matchFn(env, call, true, false);
+
   ind(indent);
-  std::cout << "function call" << std::endl;
+  fmt::println("function call");
+
   ind(indent + 2);
-  std::cout << "id: " << functionItem->id().c_str() << std::endl;
+  fmt::println("id: {}", functionItem->id().c_str());
+
   if (functionItem->e()) {
     ind(indent + 2);
-    std::cout << "function body: " << std::endl;
+    fmt::println("function body: ");
+
     match_expr(functionItem->e(), indent + 4);
   }
-  std::cout << std::endl;
+  fmt::print("\n");
 }
 
 void PrintModelVisitor::print_ite(MiniZinc::ITE *ite, int const indent) {
   for (unsigned int i = 0; i < ite->size(); i++) {
     ind(indent);
-    std::cout << "if-condition: ";
+    fmt::print("if-condition: ");
     match_expr(ite->ifExpr(i), indent + 2);
+
     ind(indent);
-    std::cout << "if-body: ";
+    fmt::print("if-body: ");
     match_expr(ite->thenExpr(i), indent + 2);
   }
+
   ind(indent);
-  std::cout << "else: " << std::endl;
+  fmt::print("else: ");
   match_expr(ite->elseExpr(), indent + 2);
 }
 
 void PrintModelVisitor::print_let_expr(MiniZinc::Let *let, int const indent) {
   ind(indent);
-  std::cout << "let: " << std::endl;
+  fmt::println("let: ");
+
   ind(indent + 2);
-  std::cout << "declarations: " << std::endl;
+  fmt::println("declarations");
+
   for (auto e : let->let()) {
     match_expr(e, indent + 4);
   }
+
   ind(indent);
-  std::cout << "in: " << std::endl;
+  fmt::println("in: ");
+
   match_expr(let->in(), indent + 2);
-  std::cout << std::endl;
+  fmt::print("\n");
 }
 
-void PrintModelVisitor::match_expr(MiniZinc::Expression *expr, int const indent) {
+void PrintModelVisitor::match_expr(MiniZinc::Expression *expr,
+                                   int const indent) {
   switch (MiniZinc::Expression::eid(expr)) {
   case MiniZinc::Expression::E_INTLIT:
-    std::cout << "E_INTLIT" << std::endl;
+    fmt::println("E_INTLIT");
     break;
   case MiniZinc::Expression::E_FLOATLIT:
-    std::cout << "E_FLOATLIT" << std::endl;
+    fmt::println("E_FLOATLIT");
     break;
   case MiniZinc::Expression::E_SETLIT:
-    std::cout << "E_SETLIT" << std::endl;
+    fmt::println("E_SETLIT");
     break;
   case MiniZinc::Expression::E_BOOLLIT:
-    std::cout << "E_BOOLLIT" << std::endl;
+    fmt::println("E_BOOLLIT");
     break;
   case MiniZinc::Expression::E_STRINGLIT:
-    std::cout << "E_STRINGLIT" << std::endl;
+    fmt::println("E_STRINGLIT");
     break;
   case MiniZinc::Expression::E_ID:
-    std::cout << "E_ID" << std::endl;
+    fmt::println("E_ID");
     break;
   case MiniZinc::Expression::E_ANON:
-    std::cout << "E_ANON" << std::endl;
+    fmt::println("E_ANON");
     break;
   case MiniZinc::Expression::E_ARRAYLIT:
-    std::cout << "E_ARRAYLIT" << std::endl;
+    fmt::println("E_ARRAYLIT");
     break;
   case MiniZinc::Expression::E_ARRAYACCESS:
-    std::cout << "E_ARRAYACCESS" << std::endl;
+    fmt::println("E_ARRAYACCESS");
     break;
   case MiniZinc::Expression::E_FIELDACCESS:
-    std::cout << "E_FIELDACCESS" << std::endl;
+    fmt::println("E_FIELDACCESS");
     break;
   case MiniZinc::Expression::E_COMP:
-    std::cout << "E_COMP" << std::endl;
+    fmt::println("E_COMP");
     break;
   case MiniZinc::Expression::E_ITE: {
     auto *ite = MiniZinc::Expression::cast<MiniZinc::ITE>(expr);
@@ -133,10 +156,10 @@ void PrintModelVisitor::match_expr(MiniZinc::Expression *expr, int const indent)
     break;
   }
   case MiniZinc::Expression::E_BINOP:
-    std::cout << "E_BINOP" << std::endl;
+    fmt::println("E_BINOP");
     break;
   case MiniZinc::Expression::E_UNOP:
-    std::cout << "E_UNOP" << std::endl;
+    fmt::println("E_UNOP");
     break;
   case MiniZinc::Expression::E_CALL: {
     auto *call = MiniZinc::Expression::cast<MiniZinc::Call>(expr);
@@ -154,10 +177,10 @@ void PrintModelVisitor::match_expr(MiniZinc::Expression *expr, int const indent)
     break;
   }
   case MiniZinc::Expression::E_TI:
-    std::cout << "E_TI" << std::endl;
+    fmt::println("E_TI");
     break;
   case MiniZinc::Expression::E_TIID:
-    std::cout << "E_TIID" << std::endl;
+    fmt::println("E_TIID");
     break;
   }
 }

@@ -2,11 +2,12 @@
 #include "ast_printer.hpp"
 
 #include <iostream>
+#include <string_view>
 
+#include <fmt/base.h>
 #include <minizinc/file_utils.hh>
 #include <minizinc/flattener.hh>
 #include <minizinc/solver_config.hh>
-#include <string_view>
 
 namespace parser {
 namespace flags {
@@ -24,14 +25,14 @@ IR::Data main(ParserOpts &opts) {
       opts.stdlib_dir = solver_configs.mznlibDir();
     }
     // TODO: log this for some debug flag
-    std::cout << "std path: " << opts.stdlib_dir << std::endl;
+    fmt::println("std path: {}", opts.stdlib_dir);
 
     if (opts.ortools_include_dir.empty()) {
       opts.ortools_include_dir =
           MiniZinc::FileUtils::file_path(opts.stdlib_dir + "/solvers/cp-sat");
     }
     // TODO: log this for some debug flag
-    std::cout << "OR-Tools path: " << opts.ortools_include_dir << std::endl;
+    fmt::println("OR-Tools path: {}", opts.ortools_include_dir);
 
     auto flt = MiniZinc::Flattener{std::cout, std::cerr, opts.stdlib_dir};
 
@@ -51,15 +52,21 @@ IR::Data main(ParserOpts &opts) {
 
     auto &model = *flt.getEnv()->model();
 
-    std::cout << "--- AST ---" << std::endl;
+    PrintModelVisitor vis{model, flt.getEnv()->envi(), data, opts.model_path};
 
-    PrintModelVisitor vis{model, flt.getEnv()->envi(), data};
+    // std::cout << "--- VAR DECLS ---" << std::endl;
+    // for (auto &var_decl: model.vardecls()) {
+    //     vis.print_var_decl(var_decl.e(), 0);
+    // }
+
+    fmt::println("--- AST ---");
+
     MiniZinc::iter_items<PrintModelVisitor>(vis, &model);
 
-    std::cout << "-----------" << std::endl;
+    fmt::println("-----------");
   } catch (MiniZinc::Exception const &e) {
-    std::cout << "parsing failed: " << std::endl;
-    std::cout << e.msg() << std::endl;
+    fmt::println("parsing failed: ");
+    fmt::println("{}", e.msg());
   }
   return data;
 }
