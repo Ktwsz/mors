@@ -3,7 +3,6 @@
 
 #include <iostream>
 
-#include <clipp.h>
 #include <fmt/base.h>
 #include <pybind11/embed.h>
 #include <pybind11/pybind11.h>
@@ -11,26 +10,14 @@
 namespace py = pybind11;
 
 int main(int argc, char **argv) {
+  auto const opts = parser::ParserOpts::create(argc, argv);
 
-  parser::ParserOpts opts{};
-  bool help;
-
-  auto cli =
-      (clipp::value("model.mzn", opts.model_path),
-       clipp::opt_values("data.dzn", opts.infiles),
-       clipp::option("--stdlib-dir") & clipp::value("dir", opts.stdlib_dir),
-       (clipp::option("-I", "--search-dir") &
-        clipp::value("dir", opts.ortools_include_dir))
-           .doc("Additionally search for included files in <dir>."),
-       clipp::option("--verbose").set(opts.verbose),
-       clipp::option("-h", "--help").set(help).doc("Print this help message."));
-
-  if (!clipp::parse(argc, argv, cli) || help) {
-    std::cout << clipp::make_man_page(cli, argv[0]);
+  if (!opts) {
+    std::cout << opts.error() << std::endl;
     return 0;
   }
 
-  auto const result = parser::main(opts);
+  auto const result = parser::main(opts.value());
 
   py::scoped_interpreter _;
 

@@ -5,9 +5,7 @@
 #include <string_view>
 
 #include <fmt/base.h>
-#include <minizinc/file_utils.hh>
 #include <minizinc/flattener.hh>
-#include <minizinc/solver_config.hh>
 
 namespace parser {
 namespace flags {
@@ -17,26 +15,18 @@ constexpr std::string_view instance_check_only = "--instance-check-only"sv;
 constexpr std::string_view include = "-I"sv;
 } // namespace flags
 
-IR::Data main(ParserOpts &opts) {
+IR::Data main(ParserOpts const& opts) {
   IR::Data data{};
   try {
-    if (opts.stdlib_dir.empty()) {
-      auto solver_configs = MiniZinc::SolverConfigs(std::cout);
-      opts.stdlib_dir = solver_configs.mznlibDir();
-    }
     // TODO: log this for some debug flag
     fmt::println("std path: {}", opts.stdlib_dir);
 
-    if (opts.ortools_include_dir.empty()) {
-      opts.ortools_include_dir =
-          MiniZinc::FileUtils::file_path(opts.stdlib_dir + "/solvers/cp-sat");
-    }
     // TODO: log this for some debug flag
     fmt::println("OR-Tools path: {}", opts.ortools_include_dir);
 
     auto flt = MiniZinc::Flattener{std::cout, std::cerr, opts.stdlib_dir};
 
-    std::vector<std::string> flattener_args{
+    std::vector<std::string> const flattener_args{
         opts.model_path, std::string{flags::instance_check_only},
         std::string{flags::include}, opts.ortools_include_dir};
 

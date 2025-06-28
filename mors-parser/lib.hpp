@@ -5,6 +5,6 @@
 
 namespace parser {
 
-IR::Data main(ParserOpts &);
+IR::Data main(ParserOpts const&);
 
 } // namespace parser
