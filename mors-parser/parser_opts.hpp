@@ -16,10 +16,10 @@ struct ParserOpts {
   bool verbose;
   bool help;
 
-  static std::expected<ParserOpts, clipp::man_page> create(int, char **);
+  static auto create(int, char**) -> std::expected<ParserOpts, clipp::man_page>;
 
 private:
-  static ParserOpts init();
+  static auto init() -> ParserOpts;
 };
 
 } // namespace parser

@@ -9,7 +9,7 @@
 
 namespace py = pybind11;
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   auto const opts = parser::ParserOpts::create(argc, argv);
 
   if (!opts) {

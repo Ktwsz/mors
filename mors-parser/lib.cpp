@@ -15,7 +15,7 @@ constexpr std::string_view instance_check_only = "--instance-check-only"sv;
 constexpr std::string_view include = "-I"sv;
 } // namespace flags
 
-IR::Data main(ParserOpts const& opts) {
+auto main(ParserOpts const& opts) -> IR::Data {
   IR::Data data{};
   try {
     // TODO: log this for some debug flag
@@ -40,13 +40,13 @@ IR::Data main(ParserOpts const& opts) {
 
     flt.flatten("", "stdin");
 
-    auto &model = *flt.getEnv()->model();
+    auto& model = *flt.getEnv()->model();
 
     PrintModelVisitor vis{model, flt.getEnv()->envi(), data, opts.model_path};
 
     std::cout << "--- VAR DECLS ---" << std::endl;
-    for (auto &var_decl: model.vardecls()) {
-        vis.print_var_decl(var_decl.e(), 0);
+    for (auto& var_decl : model.vardecls()) {
+      vis.print_var_decl(var_decl.e(), 0);
     }
 
     // fmt::println("--- AST ---");
@@ -54,7 +54,7 @@ IR::Data main(ParserOpts const& opts) {
     // MiniZinc::iter_items<PrintModelVisitor>(vis, &model);
     //
     // fmt::println("-----------");
-  } catch (MiniZinc::Exception const &e) {
+  } catch (MiniZinc::Exception const& e) {
     fmt::println("parsing failed: ");
     fmt::println("{}", e.msg());
   }

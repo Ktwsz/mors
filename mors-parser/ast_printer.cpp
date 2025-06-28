@@ -11,40 +11,40 @@ void ind(int const indent) {
 }
 } // namespace
 
-bool PrintModelVisitor::enterModel(MiniZinc::Model *) { return true; }
+bool PrintModelVisitor::enterModel(MiniZinc::Model*) { return true; }
 
-bool PrintModelVisitor::enter(MiniZinc::Item * /*m*/) { return true; }
+bool PrintModelVisitor::enter(MiniZinc::Item* /*m*/) { return true; }
 
-void PrintModelVisitor::vIncludeI(MiniZinc::IncludeI *include) {
+void PrintModelVisitor::vIncludeI(MiniZinc::IncludeI* include) {
   fmt::println("includeI: {}", include->f().c_str());
 }
 
-void PrintModelVisitor::vVarDeclI(MiniZinc::VarDeclI *varDecl) {
+void PrintModelVisitor::vVarDeclI(MiniZinc::VarDeclI* varDecl) {
   // if (varDecl->loc().filename().endsWith(input_model_path)) {
   match_expr(varDecl->e());
   // }
 }
 
-void PrintModelVisitor::vAssignI(MiniZinc::AssignI * /*ai*/) {
+void PrintModelVisitor::vAssignI(MiniZinc::AssignI* /*ai*/) {
   fmt::println("assignI");
 }
 
-void PrintModelVisitor::vConstraintI(MiniZinc::ConstraintI *constraint) {
+void PrintModelVisitor::vConstraintI(MiniZinc::ConstraintI* constraint) {
   fmt::println("constraint expr");
   match_expr(constraint->e());
 }
 
-void PrintModelVisitor::vSolveI(MiniZinc::SolveI * /*si*/) {
+void PrintModelVisitor::vSolveI(MiniZinc::SolveI* /*si*/) {
   fmt::println("solveI");
 }
 
-void PrintModelVisitor::vOutputI(MiniZinc::OutputI * /*oi*/) {
+void PrintModelVisitor::vOutputI(MiniZinc::OutputI* /*oi*/) {
   fmt::println("output expr");
 }
 
-void PrintModelVisitor::vFunctionI(MiniZinc::FunctionI *functionI) {}
+void PrintModelVisitor::vFunctionI(MiniZinc::FunctionI* functionI) {}
 
-void PrintModelVisitor::print_var_decl(MiniZinc::VarDecl *var_decl,
+void PrintModelVisitor::print_var_decl(MiniZinc::VarDecl* var_decl,
                                        int const indent) {
   if (indent == 0 &&
       !var_decl->item()->loc().filename().endsWith(input_model_path))
@@ -81,7 +81,7 @@ void PrintModelVisitor::print_var_decl(MiniZinc::VarDecl *var_decl,
   }
 }
 
-void PrintModelVisitor::print_type_inst(MiniZinc::TypeInst *type_inst,
+void PrintModelVisitor::print_type_inst(MiniZinc::TypeInst* type_inst,
                                         int const indent) {
   ind(indent);
   fmt::println("type:");
@@ -89,7 +89,7 @@ void PrintModelVisitor::print_type_inst(MiniZinc::TypeInst *type_inst,
   ind(indent + 2);
   fmt::println("ranges:");
 
-  for (auto const &r : type_inst->ranges()) {
+  for (auto const& r : type_inst->ranges()) {
     print_type_inst(r, indent + 4);
   }
 
@@ -102,7 +102,7 @@ void PrintModelVisitor::print_type_inst(MiniZinc::TypeInst *type_inst,
   }
 }
 
-void PrintModelVisitor::print_fn_call(MiniZinc::Call *call, int const indent) {
+void PrintModelVisitor::print_fn_call(MiniZinc::Call* call, int const indent) {
   auto const functionItem = model.matchFn(env, call, true, false);
 
   ind(indent);
@@ -120,7 +120,7 @@ void PrintModelVisitor::print_fn_call(MiniZinc::Call *call, int const indent) {
   fmt::print("\n");
 }
 
-void PrintModelVisitor::print_ite(MiniZinc::ITE *ite, int const indent) {
+void PrintModelVisitor::print_ite(MiniZinc::ITE* ite, int const indent) {
   for (unsigned int i = 0; i < ite->size(); i++) {
     ind(indent);
     fmt::print("if-condition: ");
@@ -136,7 +136,7 @@ void PrintModelVisitor::print_ite(MiniZinc::ITE *ite, int const indent) {
   match_expr(ite->elseExpr(), indent + 2);
 }
 
-void PrintModelVisitor::print_let_expr(MiniZinc::Let *let, int const indent) {
+void PrintModelVisitor::print_let_expr(MiniZinc::Let* let, int const indent) {
   ind(indent);
   fmt::println("let: ");
 
@@ -154,7 +154,7 @@ void PrintModelVisitor::print_let_expr(MiniZinc::Let *let, int const indent) {
   fmt::print("\n");
 }
 
-void PrintModelVisitor::print_int_lit(MiniZinc::IntLit *int_lit,
+void PrintModelVisitor::print_int_lit(MiniZinc::IntLit* int_lit,
                                       int const indent) {
   ind(indent + 2);
   fmt::println("integer");
@@ -162,7 +162,7 @@ void PrintModelVisitor::print_int_lit(MiniZinc::IntLit *int_lit,
   fmt::println("value: {}", MiniZinc::IntLit::v(int_lit).toInt());
 }
 
-void PrintModelVisitor::print_bin_op(MiniZinc::BinOp *bin_op,
+void PrintModelVisitor::print_bin_op(MiniZinc::BinOp* bin_op,
                                      int const indent) {
   ind(indent);
   fmt::println("Bin Op");
@@ -186,11 +186,11 @@ void PrintModelVisitor::print_bin_op(MiniZinc::BinOp *bin_op,
   match_expr(bin_op->rhs(), indent + 4);
 }
 
-void PrintModelVisitor::match_expr(MiniZinc::Expression *expr,
+void PrintModelVisitor::match_expr(MiniZinc::Expression* expr,
                                    int const indent) {
   switch (MiniZinc::Expression::eid(expr)) {
   case MiniZinc::Expression::E_INTLIT: {
-    auto *int_lit = MiniZinc::Expression::cast<MiniZinc::IntLit>(expr);
+    auto* int_lit = MiniZinc::Expression::cast<MiniZinc::IntLit>(expr);
     print_int_lit(int_lit, indent);
     break;
   }
@@ -225,12 +225,12 @@ void PrintModelVisitor::match_expr(MiniZinc::Expression *expr,
     fmt::println("E_COMP");
     break;
   case MiniZinc::Expression::E_ITE: {
-    auto *ite = MiniZinc::Expression::cast<MiniZinc::ITE>(expr);
+    auto* ite = MiniZinc::Expression::cast<MiniZinc::ITE>(expr);
     print_ite(ite, indent);
     break;
   }
   case MiniZinc::Expression::E_BINOP: {
-    auto *bin_op = MiniZinc::Expression::cast<MiniZinc::BinOp>(expr);
+    auto* bin_op = MiniZinc::Expression::cast<MiniZinc::BinOp>(expr);
     print_bin_op(bin_op, indent);
     break;
   }
@@ -238,17 +238,17 @@ void PrintModelVisitor::match_expr(MiniZinc::Expression *expr,
     fmt::println("E_UNOP");
     break;
   case MiniZinc::Expression::E_CALL: {
-    auto *call = MiniZinc::Expression::cast<MiniZinc::Call>(expr);
+    auto* call = MiniZinc::Expression::cast<MiniZinc::Call>(expr);
     print_fn_call(call, indent);
     break;
   }
   case MiniZinc::Expression::E_VARDECL: {
-    auto *varDecl = MiniZinc::Expression::cast<MiniZinc::VarDecl>(expr);
+    auto* varDecl = MiniZinc::Expression::cast<MiniZinc::VarDecl>(expr);
     print_var_decl(varDecl, indent);
     break;
   }
   case MiniZinc::Expression::E_LET: {
-    auto *let = MiniZinc::Expression::cast<MiniZinc::Let>(expr);
+    auto* let = MiniZinc::Expression::cast<MiniZinc::Let>(expr);
     print_let_expr(let, indent);
     break;
   }
