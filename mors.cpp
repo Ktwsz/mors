@@ -1,7 +1,7 @@
 #include "lib.hpp"
 #include "parser_opts.hpp"
 
-#include <iostream>
+#include <sstream>
 
 #include <fmt/base.h>
 #include <pybind11/embed.h>
@@ -13,11 +13,22 @@ int main(int argc, char** argv) {
   auto const opts = parser::ParserOpts::create(argc, argv);
 
   if (!opts) {
-    std::cout << opts.error() << std::endl;
+    std::stringstream man_page;
+    man_page << opts.error();
+    fmt::println("{}", man_page.view());
     return 0;
   }
 
-  auto const result = parser::main(opts.value());
+  opts->dump_warnings();
+  auto const result = parser::main(*opts);
+
+  if (!result) {
+      // TODO: dump error
+      return 0;
+  }
+
+  if (opts->print_ast)
+      return 0;
 
   py::scoped_interpreter _;
 
@@ -28,7 +39,7 @@ int main(int argc, char** argv) {
         py::module_::import("emitter").attr("hello_world");
     auto parser_python = py::module::import("ir_python");
 
-    hello_world(result);
+    hello_world(*result);
 
   } catch (py::error_already_set e) {
     fmt::println("python binding err:");

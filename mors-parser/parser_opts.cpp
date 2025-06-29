@@ -1,5 +1,6 @@
 #include "parser_opts.hpp"
 
+#include <fmt/base.h>
 #include <fmt/format.h>
 #include <minizinc/file_utils.hh>
 #include <minizinc/solver_config.hh>
@@ -19,6 +20,7 @@ auto defineCli(ParserOpts& opts) -> clipp::group {
               "Additionally search for included files in <dir>. Default: {}",
               opts.ortools_include_dir)),
       clipp::option("--verbose").set(opts.verbose),
+      clipp::option("--print-ast").set(opts.print_ast),
       clipp::option("-h", "--help")
           .set(opts.help)
           .doc("Print this help message."));
@@ -40,7 +42,7 @@ auto ParserOpts::create(int argc, char** argv)
 auto ParserOpts::init() -> ParserOpts {
   auto opts = ParserOpts{};
 
-  auto solver_configs = MiniZinc::SolverConfigs(std::cout);
+  auto solver_configs = MiniZinc::SolverConfigs(opts.logs);
 
   opts.stdlib_dir = solver_configs.mznlibDir();
 
@@ -48,5 +50,11 @@ auto ParserOpts::init() -> ParserOpts {
       MiniZinc::FileUtils::file_path(opts.stdlib_dir + "/solvers/cp-sat");
 
   return opts;
+}
+
+void ParserOpts::dump_warnings() const {
+  auto const logs_view = logs.view();
+  if (!logs_view.empty())
+    fmt::println("MiniZinc SolverConfigs returned warnings:\n{}", logs_view);
 }
 } // namespace parser
