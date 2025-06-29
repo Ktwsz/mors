@@ -20,3 +20,5 @@ target_include_directories(mors-parser PUBLIC "${PROJECT_SOURCE_DIR}/ir")
 target_link_libraries(mors-parser ${EXTERNAL_INSTALL_LOCATION}/lib/libmzn.a
                                   fmt::fmt
                                   clipp::clipp)
+
+target_compile_options(mors-parser PRIVATE -Wall -Wextra -Wpedantic) # TODO: fix compilations errors -Werror

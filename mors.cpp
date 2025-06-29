@@ -41,7 +41,7 @@ int main(int argc, char** argv) {
 
     hello_world(*result);
 
-  } catch (py::error_already_set e) {
+  } catch (py::error_already_set const& e) {
     fmt::println("python binding err:");
     fmt::println("{}", e.what());
   }

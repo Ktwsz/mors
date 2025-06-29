@@ -25,4 +25,6 @@ target_include_directories(mors PUBLIC "${PROJECT_BINARY_DIR}"
                                        "${PROJECT_SOURCE_DIR}/mors-parser"
                                        ${Python3_INCLUDE_DIRS})
 
+target_compile_options(mors PRIVATE -Wall -Wextra -Wpedantic -Werror)
+
 
