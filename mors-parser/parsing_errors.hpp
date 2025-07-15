@@ -3,18 +3,19 @@
 #include <sstream>
 #include <variant>
 
-namespace parser {
+namespace parser::err {
 
 struct InvalidFlag {
-  std::stringstream os, log;
+  std::ostringstream os, log;
 };
 
 struct MznParsingError {
-  std::stringstream os, log;
+  std::ostringstream os, log;
   std::string msg;
 };
 
-using ParsingError = std::variant<MznParsingError, InvalidFlag>;
-// TODO: write visitor for error
+using Error = std::variant<MznParsingError, InvalidFlag>;
 
-} // namespace parser
+void print_message(Error const& e);
+
+} // namespace parser::err

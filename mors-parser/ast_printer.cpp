@@ -176,6 +176,7 @@ void PrintModelVisitor::print_bin_op(MiniZinc::BinOp* bin_op,
   switch (bin_op->op()) {
   case MiniZinc::BOT_DOTDOT: {
     fmt::println("..");
+    break;
   }
   default:
     fmt::println("other");

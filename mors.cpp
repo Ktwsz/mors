@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
   auto const result = parser::main(*opts);
 
   if (!result) {
-      // TODO: dump error
+      parser::err::print_message(result.error());
       return 0;
   }
 

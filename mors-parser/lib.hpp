@@ -7,6 +7,6 @@
 
 namespace parser {
 
-auto main(ParserOpts const&) -> std::expected<IR::Data, ParsingError>;
+auto main(ParserOpts const&) -> std::expected<IR::Data, err::Error>;
 
 } // namespace parser
