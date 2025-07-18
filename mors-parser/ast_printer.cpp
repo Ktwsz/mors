@@ -50,8 +50,6 @@ void PrintModelVisitor::print_var_decl(MiniZinc::VarDecl* var_decl,
       !var_decl->item()->loc().filename().endsWith(input_model_path))
     return;
 
-  data.ids.push_back(var_decl->id()->v().c_str());
-
   ind(indent);
   fmt::println("variable declaration");
 
@@ -98,7 +96,7 @@ void PrintModelVisitor::print_type_inst(MiniZinc::TypeInst* type_inst,
     fmt::println("domain: null");
   } else {
     fmt::println("domain: ");
-    match_expr(type_inst->domain());
+    match_expr(type_inst->domain(), indent + 4);
   }
 }
 

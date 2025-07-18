@@ -23,12 +23,12 @@ int main(int argc, char** argv) {
   auto const result = parser::main(*opts);
 
   if (!result) {
-      parser::err::print_message(result.error());
-      return 0;
+    parser::err::print_message(result.error());
+    return 0;
   }
 
   if (opts->print_ast)
-      return 0;
+    return 0;
 
   py::scoped_interpreter _;
 

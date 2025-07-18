@@ -1,7 +1,5 @@
 #pragma once
 
-#include "ir.hpp"
-
 #include <minizinc/model.hh>
 
 namespace parser {
@@ -9,7 +7,6 @@ namespace parser {
 struct PrintModelVisitor {
   MiniZinc::Model const& model;
   MiniZinc::EnvI& env;
-  IR::Data& data;
 
   std::string input_model_path;
 

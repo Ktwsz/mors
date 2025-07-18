@@ -68,10 +68,9 @@ auto main(ParserOpts const& opts) -> std::expected<IR::Data, err::Error> {
   if (auto const warnings_view = flattener_log.view(); !warnings_view.empty())
     fmt::println("MiniZinc Parser returned warnings:\n{}", warnings_view);
 
-  IR::Data data{};
   if (opts.print_ast) {
     auto& model = *flt.getEnv()->model();
-    PrintModelVisitor vis{model, flt.getEnv()->envi(), data, opts.model_path};
+    PrintModelVisitor vis{model, flt.getEnv()->envi(), opts.model_path};
 
     std::cout << "--- VAR DECLS ---" << std::endl;
     for (auto& var_decl : model.vardecls()) {
@@ -85,6 +84,7 @@ auto main(ParserOpts const& opts) -> std::expected<IR::Data, err::Error> {
     // fmt::println("-----------");
   }
 
+  // TODO
   return data;
 }
 
