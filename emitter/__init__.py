@@ -1,8 +1,8 @@
-from ir_python import Data
+from ir_python import Tree
 
-def hello_world(data: Data):
+def hello_world(tree: Tree):
     print("hello from python")
-    for id in data.ids:
-        print(id)
+    for decl in tree.decls:
+        print(decl.type(), decl.id)
 
 

@@ -1,6 +1,8 @@
 #include "transformer.hpp"
 #include "ast.hpp"
-#include "minizinc/type.hh"
+
+#include <fmt/base.h>
+#include <minizinc/type.hh>
 
 namespace parser {
 namespace {
@@ -22,15 +24,32 @@ auto resolve_expr_type(MiniZinc::Expression* expr) -> ast::Type {
     return ast::types::Int{};
   }
   default:
-    return ast::types::Int{};
+    assert(false);
+  }
+}
+} // namespace
+
+auto Transformer::handle_domain(MiniZinc::BinOp* bin_op) -> ast::Domain {
+  switch (bin_op->op()) {
+  case MiniZinc::BOT_DOTDOT: {
+    return ast::Domain{.lower = map_expr(bin_op->lhs()),
+                       .upper = map_expr(bin_op->rhs())};
+  }
+  default:
+    assert(false);
   }
 }
 
-auto resolve_domain(MiniZinc::Expression* expr) -> ast::Domain {
-  // TODO
-  return ast::Domain{};
+auto Transformer::handle_domain(MiniZinc::Expression* expr) -> ast::Domain {
+  switch (MiniZinc::Expression::eid(expr)) {
+  case MiniZinc::Expression::E_BINOP: {
+    auto* bin_op = MiniZinc::Expression::cast<MiniZinc::BinOp>(expr);
+    return handle_domain(bin_op);
+  }
+  default:
+    assert(false);
+  }
 }
-} // namespace
 
 auto Transformer::handle_const_decl(MiniZinc::VarDecl* var_decl)
     -> ast::ASTNode {
@@ -42,8 +61,7 @@ auto Transformer::handle_const_decl(MiniZinc::VarDecl* var_decl)
 auto Transformer::handle_var_decl(MiniZinc::VarDecl* var_decl) -> ast::ASTNode {
   assert(var_decl->ti()->domain() != nullptr);
   return ast::DeclVariable{.id = std::string{var_decl->id()->v().c_str()},
-                           .type = resolve_expr_type(var_decl->e()),
-                           .domain = resolve_domain(var_decl->ti()->domain())};
+                           .domain = handle_domain(var_decl->ti()->domain())};
 }
 
 auto Transformer::map_vardecl(MiniZinc::VarDecl* var_decl)
@@ -67,6 +85,10 @@ auto Transformer::map_expr(MiniZinc::Expression* expr) -> ast::Expr {
 
     return ast::LiteralInt{value.toInt()};
   }
+  case MiniZinc::Expression::E_ID: {
+    auto* id = MiniZinc::Expression::cast<MiniZinc::Id>(expr);
+    return ast::IdExpr{std::string{id->v().c_str()}};
+  }
   // case MiniZinc::Expression::E_FLOATLIT:
   //   fmt::println("E_FLOATLIT");
   //   break;
@@ -78,9 +100,6 @@ auto Transformer::map_expr(MiniZinc::Expression* expr) -> ast::Expr {
   //   break;
   // case MiniZinc::Expression::E_STRINGLIT:
   //   fmt::println("E_STRINGLIT");
-  //   break;
-  // case MiniZinc::Expression::E_ID:
-  //   fmt::println("E_ID");
   //   break;
   // case MiniZinc::Expression::E_ANON:
   //   fmt::println("E_ANON");
@@ -133,7 +152,7 @@ auto Transformer::map_expr(MiniZinc::Expression* expr) -> ast::Expr {
   //   break;
   // }
   default:
-    return ast::LiteralInt{};
+    assert(false);
   }
 }
 

@@ -205,9 +205,12 @@ void PrintModelVisitor::match_expr(MiniZinc::Expression* expr,
   case MiniZinc::Expression::E_STRINGLIT:
     fmt::println("E_STRINGLIT");
     break;
-  case MiniZinc::Expression::E_ID:
-    fmt::println("E_ID");
+  case MiniZinc::Expression::E_ID: {
+    auto* id = MiniZinc::Expression::cast<MiniZinc::Id>(expr);
+    ind(indent + 2);
+    fmt::println("E_ID: {}", id->v().c_str());
     break;
+  }
   case MiniZinc::Expression::E_ANON:
     fmt::println("E_ANON");
     break;

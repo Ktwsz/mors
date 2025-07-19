@@ -16,10 +16,11 @@ include_directories(${EXTERNAL_INSTALL_LOCATION}/include)
 add_library(mors-parser STATIC lib.cpp 
                                ast_printer.cpp 
                                parser_opts.cpp 
-                               parsing_errors.cpp)
+                               parsing_errors.cpp
+                               transformer.cpp)
 
 add_dependencies(mors-parser libminizinc)
-target_include_directories(mors-parser PUBLIC "${PROJECT_SOURCE_DIR}/ir")
+# target_include_directories(mors-parser PUBLIC "${PROJECT_SOURCE_DIR}/ir")
 target_link_libraries(mors-parser ${EXTERNAL_INSTALL_LOCATION}/lib/libmzn.a
                                   fmt::fmt
                                   clipp::clipp)

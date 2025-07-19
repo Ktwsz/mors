@@ -1,7 +1,9 @@
 #include "lib.hpp"
 #include "ast_printer.hpp"
+#include "transformer.hpp"
 
 #include <iostream>
+#include <ranges>
 #include <sstream>
 #include <string_view>
 
@@ -18,7 +20,7 @@ constexpr std::string_view include = "-I"sv;
 constexpr std::string_view verbose = "-v"sv;
 } // namespace flags
 
-auto main(ParserOpts const& opts) -> std::expected<IR::Data, err::Error> {
+auto main(ParserOpts const& opts) -> std::expected<ast::Tree, err::Error> {
   if (opts.verbose)
     fmt::println("std path: {}", opts.stdlib_dir);
 
@@ -68,8 +70,9 @@ auto main(ParserOpts const& opts) -> std::expected<IR::Data, err::Error> {
   if (auto const warnings_view = flattener_log.view(); !warnings_view.empty())
     fmt::println("MiniZinc Parser returned warnings:\n{}", warnings_view);
 
+  auto& model = *flt.getEnv()->model();
+
   if (opts.print_ast) {
-    auto& model = *flt.getEnv()->model();
     PrintModelVisitor vis{model, flt.getEnv()->envi(), opts.model_path};
 
     std::cout << "--- VAR DECLS ---" << std::endl;
@@ -82,10 +85,27 @@ auto main(ParserOpts const& opts) -> std::expected<IR::Data, err::Error> {
     // MiniZinc::iter_items<PrintModelVisitor>(vis, &model);
     //
     // fmt::println("-----------");
+    // TODO: separate ast printing from this function
+    return std::unexpected{err::MznParsingError{}};
   }
 
-  // TODO
-  return data;
+  Transformer transformer{.model = model,
+                          .env = flt.getEnv()->envi(),
+                          .input_model_path = opts.model_path};
+
+  ast::Tree tree;
+  for (auto& var_decl : model.vardecls()) {
+    if (auto const decl = transformer.map_vardecl(var_decl.e()); decl)
+      tree.decls.push_back(*decl);
+  }
+  // auto const decls = model.vardecls() |
+  //                    std::views::transform([&](MiniZinc::VarDeclI& var_decl)
+  //                    {
+  //                      return transformer.map_vardecl(var_decl.e());
+  //                    }) |
+  //                    std::ranges::to<std::vector<ast::ASTNode>>;
+
+  return tree;
 }
 
 } // namespace parser

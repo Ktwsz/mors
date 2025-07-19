@@ -3,11 +3,22 @@
 #include <optional>
 #include <string>
 #include <variant>
+#include <vector>
 
 namespace parser::ast {
 
+struct LiteralInt {
+  long long value;
+};
+
+struct IdExpr {
+  std::string id;
+};
+
+using Expr = std::variant<LiteralInt, IdExpr>;
+
 struct Domain {
-  int lower, upper;
+  Expr lower, upper;
 };
 
 namespace types {
@@ -16,15 +27,8 @@ struct Int {};
 
 using Type = std::variant<types::Int>;
 
-struct LiteralInt {
-  long long value;
-};
-
-using Expr = std::variant<LiteralInt>;
-
 struct DeclVariable {
   std::string id;
-  Type type;
 
   std::optional<Domain> domain;
 };
@@ -37,6 +41,10 @@ struct DeclConst {
 };
 
 using ASTNode = std::variant<DeclVariable, DeclConst>;
+
+struct Tree {
+  std::vector<ASTNode> decls;
+};
 // case MiniZinc::Expression::E_INTLIT
 // case MiniZinc::Expression::E_FLOATLIT:
 // case MiniZinc::Expression::E_SETLIT:
