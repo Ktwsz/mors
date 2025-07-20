@@ -95,15 +95,9 @@ auto main(ParserOpts const& opts) -> std::expected<ast::Tree, err::Error> {
 
   ast::Tree tree;
   for (auto& var_decl : model.vardecls()) {
-    if (auto const decl = transformer.map_vardecl(var_decl.e()); decl)
+    if (auto const decl = transformer.map(var_decl.e()); decl)
       tree.decls.push_back(*decl);
   }
-  // auto const decls = model.vardecls() |
-  //                    std::views::transform([&](MiniZinc::VarDeclI& var_decl)
-  //                    {
-  //                      return transformer.map_vardecl(var_decl.e());
-  //                    }) |
-  //                    std::ranges::to<std::vector<ast::ASTNode>>;
 
   return tree;
 }

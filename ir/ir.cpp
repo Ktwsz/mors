@@ -7,55 +7,29 @@ namespace IR {
 
 namespace py = pybind11;
 
-// struct LiteralInt {
-//   long long value;
-// };
-//
-// using Expr = std::variant<LiteralInt>;
-//
-// struct Domain {
-//   Expr lower, upper;
-// };
-//
-// namespace types {
-// struct Int {};
-// } // namespace types
-//
-// using Type = std::variant<types::Int>;
-//
-//
-// struct DeclVariable {
-//   std::string id;
-//   Type type;
-//
-//   std::optional<Domain> domain;
-// };
-//
-// struct DeclConst {
-//   std::string id;
-//   Type type;
-//
-//   Expr value;
-// };
-//
-// using ASTNode = std::variant<DeclVariable, DeclConst>;
-//
-// struct Tree {
-//     std::vector<ASTNode> decls;
-// };
-
 namespace ast = parser::ast;
 
 PYBIND11_MODULE(ir_python, m) {
+  py::class_<ast::LiteralInt>(m, "LiteralInt")
+      .def_readwrite("value", &ast::LiteralInt::value);
+
+  py::class_<ast::IdExpr>(m, "IdExpr").def_readwrite("id", &ast::IdExpr::id);
+
+  py::class_<ast::Domain>(m, "Domain")
+      .def_readwrite("lower", &ast::Domain::lower)
+      .def_readwrite("upper", &ast::Domain::upper);
+
   py::class_<ast::DeclVariable>(m, "DeclVariable")
-      .def("type", [](ast::ASTNode const& node) { return "var"; })
-      .def_readwrite("id", &ast::DeclVariable::id);
+      .def_readwrite("id", &ast::DeclVariable::id)
+      .def_readwrite("domain", &ast::DeclVariable::domain);
+
+  py::class_<ast::types::Int>(m, "TypeInt")
+      .def("type", [](ast::types::Int const&) { return "int"; });
 
   py::class_<ast::DeclConst>(m, "DeclConst")
-      .def("type", [](ast::ASTNode const& node) { return "const"; })
-      .def_readwrite("id", &ast::DeclConst::id);
-
-  // py::class_<ast::ASTNode>(m, "ASTNode");
+      .def_readwrite("id", &ast::DeclConst::id)
+      .def_readwrite("type", &ast::DeclConst::type)
+      .def_readwrite("value", &ast::DeclConst::value);
 
   py::class_<ast::Tree>(m, "Tree").def_readwrite("decls", &ast::Tree::decls);
 }

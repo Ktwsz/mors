@@ -15,8 +15,8 @@ struct Transformer {
 
   std::string input_model_path;
 
-  auto map_vardecl(MiniZinc::VarDecl*) -> std::optional<ast::ASTNode>;
-  auto map_expr(MiniZinc::Expression*) -> ast::Expr;
+  auto map(MiniZinc::VarDecl*) -> std::optional<ast::ASTNode>;
+  auto map(MiniZinc::Expression*) -> ast::Expr;
 
 private:
   auto handle_const_decl(MiniZinc::VarDecl* var_decl) -> ast::ASTNode;

@@ -32,8 +32,8 @@ auto resolve_expr_type(MiniZinc::Expression* expr) -> ast::Type {
 auto Transformer::handle_domain(MiniZinc::BinOp* bin_op) -> ast::Domain {
   switch (bin_op->op()) {
   case MiniZinc::BOT_DOTDOT: {
-    return ast::Domain{.lower = map_expr(bin_op->lhs()),
-                       .upper = map_expr(bin_op->rhs())};
+    return ast::Domain{.lower = map(bin_op->lhs()),
+                       .upper = map(bin_op->rhs())};
   }
   default:
     assert(false);
@@ -55,7 +55,7 @@ auto Transformer::handle_const_decl(MiniZinc::VarDecl* var_decl)
     -> ast::ASTNode {
   return ast::DeclConst{.id = std::string{var_decl->id()->v().c_str()},
                         .type = resolve_expr_type(var_decl->e()),
-                        .value = map_expr(var_decl->e())};
+                        .value = map(var_decl->e())};
 }
 
 auto Transformer::handle_var_decl(MiniZinc::VarDecl* var_decl) -> ast::ASTNode {
@@ -64,7 +64,7 @@ auto Transformer::handle_var_decl(MiniZinc::VarDecl* var_decl) -> ast::ASTNode {
                            .domain = handle_domain(var_decl->ti()->domain())};
 }
 
-auto Transformer::map_vardecl(MiniZinc::VarDecl* var_decl)
+auto Transformer::map(MiniZinc::VarDecl* var_decl)
     -> std::optional<ast::ASTNode> {
   if (!var_decl->item()->loc().filename().endsWith(input_model_path))
     return std::nullopt;
@@ -75,7 +75,7 @@ auto Transformer::map_vardecl(MiniZinc::VarDecl* var_decl)
   return handle_var_decl(var_decl);
 }
 
-auto Transformer::map_expr(MiniZinc::Expression* expr) -> ast::Expr {
+auto Transformer::map(MiniZinc::Expression* expr) -> ast::Expr {
   switch (MiniZinc::Expression::eid(expr)) {
   case MiniZinc::Expression::E_INTLIT: {
     auto const* int_lit = MiniZinc::Expression::cast<MiniZinc::IntLit>(expr);
