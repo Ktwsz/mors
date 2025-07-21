@@ -80,6 +80,11 @@ auto main(ParserOpts const& opts) -> std::expected<ast::Tree, err::Error> {
       vis.print_var_decl(var_decl.e(), 0);
     }
 
+    std::cout << "--- CONSTRAINTS ---" << std::endl;
+    for (auto& constraint : model.constraints()) {
+      vis.match_expr(constraint.e(), 0);
+    }
+
     // fmt::println("--- AST ---");
     //
     // MiniZinc::iter_items<PrintModelVisitor>(vis, &model);
@@ -95,8 +100,15 @@ auto main(ParserOpts const& opts) -> std::expected<ast::Tree, err::Error> {
 
   ast::Tree tree;
   for (auto& var_decl : model.vardecls()) {
-    if (auto const decl = transformer.map(var_decl.e()); decl)
-      tree.decls.push_back(*decl);
+    if (auto decl = transformer.map(var_decl.e()); decl) {
+      tree.decls.push_back(std:: move(*decl));
+    }
+  }
+
+  for (auto& constraint : model.constraints()) {
+    if (auto mapped_constraint = transformer.map(constraint.e()); mapped_constraint) {
+      tree.constraints.push_back(std::move(*mapped_constraint));
+    }
   }
 
   return tree;

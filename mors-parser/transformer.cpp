@@ -3,6 +3,7 @@
 
 #include <fmt/base.h>
 #include <minizinc/type.hh>
+#include <utility>
 
 namespace parser {
 namespace {
@@ -29,43 +30,25 @@ auto resolve_expr_type(MiniZinc::Expression* expr) -> ast::Type {
 }
 } // namespace
 
-auto Transformer::handle_domain(MiniZinc::BinOp* bin_op) -> ast::Domain {
-  switch (bin_op->op()) {
-  case MiniZinc::BOT_DOTDOT: {
-    return ast::Domain{.lower = map(bin_op->lhs()),
-                       .upper = map(bin_op->rhs())};
-  }
-  default:
-    assert(false);
-  }
-}
-
-auto Transformer::handle_domain(MiniZinc::Expression* expr) -> ast::Domain {
-  switch (MiniZinc::Expression::eid(expr)) {
-  case MiniZinc::Expression::E_BINOP: {
-    auto* bin_op = MiniZinc::Expression::cast<MiniZinc::BinOp>(expr);
-    return handle_domain(bin_op);
-  }
-  default:
-    assert(false);
-  }
-}
-
 auto Transformer::handle_const_decl(MiniZinc::VarDecl* var_decl)
-    -> ast::ASTNode {
+    -> ast::VarDecl {
+  auto value = map(var_decl->e());
+  if (!value)
+    assert(false);
+
   return ast::DeclConst{.id = std::string{var_decl->id()->v().c_str()},
                         .type = resolve_expr_type(var_decl->e()),
-                        .value = map(var_decl->e())};
+                        .value = *value};
 }
 
-auto Transformer::handle_var_decl(MiniZinc::VarDecl* var_decl) -> ast::ASTNode {
+auto Transformer::handle_var_decl(MiniZinc::VarDecl* var_decl) -> ast::VarDecl {
   assert(var_decl->ti()->domain() != nullptr);
   return ast::DeclVariable{.id = std::string{var_decl->id()->v().c_str()},
-                           .domain = handle_domain(var_decl->ti()->domain())};
+                           .domain = map(var_decl->ti()->domain())};
 }
 
 auto Transformer::map(MiniZinc::VarDecl* var_decl)
-    -> std::optional<ast::ASTNode> {
+    -> std::optional<ast::VarDecl> {
   if (!var_decl->item()->loc().filename().endsWith(input_model_path))
     return std::nullopt;
 
@@ -75,7 +58,8 @@ auto Transformer::map(MiniZinc::VarDecl* var_decl)
   return handle_var_decl(var_decl);
 }
 
-auto Transformer::map(MiniZinc::Expression* expr) -> ast::Expr {
+auto Transformer::map(MiniZinc::Expression* expr)
+    -> std::optional<ast::ExprHandle> {
   switch (MiniZinc::Expression::eid(expr)) {
   case MiniZinc::Expression::E_INTLIT: {
     auto const* int_lit = MiniZinc::Expression::cast<MiniZinc::IntLit>(expr);
@@ -83,11 +67,23 @@ auto Transformer::map(MiniZinc::Expression* expr) -> ast::Expr {
 
     assert(value.isFinite());
 
-    return ast::LiteralInt{value.toInt()};
+    return std::make_shared<ast::Expr>(ast::LiteralInt{value.toInt()});
   }
   case MiniZinc::Expression::E_ID: {
     auto* id = MiniZinc::Expression::cast<MiniZinc::Id>(expr);
-    return ast::IdExpr{std::string{id->v().c_str()}};
+    return std::make_shared<ast::Expr>(
+        ast::IdExpr{std::string{id->v().c_str()}});
+  }
+  case MiniZinc::Expression::E_BINOP: {
+    auto* bin_op = MiniZinc::Expression::cast<MiniZinc::BinOp>(expr);
+    return map(bin_op);
+  }
+  case MiniZinc::Expression::E_CALL: {
+    fmt::println("skipping assert calls for now");
+    return std::nullopt;
+    // auto* call = MiniZinc::Expression::cast<MiniZinc::Call>(expr);
+    // print_fn_call(call, indent);
+    // break;
   }
   // case MiniZinc::Expression::E_FLOATLIT:
   //   fmt::println("E_FLOATLIT");
@@ -121,19 +117,9 @@ auto Transformer::map(MiniZinc::Expression* expr) -> ast::Expr {
   //   print_ite(ite, indent);
   //   break;
   // }
-  // case MiniZinc::Expression::E_BINOP: {
-  //   auto* bin_op = MiniZinc::Expression::cast<MiniZinc::BinOp>(expr);
-  //   print_bin_op(bin_op, indent);
-  //   break;
-  // }
   // case MiniZinc::Expression::E_UNOP:
   //   fmt::println("E_UNOP");
   //   break;
-  // case MiniZinc::Expression::E_CALL: {
-  //   auto* call = MiniZinc::Expression::cast<MiniZinc::Call>(expr);
-  //   print_fn_call(call, indent);
-  //   break;
-  // }
   // case MiniZinc::Expression::E_VARDECL: {
   //   auto* varDecl = MiniZinc::Expression::cast<MiniZinc::VarDecl>(expr);
   //   print_var_decl(varDecl, indent);
@@ -154,6 +140,29 @@ auto Transformer::map(MiniZinc::Expression* expr) -> ast::Expr {
   default:
     assert(false);
   }
+}
+
+auto Transformer::map(MiniZinc::BinOp* bin_op) -> ast::ExprHandle {
+  auto match_kind = [](MiniZinc::BinOpType const t) {
+    switch (t) {
+    case MiniZinc::BOT_DOTDOT:
+      return ast::BinOp::OpKind::DOTDOT;
+    case MiniZinc::BOT_NQ:
+      return ast::BinOp::OpKind::NQ;
+    default:
+      assert(false);
+    }
+  };
+
+  auto lhs = map(bin_op->lhs());
+  auto rhs = map(bin_op->rhs());
+  if (!lhs || !rhs)
+    assert(false);
+
+  return std::make_shared<ast::Expr>(
+      ast::BinOp{.kind = match_kind(bin_op->op()),
+                 .lhs = std::move(*lhs),
+                 .rhs = std::move(*rhs)});
 }
 
 } // namespace parser

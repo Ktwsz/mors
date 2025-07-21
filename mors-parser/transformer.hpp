@@ -15,14 +15,13 @@ struct Transformer {
 
   std::string input_model_path;
 
-  auto map(MiniZinc::VarDecl*) -> std::optional<ast::ASTNode>;
-  auto map(MiniZinc::Expression*) -> ast::Expr;
+  auto map(MiniZinc::VarDecl*) -> std::optional<ast::VarDecl>;
+  auto map(MiniZinc::Expression*) -> std::optional<ast::ExprHandle>;
+  auto map(MiniZinc::BinOp*) -> ast::ExprHandle;
 
 private:
-  auto handle_const_decl(MiniZinc::VarDecl* var_decl) -> ast::ASTNode;
-  auto handle_var_decl(MiniZinc::VarDecl* var_decl) -> ast::ASTNode;
-  auto handle_domain(MiniZinc::BinOp* bin_op) -> ast::Domain;
-  auto handle_domain(MiniZinc::Expression* expr) -> ast::Domain;
+  auto handle_const_decl(MiniZinc::VarDecl* var_decl) -> ast::VarDecl;
+  auto handle_var_decl(MiniZinc::VarDecl* var_decl) -> ast::VarDecl;
 };
 
 } // namespace parser

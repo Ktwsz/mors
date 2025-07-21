@@ -116,6 +116,12 @@ void PrintModelVisitor::print_fn_call(MiniZinc::Call* call, int const indent) {
     match_expr(functionItem->e(), indent + 4);
   }
   fmt::print("\n");
+
+  ind(indent + 2);
+  fmt::println("args:");
+  for (auto const& arg : call->args()) {
+    match_expr(arg, indent + 4);
+  }
 }
 
 void PrintModelVisitor::print_ite(MiniZinc::ITE* ite, int const indent) {
@@ -174,6 +180,10 @@ void PrintModelVisitor::print_bin_op(MiniZinc::BinOp* bin_op,
   switch (bin_op->op()) {
   case MiniZinc::BOT_DOTDOT: {
     fmt::println("..");
+    break;
+  }
+  case MiniZinc::BOT_NQ: {
+    fmt::println("!=");
     break;
   }
   default:
