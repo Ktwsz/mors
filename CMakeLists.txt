@@ -7,7 +7,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
 find_package(pybind11 REQUIRED)
-find_package(clipp REQUIRED)
 
 add_executable(mors mors.cpp)
 
@@ -18,12 +17,12 @@ add_dependencies(mors ir_python)
 
 target_link_libraries(mors PUBLIC mors-parser 
                                   ${Python3_LIBRARIES}
-                                  pybind11::pybind11
-                                  clipp::clipp)
+                                  pybind11::pybind11)
 
 target_include_directories(mors PUBLIC "${PROJECT_BINARY_DIR}"
                                        "${PROJECT_SOURCE_DIR}/mors-parser"
-                                       ${Python3_INCLUDE_DIRS})
+                                       ${Python3_INCLUDE_DIRS}
+                                       "${PROJECT_SOURCE_DIR}/clipp/include")
 
 target_compile_options(mors PRIVATE -Wall -Wextra -Wpedantic -Werror)
 
