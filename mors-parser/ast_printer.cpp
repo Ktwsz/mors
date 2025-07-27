@@ -195,6 +195,23 @@ void PrintModelVisitor::print_bin_op(MiniZinc::BinOp* bin_op,
   match_expr(bin_op->rhs(), indent + 4);
 }
 
+void PrintModelVisitor::print_solve_type(MiniZinc::SolveI* solve_item) {
+  switch (solve_item->st()) {
+  case MiniZinc::SolveI::SolveType::ST_MAX: {
+    fmt::println("MAX");
+    break;
+  }
+  case MiniZinc::SolveI::SolveType::ST_MIN: {
+    fmt::println("MIN");
+    break;
+  }
+  case MiniZinc::SolveI::SolveType::ST_SAT: {
+    fmt::println("SAT");
+    break;
+  }
+  }
+}
+
 void PrintModelVisitor::match_expr(MiniZinc::Expression* expr,
                                    int const indent) {
   switch (MiniZinc::Expression::eid(expr)) {

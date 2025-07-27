@@ -18,6 +18,7 @@ struct Transformer {
   auto map(MiniZinc::VarDecl*) -> std::optional<ast::VarDecl>;
   auto map(MiniZinc::Expression*) -> std::optional<ast::ExprHandle>;
   auto map(MiniZinc::BinOp*) -> ast::ExprHandle;
+  auto map(MiniZinc::SolveI*) -> ast::SolveType;
 
 private:
   auto handle_const_decl(MiniZinc::VarDecl* var_decl) -> ast::VarDecl;

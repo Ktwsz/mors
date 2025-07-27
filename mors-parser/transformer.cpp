@@ -165,4 +165,15 @@ auto Transformer::map(MiniZinc::BinOp* bin_op) -> ast::ExprHandle {
                  .rhs = std::move(*rhs)});
 }
 
+auto Transformer::map(MiniZinc::SolveI* solve_item) -> ast::SolveType {
+  switch (solve_item->st()) {
+  case MiniZinc::SolveI::SolveType::ST_MAX:
+    return ast::SolveType::MAX;
+  case MiniZinc::SolveI::SolveType::ST_MIN:
+    return ast::SolveType::MIN;
+  case MiniZinc::SolveI::SolveType::ST_SAT:
+    return ast::SolveType::SAT;
+  }
+}
+
 } // namespace parser

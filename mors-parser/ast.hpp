@@ -51,9 +51,13 @@ struct DeclConst {
 
 using VarDecl = std::variant<DeclVariable, DeclConst>;
 
+enum struct SolveType { SAT, MIN, MAX };
+
 struct Tree {
   std::vector<VarDecl> decls;
   std::vector<ExprHandle> constraints;
+
+  SolveType solve_type;
 };
 // case MiniZinc::Expression::E_INTLIT
 // case MiniZinc::Expression::E_FLOATLIT:

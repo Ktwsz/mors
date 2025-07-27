@@ -1,5 +1,6 @@
 #include "lib.hpp"
 #include "ast_printer.hpp"
+#include "minizinc/ast.hh"
 #include "transformer.hpp"
 
 #include <iostream>
@@ -85,6 +86,9 @@ auto main(ParserOpts const& opts) -> std::expected<ast::Tree, err::Error> {
       vis.match_expr(constraint.e(), 0);
     }
 
+    std::cout << "--- SOLVE ---" << std::endl;
+    vis.print_solve_type(model.solveItem());
+
     // fmt::println("--- AST ---");
     //
     // MiniZinc::iter_items<PrintModelVisitor>(vis, &model);
@@ -101,15 +105,18 @@ auto main(ParserOpts const& opts) -> std::expected<ast::Tree, err::Error> {
   ast::Tree tree;
   for (auto& var_decl : model.vardecls()) {
     if (auto decl = transformer.map(var_decl.e()); decl) {
-      tree.decls.push_back(std:: move(*decl));
+      tree.decls.push_back(std::move(*decl));
     }
   }
 
   for (auto& constraint : model.constraints()) {
-    if (auto mapped_constraint = transformer.map(constraint.e()); mapped_constraint) {
+    if (auto mapped_constraint = transformer.map(constraint.e());
+        mapped_constraint) {
       tree.constraints.push_back(std::move(*mapped_constraint));
     }
   }
+
+  tree.solve_type = transformer.map(model.solveItem());
 
   return tree;
 }

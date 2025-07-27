@@ -43,9 +43,16 @@ PYBIND11_MODULE(ir_python, m) {
       .def_readonly("type", &ast::DeclConst::type)
       .def_readonly("value", &ast::DeclConst::value);
 
+  py::enum_<ast::SolveType>(m, "SolveType", "enum.Enum")
+      .value("MIN", ast::SolveType::MIN)
+      .value("MAX", ast::SolveType::MAX)
+      .value("SAT", ast::SolveType::SAT)
+      .export_values();
+
   py::class_<ast::Tree>(m, "Tree")
       .def_readonly("decls", &ast::Tree::decls)
-      .def_readonly("constraints", &ast::Tree::constraints);
+      .def_readonly("constraints", &ast::Tree::constraints)
+      .def_readonly("solve_type", &ast::Tree::solve_type);
 }
 
 } // namespace IR

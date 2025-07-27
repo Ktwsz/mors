@@ -13,3 +13,5 @@ def hello_world(tree: Tree):
         if constraints.get().kind == BinOp.OpKind.NQ:
             print("!=")
 
+    print(tree.solve_type)
+

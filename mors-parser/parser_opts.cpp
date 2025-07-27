@@ -10,6 +10,9 @@ namespace parser {
 namespace {
 auto defineCli(ParserOpts& opts) -> clipp::group {
   return (
+      clipp::option("-h", "--help")
+          .set(opts.help)
+          .doc("Print this help message."),
       clipp::value("model.mzn", opts.model_path),
       clipp::opt_values("data.dzn", opts.infiles),
       (clipp::option("--stdlib-dir") & clipp::value("dir", opts.stdlib_dir))
@@ -20,10 +23,7 @@ auto defineCli(ParserOpts& opts) -> clipp::group {
               "Additionally search for included files in <dir>. Default: {}",
               opts.ortools_include_dir)),
       clipp::option("--verbose").set(opts.verbose),
-      clipp::option("--print-ast").set(opts.print_ast),
-      clipp::option("-h", "--help")
-          .set(opts.help)
-          .doc("Print this help message."));
+      clipp::option("--print-ast").set(opts.print_ast));
 }
 } // namespace
 
