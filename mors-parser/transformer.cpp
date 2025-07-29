@@ -78,6 +78,8 @@ auto Transformer::map(MiniZinc::Expression* expr)
   }
   case MiniZinc::Expression::E_ID: {
     auto* id = MiniZinc::Expression::cast<MiniZinc::Id>(expr);
+    assert(id->v().c_str() != nullptr && id->v() != "" &&
+           "Id Expression: null id");
     return std::make_shared<ast::Expr>(
         ast::IdExpr{std::string{id->v().c_str()}});
   }
@@ -86,11 +88,29 @@ auto Transformer::map(MiniZinc::Expression* expr)
     return map(bin_op);
   }
   case MiniZinc::Expression::E_CALL: {
-    fmt::println("skipping assert calls for now");
-    return std::nullopt;
-    // auto* call = MiniZinc::Expression::cast<MiniZinc::Call>(expr);
-    // print_fn_call(call, indent);
-    // break;
+    auto* call = MiniZinc::Expression::cast<MiniZinc::Call>(expr);
+
+    assert(call->id().c_str() != nullptr && "Function call: null function id");
+    auto const id = std::string{call->id().c_str()};
+    assert(!id.empty() && "Function call: empty function id");
+
+    if (id == "assert") {
+      fmt::println("skipping assert calls for now");
+      return std::nullopt;
+    }
+
+    // TODO: remember to copy function declaration as well
+
+    auto ast_call =
+        std::make_shared<ast::Expr>(ast::Call{.id = id, .args = {}});
+    for (auto& call_arg : call->args()) {
+      auto ast_arg = map(call_arg);
+      assert(ast_arg && "Function call: nullopt arg");
+
+      std::get<ast::Call>(*ast_call).args.push_back(*ast_arg);
+    }
+
+    return ast_call;
   }
   // case MiniZinc::Expression::E_FLOATLIT:
   //   fmt::println("E_FLOATLIT");
@@ -101,15 +121,28 @@ auto Transformer::map(MiniZinc::Expression* expr)
   // case MiniZinc::Expression::E_BOOLLIT:
   //   fmt::println("E_BOOLLIT");
   //   break;
-  // case MiniZinc::Expression::E_STRINGLIT:
-  //   fmt::println("E_STRINGLIT");
-  //   break;
+  case MiniZinc::Expression::E_STRINGLIT: {
+    auto* string_lit = MiniZinc::Expression::cast<MiniZinc::StringLit>(expr);
+    return std::make_shared<ast::Expr>(
+        ast::LiteralString{string_lit->v().c_str() != nullptr
+                               ? std::string{string_lit->v().c_str()}
+                               : std::string{}});
+  }
   // case MiniZinc::Expression::E_ANON:
   //   fmt::println("E_ANON");
   //   break;
-  // case MiniZinc::Expression::E_ARRAYLIT:
-  //   fmt::println("E_ARRAYLIT");
-  //   break;
+  case MiniZinc::Expression::E_ARRAYLIT: {
+    auto* array_lit = MiniZinc::Expression::cast<MiniZinc::ArrayLit>(expr);
+    auto ast_array = std::make_shared<ast::Expr>(ast::LiteralArray{});
+    for (auto& array_expr : array_lit->getVec()) {
+      auto ast_expr = map(array_expr);
+      assert(ast_expr && "Array Literal: nullopt item");
+
+      std::get<ast::LiteralArray>(*ast_array).value.push_back(*ast_expr);
+    }
+
+    return ast_array;
+  }
   // case MiniZinc::Expression::E_ARRAYACCESS:
   //   fmt::println("E_ARRAYACCESS");
   //   break;
@@ -156,6 +189,8 @@ auto Transformer::map(MiniZinc::BinOp* bin_op) -> ast::ExprHandle {
       return ast::BinOp::OpKind::DOTDOT;
     case MiniZinc::BOT_NQ:
       return ast::BinOp::OpKind::NQ;
+    case MiniZinc::BOT_PLUSPLUS:
+      return ast::BinOp::OpKind::PLUSPLUS;
     default:
       assert(false);
     }
@@ -174,13 +209,14 @@ auto Transformer::map(MiniZinc::BinOp* bin_op) -> ast::ExprHandle {
 
 auto Transformer::map(MiniZinc::SolveI* solve_item) -> ast::SolveType {
   switch (solve_item->st()) {
-  case MiniZinc::SolveI::SolveType::ST_MAX:
+  case MiniZinc::SolveI::SolveType::ST_MAX: // TODO: read expr to maximise
     return ast::SolveType::MAX;
-  case MiniZinc::SolveI::SolveType::ST_MIN:
+  case MiniZinc::SolveI::SolveType::ST_MIN: // TODO: read expr to minimise
     return ast::SolveType::MIN;
   case MiniZinc::SolveI::SolveType::ST_SAT:
     return ast::SolveType::SAT;
   }
+  assert(false);
 }
 
 } // namespace parser

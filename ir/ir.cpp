@@ -27,6 +27,12 @@ PYBIND11_MODULE(ir_python, m) {
   py::class_<ast::LiteralInt>(m, "LiteralInt")
       .def_readonly("value", &ast::LiteralInt::value);
 
+  py::class_<ast::LiteralString>(m, "LiteralString")
+      .def_readonly("value", &ast::LiteralString::value);
+
+  py::class_<ast::LiteralArray>(m, "LiteralArray")
+      .def_readonly("value", &ast::LiteralArray::value);
+
   py::class_<ast::IdExpr>(m, "IdExpr")
       .def_readwrite("id", &ast::IdExpr::id);
 
@@ -34,6 +40,10 @@ PYBIND11_MODULE(ir_python, m) {
   bin_op.def_readonly("kind", &ast::BinOp::kind)
       .def_readonly("lhs", &ast::BinOp::lhs)
       .def_readonly("rhs", &ast::BinOp::rhs);
+
+  py::class_<ast::Call>(m, "Call")
+      .def_readonly("id", &ast::Call::id)
+      .def_readonly("args", &ast::Call::args);
 
   py::class_<ast::DeclVariable>(m, "DeclVariable")
       .def_readonly("id", &ast::DeclVariable::id)
@@ -43,6 +53,7 @@ PYBIND11_MODULE(ir_python, m) {
   py::enum_<ast::BinOp::OpKind>(bin_op, "OpKind", "enum.Enum")
       .value("DOTDOT", ast::BinOp::OpKind::DOTDOT)
       .value("NQ", ast::BinOp::OpKind::NQ)
+      .value("PLUSPLUS", ast::BinOp::OpKind::PLUSPLUS)
       .export_values();
 
   py::class_<ast::DeclConst>(m, "DeclConst")
@@ -59,7 +70,8 @@ PYBIND11_MODULE(ir_python, m) {
   py::class_<ast::Tree>(m, "Tree")
       .def_readonly("decls", &ast::Tree::decls)
       .def_readonly("constraints", &ast::Tree::constraints)
-      .def_readonly("solve_type", &ast::Tree::solve_type);
+      .def_readonly("solve_type", &ast::Tree::solve_type)
+      .def_readonly("output", &ast::Tree::output);
 }
 
 } // namespace IR

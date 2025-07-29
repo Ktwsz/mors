@@ -10,13 +10,25 @@
 namespace parser::ast {
 
 struct LiteralInt;
+struct LiteralString;
+struct LiteralArray;
 struct IdExpr;
 struct BinOp;
-using Expr = std::variant<LiteralInt, IdExpr, BinOp>;
+struct Call;
+using Expr =
+    std::variant<LiteralInt, LiteralString, LiteralArray, IdExpr, BinOp, Call>;
 using ExprHandle = std::shared_ptr<Expr>;
 
 struct LiteralInt {
   long long value;
+};
+
+struct LiteralString {
+  std::string value;
+};
+
+struct LiteralArray {
+  std::vector<ExprHandle> value;
 };
 
 struct IdExpr {
@@ -24,10 +36,16 @@ struct IdExpr {
 };
 
 struct BinOp {
-  enum class OpKind : uint8_t { DOTDOT, NQ };
+  enum class OpKind : uint8_t { DOTDOT, NQ, PLUSPLUS };
   OpKind kind;
 
   ExprHandle lhs, rhs;
+};
+
+struct Call {
+    std::string id;
+
+    std::vector<ExprHandle> args;
 };
 
 namespace types {
@@ -62,15 +80,15 @@ struct Tree {
   std::vector<ExprHandle> constraints;
 
   SolveType solve_type;
+
+  ExprHandle output;
 };
 // case MiniZinc::Expression::E_INTLIT
 // case MiniZinc::Expression::E_FLOATLIT:
 // case MiniZinc::Expression::E_SETLIT:
 // case MiniZinc::Expression::E_BOOLLIT:
-// case MiniZinc::Expression::E_STRINGLIT:
 // case MiniZinc::Expression::E_ID:
 // case MiniZinc::Expression::E_ANON:
-// case MiniZinc::Expression::E_ARRAYLIT:
 // case MiniZinc::Expression::E_ARRAYACCESS:
 // case MiniZinc::Expression::E_FIELDACCESS:
 // case MiniZinc::Expression::E_COMP:
