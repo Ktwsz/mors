@@ -238,13 +238,125 @@ void PrintModelVisitor::print_bin_op(MiniZinc::BinOp* bin_op,
     fmt::println("!=");
     break;
   }
-  default:
-    fmt::println("other");
+  case MiniZinc::BOT_PLUS: {
+    fmt::println("BOT_PLUS");
+    break;
+  }
+  case MiniZinc::BOT_MINUS: {
+    fmt::println("BOT_MINUS");
+    break;
+  }
+  case MiniZinc::BOT_MULT: {
+    fmt::println("BOT_MULT");
+    break;
+  }
+  case MiniZinc::BOT_DIV: {
+    fmt::println("BOT_DIV");
+    break;
+  }
+  case MiniZinc::BOT_IDIV: {
+    fmt::println("BOT_IDIV");
+    break;
+  }
+  case MiniZinc::BOT_MOD: {
+    fmt::println("BOT_MOD");
+    break;
+  }
+  case MiniZinc::BOT_POW: {
+    fmt::println("BOT_POW");
+    break;
+  }
+  case MiniZinc::BOT_LE: {
+    fmt::println("BOT_LE");
+    break;
+  }
+  case MiniZinc::BOT_LQ: {
+    fmt::println("BOT_LQ");
+    break;
+  }
+  case MiniZinc::BOT_GR: {
+    fmt::println("BOT_GR");
+    break;
+  }
+  case MiniZinc::BOT_GQ: {
+    fmt::println("BOT_GQ");
+    break;
+  }
+  case MiniZinc::BOT_EQ: {
+    fmt::println("BOT_EQ");
+    break;
+  }
+  case MiniZinc::BOT_IN: {
+    fmt::println("BOT_IN");
+    break;
+  }
+  case MiniZinc::BOT_SUBSET: {
+    fmt::println("BOT_SUBSET");
+    break;
+  }
+  case MiniZinc::BOT_SUPERSET: {
+    fmt::println("BOT_SUPERSET");
+    break;
+  }
+  case MiniZinc::BOT_UNION: {
+    fmt::println("BOT_UNION");
+    break;
+  }
+  case MiniZinc::BOT_DIFF: {
+    fmt::println("BOT_DIFF");
+    break;
+  }
+  case MiniZinc::BOT_SYMDIFF: {
+    fmt::println("BOT_SYMDIFF");
+    break;
+  }
+  case MiniZinc::BOT_INTERSECT: {
+    fmt::println("BOT_INTERSECT");
+    break;
+  }
+  case MiniZinc::BOT_PLUSPLUS: {
+    fmt::println("BOT_PLUSPLUS");
+    break;
+  }
+  case MiniZinc::BOT_EQUIV: {
+    fmt::println("BOT_EQUIV");
+    break;
+  }
+  case MiniZinc::BOT_IMPL: {
+    fmt::println("BOT_IMPL");
+    break;
+  }
+  case MiniZinc::BOT_RIMPL: {
+    fmt::println("BOT_RIMPL");
+    break;
+  }
+  case MiniZinc::BOT_OR: {
+    fmt::println("BOT_OR");
+    break;
+  }
+  case MiniZinc::BOT_AND: {
+    fmt::println("BOT_AND");
+    break;
+  }
+  case MiniZinc::BOT_XOR: {
+    fmt::println("BOT_XOR");
+    break;
+  }
   }
 
   ind(indent + 2);
   fmt::println("rhs: ");
   match_expr(bin_op->rhs(), indent + 4);
+}
+
+void PrintModelVisitor::print_array_lit(MiniZinc::ArrayLit* array_lit,
+                                        int const indent) {
+  ind(indent);
+  fmt::println("ARRAYLIT");
+
+  for (auto const& expr : array_lit->getVec()) {
+    match_expr(expr, indent + 2);
+  }
 }
 
 void PrintModelVisitor::print_solve_type(MiniZinc::SolveI* solve_item) {
@@ -281,9 +393,15 @@ void PrintModelVisitor::match_expr(MiniZinc::Expression* expr,
   case MiniZinc::Expression::E_BOOLLIT:
     fmt::println("E_BOOLLIT");
     break;
-  case MiniZinc::Expression::E_STRINGLIT:
-    fmt::println("E_STRINGLIT");
+  case MiniZinc::Expression::E_STRINGLIT: {
+    auto* string_lit = MiniZinc::Expression::cast<MiniZinc::StringLit>(expr);
+
+    ind(indent);
+    fmt::println("E_STRINGLIT: {}", string_lit->v().c_str() != nullptr
+                                        ? string_lit->v().c_str()
+                                        : "nullptr");
     break;
+  }
   case MiniZinc::Expression::E_ID: {
     auto* id = MiniZinc::Expression::cast<MiniZinc::Id>(expr);
     ind(indent + 2);
@@ -293,9 +411,12 @@ void PrintModelVisitor::match_expr(MiniZinc::Expression* expr,
   case MiniZinc::Expression::E_ANON:
     fmt::println("E_ANON");
     break;
-  case MiniZinc::Expression::E_ARRAYLIT:
-    fmt::println("E_ARRAYLIT");
+  case MiniZinc::Expression::E_ARRAYLIT: {
+    auto* array_lit = MiniZinc::Expression::cast<MiniZinc::ArrayLit>(expr);
+    print_array_lit(array_lit, indent);
+
     break;
+  }
   case MiniZinc::Expression::E_ARRAYACCESS:
     fmt::println("E_ARRAYACCESS");
     break;

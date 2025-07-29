@@ -43,6 +43,8 @@ struct PrintModelVisitor {
 
   void print_bin_op(MiniZinc::BinOp* bin_op, int const indent);
 
+  void print_array_lit(MiniZinc::ArrayLit* array_lit, int const indent);
+
   void print_solve_type(MiniZinc::SolveI* solve_item);
 
   void match_expr(MiniZinc::Expression* expr, int const indent = 0);

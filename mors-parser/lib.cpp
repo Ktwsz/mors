@@ -73,28 +73,26 @@ auto main(ParserOpts const& opts) -> std::expected<ast::Tree, err::Error> {
 
   auto& model = *flt.getEnv()->model();
 
+  // TODO: separate ast printing from this function
   if (opts.print_ast) {
     PrintModelVisitor vis{model, flt.getEnv()->envi(), opts.model_path};
 
-    std::cout << "--- VAR DECLS ---" << std::endl;
+    fmt::println("--- VAR DECLS ---");
     for (auto& var_decl : model.vardecls()) {
       vis.print_var_decl(var_decl.e(), 0);
     }
 
-    std::cout << "--- CONSTRAINTS ---" << std::endl;
+    fmt::println("--- CONSTRAINTS ---");
     for (auto& constraint : model.constraints()) {
       vis.match_expr(constraint.e(), 0);
     }
 
-    std::cout << "--- SOLVE ---" << std::endl;
+    fmt::println("--- SOLVE ---");
     vis.print_solve_type(model.solveItem());
 
-    // fmt::println("--- AST ---");
-    //
-    // MiniZinc::iter_items<PrintModelVisitor>(vis, &model);
-    //
-    // fmt::println("-----------");
-    // TODO: separate ast printing from this function
+    fmt::println("--- OUTPUT ---");
+    vis.match_expr(model.outputItem()->e());
+
     return std::unexpected{err::MznParsingError{}};
   }
 
@@ -117,6 +115,11 @@ auto main(ParserOpts const& opts) -> std::expected<ast::Tree, err::Error> {
   }
 
   tree.solve_type = transformer.map(model.solveItem());
+
+  auto const output = transformer.map(model.outputItem()->e());
+
+  assert(output && "null output item"); // TODO error handling for nullopt
+  tree.output = std::move(*output);
 
   return tree;
 }
