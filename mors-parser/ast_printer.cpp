@@ -100,6 +100,13 @@ void PrintModelVisitor::print_type_inst(MiniZinc::TypeInst* type_inst,
   }
 }
 
+void PrintModelVisitor::print_function(MiniZinc::FunctionI* function,
+                                       int const indent) {
+  ind(indent + 2);
+  fmt::println("Return type: ");
+  print_type_inst(function->ti(), indent + 4);
+}
+
 void PrintModelVisitor::print_fn_call(MiniZinc::Call* call, int const indent) {
   auto const functionItem = model.matchFn(env, call, true, false);
 
@@ -170,6 +177,51 @@ void PrintModelVisitor::print_bin_op(MiniZinc::BinOp* bin_op,
                                      int const indent) {
   ind(indent);
   fmt::println("Bin Op");
+
+  ind(indent + 2);
+  fmt::print("Type: ");
+  switch (MiniZinc::Expression::type(bin_op).bt()) {
+  case MiniZinc::Type::BaseType::BT_BOOL: {
+    fmt::println("BT_BOOL");
+    break;
+  }
+  case MiniZinc::Type::BaseType::BT_INT: {
+    fmt::println("BT_INT");
+    break;
+  }
+  case MiniZinc::Type::BaseType::BT_FLOAT: {
+    fmt::println("BT_FLOAT");
+    break;
+  }
+  case MiniZinc::Type::BaseType::BT_STRING: {
+    fmt::println("BT_STRING");
+    break;
+  }
+  case MiniZinc::Type::BaseType::BT_ANN: {
+    fmt::println("BT_ANN");
+    break;
+  }
+  case MiniZinc::Type::BaseType::BT_TUPLE: {
+    fmt::println("BT_TUPLE");
+    break;
+  }
+  case MiniZinc::Type::BaseType::BT_RECORD: {
+    fmt::println("BT_RECORD");
+    break;
+  }
+  case MiniZinc::Type::BaseType::BT_TOP: {
+    fmt::println("BT_TOP");
+    break;
+  }
+  case MiniZinc::Type::BaseType::BT_BOT: {
+    fmt::println("BT_BOT");
+    break;
+  }
+  case MiniZinc::Type::BaseType::BT_UNKNOWN: {
+    fmt::println("BT_UNKNOWN");
+    break;
+  }
+  }
 
   ind(indent + 2);
   fmt::println("lhs: ");

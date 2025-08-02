@@ -24,6 +24,12 @@ auto resolve_expr_type(MiniZinc::Expression* expr) -> ast::Type {
   case MiniZinc::Type::BT_INT: {
     return ast::types::Int{};
   }
+  case MiniZinc::Type::BT_FLOAT: {
+    return ast::types::Float{};
+  }
+  case MiniZinc::Type::BT_BOOL: {
+    return ast::types::Bool{};
+  }
   default:
     assert(false);
   }
@@ -44,6 +50,7 @@ auto Transformer::handle_const_decl(MiniZinc::VarDecl* var_decl)
 auto Transformer::handle_var_decl(MiniZinc::VarDecl* var_decl) -> ast::VarDecl {
   assert(var_decl->ti()->domain() != nullptr);
   return ast::DeclVariable{.id = std::string{var_decl->id()->v().c_str()},
+                           .var_type = resolve_expr_type(var_decl),
                            .domain = map(var_decl->ti()->domain())};
 }
 

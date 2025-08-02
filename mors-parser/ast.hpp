@@ -32,12 +32,16 @@ struct BinOp {
 
 namespace types {
 struct Int {};
+struct Float {};
+struct Bool {};
 } // namespace types
 
-using Type = std::variant<types::Int>;
+using Type = std::variant<types::Int, types::Float, types::Bool>;
 
 struct DeclVariable {
   std::string id;
+
+  Type var_type;
 
   std::optional<ExprHandle> domain;
 };

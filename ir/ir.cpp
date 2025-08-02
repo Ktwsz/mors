@@ -18,6 +18,12 @@ PYBIND11_MODULE(ir_python, m) {
   py::class_<ast::types::Int>(m, "TypeInt")
       .def("type", [](ast::types::Int const&) { return "int"; });
 
+  py::class_<ast::types::Float>(m, "TypeFloat")
+      .def("type", [](ast::types::Float const&) { return "float"; });
+
+  py::class_<ast::types::Bool>(m, "TypeBool")
+      .def("type", [](ast::types::Bool const&) { return "bool"; });
+
   py::class_<ast::LiteralInt>(m, "LiteralInt")
       .def_readonly("value", &ast::LiteralInt::value);
 
@@ -31,6 +37,7 @@ PYBIND11_MODULE(ir_python, m) {
 
   py::class_<ast::DeclVariable>(m, "DeclVariable")
       .def_readonly("id", &ast::DeclVariable::id)
+      .def_readonly("type", &ast::DeclVariable::var_type)
       .def_readonly("domain", &ast::DeclVariable::domain);
 
   py::enum_<ast::BinOp::OpKind>(bin_op, "OpKind", "enum.Enum")
