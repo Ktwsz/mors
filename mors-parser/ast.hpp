@@ -10,13 +10,14 @@
 namespace parser::ast {
 
 struct LiteralInt;
+struct LiteralFloat;
 struct LiteralString;
 struct LiteralArray;
 struct IdExpr;
 struct BinOp;
 struct Call;
 using Expr =
-    std::variant<LiteralInt, LiteralString, LiteralArray, IdExpr, BinOp, Call>;
+    std::variant<LiteralInt, LiteralFloat, LiteralString, LiteralArray, IdExpr, BinOp, Call>;
 using ExprHandle = std::shared_ptr<Expr>;
 
 struct LiteralInt {
@@ -25,6 +26,10 @@ struct LiteralInt {
 
 struct LiteralString {
   std::string value;
+};
+
+struct LiteralFloat {
+    double value;
 };
 
 struct LiteralArray {
@@ -36,7 +41,7 @@ struct IdExpr {
 };
 
 struct BinOp {
-  enum class OpKind : uint8_t { DOTDOT, NQ, PLUSPLUS };
+  enum class OpKind : uint8_t { PLUS, MINUS, MULT, DIV, DOTDOT, EQ, NQ, PLUSPLUS };
   OpKind kind;
 
   ExprHandle lhs, rhs;

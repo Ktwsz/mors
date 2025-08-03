@@ -27,6 +27,9 @@ PYBIND11_MODULE(ir_python, m) {
   py::class_<ast::LiteralInt>(m, "LiteralInt")
       .def_readonly("value", &ast::LiteralInt::value);
 
+  py::class_<ast::LiteralFloat>(m, "LiteralFloat")
+      .def_readonly("value", &ast::LiteralFloat::value);
+
   py::class_<ast::LiteralString>(m, "LiteralString")
       .def_readonly("value", &ast::LiteralString::value);
 
@@ -51,7 +54,12 @@ PYBIND11_MODULE(ir_python, m) {
       .def_readonly("domain", &ast::DeclVariable::domain);
 
   py::enum_<ast::BinOp::OpKind>(bin_op, "OpKind", "enum.Enum")
+      .value("PLUS", ast::BinOp::OpKind::PLUS)
+      .value("MINUS", ast::BinOp::OpKind::MINUS)
+      .value("MULT", ast::BinOp::OpKind::MULT)
+      .value("DIV", ast::BinOp::OpKind::DIV)
       .value("DOTDOT", ast::BinOp::OpKind::DOTDOT)
+      .value("EQ", ast::BinOp::OpKind::EQ)
       .value("NQ", ast::BinOp::OpKind::NQ)
       .value("PLUSPLUS", ast::BinOp::OpKind::PLUSPLUS)
       .export_values();

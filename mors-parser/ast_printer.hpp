@@ -30,8 +30,7 @@ struct PrintModelVisitor {
 
   void print_type_inst(MiniZinc::TypeInst* var_decl, int const indent);
 
-  void print_function(MiniZinc::FunctionI* function,
-                                         int const indent);
+  void print_function(MiniZinc::FunctionI* function, int const indent);
 
   void print_fn_call(MiniZinc::Call* call, int const indent);
 
@@ -40,6 +39,8 @@ struct PrintModelVisitor {
   void print_let_expr(MiniZinc::Let* let, int const indent);
 
   void print_int_lit(MiniZinc::IntLit* int_lit, int const indent);
+
+  void print_float_lit(MiniZinc::FloatLit* float_lit, int const indent);
 
   void print_bin_op(MiniZinc::BinOp* bin_op, int const indent);
 

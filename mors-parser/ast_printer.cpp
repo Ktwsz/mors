@@ -173,6 +173,14 @@ void PrintModelVisitor::print_int_lit(MiniZinc::IntLit* int_lit,
   fmt::println("value: {}", MiniZinc::IntLit::v(int_lit).toInt());
 }
 
+void PrintModelVisitor::print_float_lit(MiniZinc::FloatLit* float_lit,
+                                      int const indent) {
+  ind(indent + 2);
+  fmt::println("float");
+  ind(indent + 2);
+  fmt::println("value: {}", MiniZinc::FloatLit::v(float_lit).toDouble());
+}
+
 void PrintModelVisitor::print_bin_op(MiniZinc::BinOp* bin_op,
                                      int const indent) {
   ind(indent);
@@ -384,9 +392,11 @@ void PrintModelVisitor::match_expr(MiniZinc::Expression* expr,
     print_int_lit(int_lit, indent);
     break;
   }
-  case MiniZinc::Expression::E_FLOATLIT:
-    fmt::println("E_FLOATLIT");
+  case MiniZinc::Expression::E_FLOATLIT: {
+    auto* float_lit = MiniZinc::Expression::cast<MiniZinc::FloatLit>(expr);
+    print_float_lit(float_lit, indent);
     break;
+  }
   case MiniZinc::Expression::E_SETLIT:
     fmt::println("E_SETLIT");
     break;

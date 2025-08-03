@@ -3,6 +3,8 @@
 
 #include <fmt/base.h>
 #include <minizinc/type.hh>
+
+#include <optional>
 #include <utility>
 
 namespace parser {
@@ -48,10 +50,11 @@ auto Transformer::handle_const_decl(MiniZinc::VarDecl* var_decl)
 }
 
 auto Transformer::handle_var_decl(MiniZinc::VarDecl* var_decl) -> ast::VarDecl {
-  assert(var_decl->ti()->domain() != nullptr);
   return ast::DeclVariable{.id = std::string{var_decl->id()->v().c_str()},
                            .var_type = resolve_expr_type(var_decl),
-                           .domain = map(var_decl->ti()->domain())};
+                           .domain = var_decl->ti()->domain() != nullptr
+                                       ? map(var_decl->ti()->domain())
+                                       : std::nullopt};
 }
 
 auto Transformer::map(MiniZinc::VarDecl* var_decl)
@@ -112,9 +115,15 @@ auto Transformer::map(MiniZinc::Expression* expr)
 
     return ast_call;
   }
-  // case MiniZinc::Expression::E_FLOATLIT:
-  //   fmt::println("E_FLOATLIT");
-  //   break;
+  case MiniZinc::Expression::E_FLOATLIT: {
+    auto const* float_lit =
+        MiniZinc::Expression::cast<MiniZinc::FloatLit>(expr);
+    auto const value = MiniZinc::FloatLit::v(float_lit);
+
+    assert(value.isFinite());
+
+    return std::make_shared<ast::Expr>(ast::LiteralFloat{value.toDouble()});
+  }
   // case MiniZinc::Expression::E_SETLIT:
   //   fmt::println("E_SETLIT");
   //   break;
@@ -191,6 +200,16 @@ auto Transformer::map(MiniZinc::BinOp* bin_op) -> ast::ExprHandle {
       return ast::BinOp::OpKind::NQ;
     case MiniZinc::BOT_PLUSPLUS:
       return ast::BinOp::OpKind::PLUSPLUS;
+    case MiniZinc::BOT_PLUS:
+      return ast::BinOp::OpKind::PLUS;
+    case MiniZinc::BOT_MINUS:
+      return ast::BinOp::OpKind::MINUS;
+    case MiniZinc::BOT_MULT:
+      return ast::BinOp::OpKind::MULT;
+    case MiniZinc::BOT_DIV:
+      return ast::BinOp::OpKind::DIV;
+    case MiniZinc::BOT_EQ:
+      return ast::BinOp::OpKind::EQ;
     default:
       assert(false);
     }
