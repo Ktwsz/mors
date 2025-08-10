@@ -26,7 +26,10 @@ auto main(ParserOpts const& opts) -> std::expected<ast::Tree, err::Error> {
     fmt::println("std path: {}", opts.stdlib_dir);
 
   if (opts.verbose)
-    fmt::println("OR-Tools path: {}", opts.ortools_include_dir);
+    fmt::println("OR-Tools path: {}", opts.get_ortools_include_dir());
+
+  if (opts.verbose)
+    fmt::println("output file: {}", opts.get_output_file());
 
   std::ostringstream flattener_os, flattener_log;
   auto flt = MiniZinc::Flattener{flattener_os, flattener_log, opts.stdlib_dir};
@@ -34,7 +37,7 @@ auto main(ParserOpts const& opts) -> std::expected<ast::Tree, err::Error> {
 
   std::vector const flattener_args{
       opts.model_path, std::string{flags::instance_check_only},
-      std::string{flags::include}, opts.ortools_include_dir};
+      std::string{flags::include}, opts.get_ortools_include_dir()};
 
   for (int i = 0; static_cast<size_t>(i) < flattener_args.size(); i++) {
     if (auto const ok = flt.processOption(i, flattener_args); !ok) {
