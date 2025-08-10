@@ -5,27 +5,25 @@
 #include <minizinc/file_utils.hh>
 #include <minizinc/solver_config.hh>
 
+#include <filesystem>
+
 namespace parser {
 
-namespace {
 auto defineCli(ParserOpts& opts) -> clipp::group {
-  return (
-      clipp::option("-h", "--help")
-          .set(opts.help)
-          .doc("Print this help message."),
-      clipp::value("model.mzn", opts.model_path),
-      clipp::opt_values("data.dzn", opts.infiles),
-      (clipp::option("--stdlib-dir") & clipp::value("dir", opts.stdlib_dir))
-          .doc(fmt::format("Default: {}", opts.stdlib_dir)),
-      (clipp::option("-I", "--search-dir") &
-       clipp::value("dir", opts.ortools_include_dir))
-          .doc(fmt::format(
-              "Additionally search for included files in <dir>. Default: {}",
-              opts.ortools_include_dir)),
-      clipp::option("--verbose").set(opts.verbose),
-      clipp::option("--print-ast").set(opts.print_ast));
+  return (clipp::option("-h", "--help")
+              .set(opts.help)
+              .doc("Print this help message."),
+          clipp::value("model.mzn", opts.model_path),
+          clipp::opt_values("data.dzn", opts.infiles),
+          (clipp::option("-o") & clipp::value("output file", opts.output_file)),
+          (clipp::option("--stdlib-dir") & clipp::value("dir", opts.stdlib_dir))
+              .doc(fmt::format("Default: {}", opts.stdlib_dir)),
+          (clipp::option("-I", "--search-dir") &
+           clipp::value("dir", opts.ortools_include_dir))
+              .doc("Additionally search for included files in <dir>."),
+          clipp::option("--verbose").set(opts.verbose),
+          clipp::option("--print-ast").set(opts.print_ast));
 }
-} // namespace
 
 auto ParserOpts::create(int argc, char** argv)
     -> std::expected<ParserOpts, clipp::man_page> {
@@ -39,15 +37,28 @@ auto ParserOpts::create(int argc, char** argv)
   return opts;
 }
 
+std::string ParserOpts::get_ortools_include_dir() const {
+  return !ortools_include_dir.empty()
+           ? ortools_include_dir
+           : MiniZinc::FileUtils::file_path(stdlib_dir + "/solvers/cp-sat");
+}
+
+std::string ParserOpts::get_output_file() const {
+    if (!output_file.empty())
+        return output_file;
+
+    std::filesystem::path output_path{model_path};
+    output_path.replace_extension(".py");
+
+    return output_path.string();
+}
+
 auto ParserOpts::init() -> ParserOpts {
   auto opts = ParserOpts{};
 
   auto solver_configs = MiniZinc::SolverConfigs(opts.logs);
 
   opts.stdlib_dir = solver_configs.mznlibDir();
-
-  opts.ortools_include_dir =
-      MiniZinc::FileUtils::file_path(opts.stdlib_dir + "/solvers/cp-sat");
 
   return opts;
 }
