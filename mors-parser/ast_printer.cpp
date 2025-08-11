@@ -44,6 +44,65 @@ void PrintModelVisitor::vOutputI(MiniZinc::OutputI* /*oi*/) {
 
 void PrintModelVisitor::vFunctionI(MiniZinc::FunctionI* functionI) {}
 
+void PrintModelVisitor::print_type(MiniZinc::Type const& type,
+                                   int const indent) {
+  ind(indent);
+  fmt::println("Type:");
+
+  ind(indent + 2);
+  fmt::println("Decl: {}", type.isPar() ? "parameter" : "variable");
+
+  ind(indent + 2);
+  fmt::println("Set: {}", type.isSet());
+
+  ind(indent + 2);
+  fmt::println("Base Type:");
+
+  ind(indent + 4);
+  switch (type.bt()) {
+  case MiniZinc::Type::BaseType::BT_BOOL: {
+    fmt::println("BT_BOOL");
+    break;
+  }
+  case MiniZinc::Type::BaseType::BT_INT: {
+    fmt::println("BT_INT");
+    break;
+  }
+  case MiniZinc::Type::BaseType::BT_FLOAT: {
+    fmt::println("BT_FLOAT");
+    break;
+  }
+  case MiniZinc::Type::BaseType::BT_STRING: {
+    fmt::println("BT_STRING");
+    break;
+  }
+  case MiniZinc::Type::BaseType::BT_ANN: {
+    fmt::println("BT_ANN");
+    break;
+  }
+  case MiniZinc::Type::BaseType::BT_TUPLE: {
+    fmt::println("BT_TUPLE");
+    break;
+  }
+  case MiniZinc::Type::BaseType::BT_RECORD: {
+    fmt::println("BT_RECORD");
+    break;
+  }
+  case MiniZinc::Type::BaseType::BT_TOP: {
+    fmt::println("BT_TOP");
+    break;
+  }
+  case MiniZinc::Type::BaseType::BT_BOT: {
+    fmt::println("BT_BOT");
+    break;
+  }
+  case MiniZinc::Type::BaseType::BT_UNKNOWN: {
+    fmt::println("BT_UNKNOWN");
+    break;
+  }
+  }
+}
+
 void PrintModelVisitor::print_var_decl(MiniZinc::VarDecl* var_decl,
                                        int const indent) {
   if (indent == 0 &&
@@ -82,7 +141,12 @@ void PrintModelVisitor::print_var_decl(MiniZinc::VarDecl* var_decl,
 void PrintModelVisitor::print_type_inst(MiniZinc::TypeInst* type_inst,
                                         int const indent) {
   ind(indent);
-  fmt::println("type:");
+  fmt::println("type inst:");
+
+  print_type(type_inst->type(), indent + 2);
+
+  ind(indent + 2);
+  fmt::println("Array: {}", type_inst->isarray());
 
   ind(indent + 2);
   fmt::println("ranges:");
@@ -174,7 +238,7 @@ void PrintModelVisitor::print_int_lit(MiniZinc::IntLit* int_lit,
 }
 
 void PrintModelVisitor::print_float_lit(MiniZinc::FloatLit* float_lit,
-                                      int const indent) {
+                                        int const indent) {
   ind(indent + 2);
   fmt::println("float");
   ind(indent + 2);
@@ -186,50 +250,7 @@ void PrintModelVisitor::print_bin_op(MiniZinc::BinOp* bin_op,
   ind(indent);
   fmt::println("Bin Op");
 
-  ind(indent + 2);
-  fmt::print("Type: ");
-  switch (MiniZinc::Expression::type(bin_op).bt()) {
-  case MiniZinc::Type::BaseType::BT_BOOL: {
-    fmt::println("BT_BOOL");
-    break;
-  }
-  case MiniZinc::Type::BaseType::BT_INT: {
-    fmt::println("BT_INT");
-    break;
-  }
-  case MiniZinc::Type::BaseType::BT_FLOAT: {
-    fmt::println("BT_FLOAT");
-    break;
-  }
-  case MiniZinc::Type::BaseType::BT_STRING: {
-    fmt::println("BT_STRING");
-    break;
-  }
-  case MiniZinc::Type::BaseType::BT_ANN: {
-    fmt::println("BT_ANN");
-    break;
-  }
-  case MiniZinc::Type::BaseType::BT_TUPLE: {
-    fmt::println("BT_TUPLE");
-    break;
-  }
-  case MiniZinc::Type::BaseType::BT_RECORD: {
-    fmt::println("BT_RECORD");
-    break;
-  }
-  case MiniZinc::Type::BaseType::BT_TOP: {
-    fmt::println("BT_TOP");
-    break;
-  }
-  case MiniZinc::Type::BaseType::BT_BOT: {
-    fmt::println("BT_BOT");
-    break;
-  }
-  case MiniZinc::Type::BaseType::BT_UNKNOWN: {
-    fmt::println("BT_UNKNOWN");
-    break;
-  }
-  }
+  // print_type(MiniZinc::Expression::type(bin_op), indent + 2);
 
   ind(indent + 2);
   fmt::println("lhs: ");

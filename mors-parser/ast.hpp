@@ -16,8 +16,8 @@ struct LiteralArray;
 struct IdExpr;
 struct BinOp;
 struct Call;
-using Expr =
-    std::variant<LiteralInt, LiteralFloat, LiteralString, LiteralArray, IdExpr, BinOp, Call>;
+using Expr = std::variant<LiteralInt, LiteralFloat, LiteralString, LiteralArray,
+                          IdExpr, BinOp, Call>;
 using ExprHandle = std::shared_ptr<Expr>;
 
 struct LiteralInt {
@@ -29,7 +29,7 @@ struct LiteralString {
 };
 
 struct LiteralFloat {
-    double value;
+  double value;
 };
 
 struct LiteralArray {
@@ -41,25 +41,49 @@ struct IdExpr {
 };
 
 struct BinOp {
-  enum class OpKind : uint8_t { PLUS, MINUS, MULT, DIV, DOTDOT, EQ, NQ, PLUSPLUS };
+  enum class OpKind : uint8_t {
+    PLUS,
+    MINUS,
+    MULT,
+    DIV,
+    DOTDOT,
+    EQ,
+    NQ,
+    PLUSPLUS
+  };
   OpKind kind;
 
   ExprHandle lhs, rhs;
 };
 
 struct Call {
-    std::string id;
+  std::string id;
 
-    std::vector<ExprHandle> args;
+  std::vector<ExprHandle> args;
 };
 
 namespace types {
 struct Int {};
 struct Float {};
 struct Bool {};
+
+template <typename T> struct Set {};
+
+struct Array;
+
 } // namespace types
 
-using Type = std::variant<types::Int, types::Float, types::Bool>;
+using Type = std::variant<types::Int, types::Float, types::Bool,
+                          types::Set<types::Int>, types::Set<types::Float>,
+                          types::Set<types::Bool>, types::Array>;
+using TypeHandle = std::shared_ptr<Type>;
+
+
+namespace types {
+struct Array {
+  std::vector<TypeHandle> dims;
+};
+} // namespace types
 
 struct DeclVariable {
   std::string id;

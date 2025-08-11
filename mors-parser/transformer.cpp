@@ -6,14 +6,18 @@
 
 #include <optional>
 #include <utility>
+#include <variant>
 
 namespace parser {
 namespace {
-auto resolve_expr_type(MiniZinc::Expression* expr) -> ast::Type {
+template <class... Ts> struct overloaded : Ts... {
+  using Ts::operator()...;
+};
+// explicit deduction guide (not needed as of C++20)
+template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+
+auto resolve_base_type(MiniZinc::Type::BaseType base_type) -> ast::Type {
   // enum BaseType {
-  //   BT_BOOL,
-  //   BT_INT,
-  //   BT_FLOAT,
   //   BT_STRING,
   //   BT_ANN,
   //   BT_TUPLE,
@@ -22,7 +26,7 @@ auto resolve_expr_type(MiniZinc::Expression* expr) -> ast::Type {
   //   BT_BOT,
   //   BT_UNKNOWN
   // };
-  switch (MiniZinc::Expression::type(expr).bt()) {
+  switch (base_type) {
   case MiniZinc::Type::BT_INT: {
     return ast::types::Int{};
   }
@@ -36,6 +40,32 @@ auto resolve_expr_type(MiniZinc::Expression* expr) -> ast::Type {
     assert(false);
   }
 }
+auto resolve_type_inst(MiniZinc::TypeInst* type_inst) -> ast::Type {
+    if (type_inst->isarray()) {
+        ast::types::Array arr{};
+
+        // for (auto inner: type_inst->ranges())
+        //     arr.dims.push_back(resolve_type_inst(inner));
+
+        return arr;
+    }
+
+  auto const& type = type_inst->type();
+  if (type.isSet())
+    return std::visit(overloaded{[](ast::types::Int const&) -> ast::Type {
+                                   return ast::types::Set<ast::types::Int>{};
+                                 },
+                                 [](ast::types::Float const&) -> ast::Type {
+                                   return ast::types::Set<ast::types::Float>{};
+                                 },
+                                 [](ast::types::Bool const&) -> ast::Type {
+                                   return ast::types::Set<ast::types::Bool>{};
+                                 },
+                                 [](auto const& t) -> ast::Type { return t; }},
+                      resolve_base_type(type.bt()));
+
+  return resolve_base_type(type.bt());
+}
 } // namespace
 
 auto Transformer::handle_const_decl(MiniZinc::VarDecl* var_decl)
@@ -44,14 +74,15 @@ auto Transformer::handle_const_decl(MiniZinc::VarDecl* var_decl)
   if (!value)
     assert(false);
 
-  return ast::DeclConst{.id = std::string{var_decl->id()->v().c_str()},
-                        .type = resolve_expr_type(var_decl->e()),
-                        .value = *value};
+  return ast::DeclConst{
+      .id = std::string{var_decl->id()->v().c_str()},
+      .type = resolve_type_inst(var_decl->ti()),
+      .value = *value};
 }
 
 auto Transformer::handle_var_decl(MiniZinc::VarDecl* var_decl) -> ast::VarDecl {
   return ast::DeclVariable{.id = std::string{var_decl->id()->v().c_str()},
-                           .var_type = resolve_expr_type(var_decl),
+                           .var_type = resolve_type_inst(var_decl->ti()),
                            .domain = var_decl->ti()->domain() != nullptr
                                        ? map(var_decl->ti()->domain())
                                        : std::nullopt};
@@ -62,7 +93,7 @@ auto Transformer::map(MiniZinc::VarDecl* var_decl)
   if (!var_decl->item()->loc().filename().endsWith(input_model_path))
     return std::nullopt;
 
-  if (var_decl->e() != nullptr)
+  if (MiniZinc::Expression::type(var_decl->ti()).isPar())
     return handle_const_decl(var_decl);
 
   return handle_var_decl(var_decl);
