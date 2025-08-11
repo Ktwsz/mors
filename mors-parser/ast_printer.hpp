@@ -26,29 +26,31 @@ struct PrintModelVisitor {
 
   void vFunctionI(MiniZinc::FunctionI* functionI);
 
-  void print_var_decl(MiniZinc::VarDecl* var_decl, int const indent);
+  void print_type(MiniZinc::Type const& type, int indent);
 
-  void print_type_inst(MiniZinc::TypeInst* var_decl, int const indent);
+  void print_var_decl(MiniZinc::VarDecl* var_decl, int indent);
 
-  void print_function(MiniZinc::FunctionI* function, int const indent);
+  void print_type_inst(MiniZinc::TypeInst* var_decl, int indent);
 
-  void print_fn_call(MiniZinc::Call* call, int const indent);
+  void print_function(MiniZinc::FunctionI* function, int indent);
 
-  void print_ite(MiniZinc::ITE* ite, int const indent);
+  void print_fn_call(MiniZinc::Call* call, int indent);
 
-  void print_let_expr(MiniZinc::Let* let, int const indent);
+  void print_ite(MiniZinc::ITE* ite, int indent);
 
-  void print_int_lit(MiniZinc::IntLit* int_lit, int const indent);
+  void print_let_expr(MiniZinc::Let* let, int indent);
 
-  void print_float_lit(MiniZinc::FloatLit* float_lit, int const indent);
+  void print_int_lit(MiniZinc::IntLit* int_lit, int indent);
 
-  void print_bin_op(MiniZinc::BinOp* bin_op, int const indent);
+  void print_float_lit(MiniZinc::FloatLit* float_lit, int indent);
 
-  void print_array_lit(MiniZinc::ArrayLit* array_lit, int const indent);
+  void print_bin_op(MiniZinc::BinOp* bin_op, int indent);
+
+  void print_array_lit(MiniZinc::ArrayLit* array_lit, int indent);
 
   void print_solve_type(MiniZinc::SolveI* solve_item);
 
-  void match_expr(MiniZinc::Expression* expr, int const indent = 0);
+  void match_expr(MiniZinc::Expression* expr, int indent = 0);
 };
 
 } // namespace parser
