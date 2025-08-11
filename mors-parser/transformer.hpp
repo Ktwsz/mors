@@ -15,6 +15,7 @@ struct Transformer {
 
   std::string input_model_path;
 
+  auto map(MiniZinc::TypeInst* type_inst) -> ast::Type;
   auto map(MiniZinc::VarDecl*) -> std::optional<ast::VarDecl>;
   auto map(MiniZinc::Expression*) -> std::optional<ast::ExprHandle>;
   auto map(MiniZinc::BinOp*) -> ast::ExprHandle;

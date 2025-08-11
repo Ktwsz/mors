@@ -40,33 +40,36 @@ auto resolve_base_type(MiniZinc::Type::BaseType base_type) -> ast::Type {
     assert(false);
   }
 }
-auto resolve_type_inst(MiniZinc::TypeInst* type_inst) -> ast::Type {
-    if (type_inst->isarray()) {
-        ast::types::Array arr{};
+} // namespace
 
-        // for (auto inner: type_inst->ranges())
-        //     arr.dims.push_back(resolve_type_inst(inner));
+auto Transformer::map(MiniZinc::TypeInst* type_inst) -> ast::Type {
+  if (type_inst->isarray()) {
+    ast::types::Array arr{};
 
-        return arr;
+    for (auto inner : type_inst->ranges()) {
+      assert(inner->domain() != nullptr && "prayge");
+      arr.dims.push_back(*map(inner->domain()));
     }
+
+    return arr;
+  }
 
   auto const& type = type_inst->type();
   if (type.isSet())
     return std::visit(overloaded{[](ast::types::Int const&) -> ast::Type {
-                                   return ast::types::Set<ast::types::Int>{};
+                                   return ast::types::IntSet{};
                                  },
                                  [](ast::types::Float const&) -> ast::Type {
-                                   return ast::types::Set<ast::types::Float>{};
+                                   return ast::types::FloatSet{};
                                  },
                                  [](ast::types::Bool const&) -> ast::Type {
-                                   return ast::types::Set<ast::types::Bool>{};
+                                   return ast::types::BoolSet{};
                                  },
                                  [](auto const& t) -> ast::Type { return t; }},
                       resolve_base_type(type.bt()));
 
   return resolve_base_type(type.bt());
 }
-} // namespace
 
 auto Transformer::handle_const_decl(MiniZinc::VarDecl* var_decl)
     -> ast::VarDecl {
@@ -74,15 +77,14 @@ auto Transformer::handle_const_decl(MiniZinc::VarDecl* var_decl)
   if (!value)
     assert(false);
 
-  return ast::DeclConst{
-      .id = std::string{var_decl->id()->v().c_str()},
-      .type = resolve_type_inst(var_decl->ti()),
-      .value = *value};
+  return ast::DeclConst{.id = std::string{var_decl->id()->v().c_str()},
+                        .type = map(var_decl->ti()),
+                        .value = *value};
 }
 
 auto Transformer::handle_var_decl(MiniZinc::VarDecl* var_decl) -> ast::VarDecl {
   return ast::DeclVariable{.id = std::string{var_decl->id()->v().c_str()},
-                           .var_type = resolve_type_inst(var_decl->ti()),
+                           .var_type = map(var_decl->ti()),
                            .domain = var_decl->ti()->domain() != nullptr
                                        ? map(var_decl->ti()->domain())
                                        : std::nullopt};

@@ -69,6 +69,10 @@ struct Bool {};
 
 template <typename T> struct Set {};
 
+using IntSet = Set<Int>;
+using FloatSet = Set<Float>;
+using BoolSet = Set<Bool>;
+
 struct Array;
 
 } // namespace types
@@ -76,12 +80,13 @@ struct Array;
 using Type = std::variant<types::Int, types::Float, types::Bool,
                           types::Set<types::Int>, types::Set<types::Float>,
                           types::Set<types::Bool>, types::Array>;
-using TypeHandle = std::shared_ptr<Type>;
+// using TypeHandle = std::shared_ptr<Type>;
 
 
 namespace types {
 struct Array {
-  std::vector<TypeHandle> dims;
+  // std::vector<TypeHandle> dims;
+  std::vector<ExprHandle> dims;
 };
 } // namespace types
 

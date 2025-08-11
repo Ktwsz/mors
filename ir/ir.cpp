@@ -24,6 +24,19 @@ PYBIND11_MODULE(ir_python, m) {
   py::class_<ast::types::Bool>(m, "TypeBool")
       .def("type", [](ast::types::Bool const&) { return "bool"; });
 
+  py::class_<ast::types::IntSet>(m, "IntSet")
+      .def("type", [](ast::types::IntSet const&) { return "int_set"; });
+
+  py::class_<ast::types::FloatSet>(m, "FloatSet")
+      .def("type", [](ast::types::FloatSet const&) { return "float_set"; });
+
+  py::class_<ast::types::BoolSet>(m, "BoolSet")
+      .def("type", [](ast::types::BoolSet const&) { return "bool_set"; });
+
+  py::class_<ast::types::Array>(m, "Array")
+      .def("type", [](ast::types::Array const&) { return "array"; })
+      .def_readonly("dims", &ast::types::Array::dims);
+
   py::class_<ast::LiteralInt>(m, "LiteralInt")
       .def_readonly("value", &ast::LiteralInt::value);
 
@@ -36,8 +49,7 @@ PYBIND11_MODULE(ir_python, m) {
   py::class_<ast::LiteralArray>(m, "LiteralArray")
       .def_readonly("value", &ast::LiteralArray::value);
 
-  py::class_<ast::IdExpr>(m, "IdExpr")
-      .def_readwrite("id", &ast::IdExpr::id);
+  py::class_<ast::IdExpr>(m, "IdExpr").def_readwrite("id", &ast::IdExpr::id);
 
   py::class_<ast::BinOp> bin_op(m, "BinOp");
   bin_op.def_readonly("kind", &ast::BinOp::kind)
