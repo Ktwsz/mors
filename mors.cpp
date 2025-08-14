@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
         py::module_::import("emitter").attr("hello_world");
     auto parser_python = py::module::import("ir_python");
 
-    hello_world(*result);
+    hello_world(*result, opts->get_output_file());
 
   } catch (py::error_already_set const& e) {
     fmt::println("python binding err:");

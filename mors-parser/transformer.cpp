@@ -76,7 +76,8 @@ auto Transformer::handle_const_decl(MiniZinc::VarDecl* var_decl)
     -> ast::VarDecl {
   return ast::DeclConst{.id = std::string{var_decl->id()->v().c_str()},
                         .type = map(var_decl->ti()),
-                        .value = var_decl->e() ? map(var_decl->e()) : std::nullopt};
+                        .value =
+                            var_decl->e() ? map(var_decl->e()) : std::nullopt};
 }
 
 auto Transformer::handle_var_decl(MiniZinc::VarDecl* var_decl) -> ast::VarDecl {

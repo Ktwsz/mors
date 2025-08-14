@@ -86,12 +86,10 @@ class Emitter:
             self.ast_tree.body.append(ast.parse(f"print({self.ast_expr(expr)},end=\"\")"))
 
 
-def hello_world(tree: Tree): # dir and filename to add
+def hello_world(tree: Tree, file_path: str): # dir and filename to add
     print("hello from python")
     emitter = Emitter()
-    dir="."
-    file_name="new_file.py"
-    file_to_write = open(f"{dir}/{file_name}", "w")
+    file_to_write = open(file_path, "w")
     emitter.init_file()
     for decl in tree.decls:
         if type(decl) == DeclConst:
