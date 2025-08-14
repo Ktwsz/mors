@@ -3,6 +3,8 @@
 #include <fmt/base.h>
 #include <fmt/format.h>
 
+#include <ranges>
+
 namespace parser {
 namespace {
 void ind(int const indent) {
@@ -134,7 +136,7 @@ void PrintModelVisitor::print_var_decl(MiniZinc::VarDecl* var_decl,
     fmt::println("expr: null");
   } else {
     fmt::println("expr: ");
-    match_expr(var_decl->e(), indent + 2);
+    match_expr(var_decl->e(), indent + 4);
   }
 }
 
@@ -147,6 +149,9 @@ void PrintModelVisitor::print_type_inst(MiniZinc::TypeInst* type_inst,
 
   ind(indent + 2);
   fmt::println("Array: {}", type_inst->isarray());
+
+  ind(indent + 2);
+  fmt::println("Enum: {}", type_inst->isEnum());
 
   ind(indent + 2);
   fmt::println("ranges:");
@@ -186,7 +191,6 @@ void PrintModelVisitor::print_fn_call(MiniZinc::Call* call, int const indent) {
 
     match_expr(functionItem->e(), indent + 4);
   }
-  fmt::print("\n");
 
   ind(indent + 2);
   fmt::println("args:");
@@ -232,9 +236,7 @@ void PrintModelVisitor::print_let_expr(MiniZinc::Let* let, int const indent) {
 void PrintModelVisitor::print_int_lit(MiniZinc::IntLit* int_lit,
                                       int const indent) {
   ind(indent + 2);
-  fmt::println("integer");
-  ind(indent + 2);
-  fmt::println("value: {}", MiniZinc::IntLit::v(int_lit).toInt());
+  fmt::println("integer: {}", MiniZinc::IntLit::v(int_lit).toInt());
 }
 
 void PrintModelVisitor::print_float_lit(MiniZinc::FloatLit* float_lit,
@@ -378,6 +380,41 @@ void PrintModelVisitor::print_bin_op(MiniZinc::BinOp* bin_op,
   match_expr(bin_op->rhs(), indent + 4);
 }
 
+void PrintModelVisitor::print_comprehension(MiniZinc::Comprehension* comp,
+                                            int const indent) {
+  ind(indent);
+  fmt::println("comprehension");
+
+  ind(indent + 2);
+  fmt::println("generators:");
+
+  for (auto const i :
+       std::views::iota(0u, comp->numberOfGenerators()) | std::views::reverse) {
+
+    for (auto const j :
+         std::views::iota(0u, comp->numberOfDecls(i)) | std::views::reverse) {
+      match_expr(comp->decl(i, j), indent + 4);
+    }
+
+    if (comp->in(i) != nullptr) {
+      ind(indent + 4);
+      fmt::println("in:");
+      match_expr(comp->in(i), indent + 6);
+    }
+
+    // TODO
+    // if (comp->where(i) != nullptr) {
+    //   ind(indent + 4);
+    //   fmt::println("where:");
+    //   match_expr(comp->where(i), indent + 6);
+    // }
+  }
+
+  ind(indent + 2);
+  fmt::println("body:");
+  match_expr(comp->e(), indent + 4);
+}
+
 void PrintModelVisitor::print_array_lit(MiniZinc::ArrayLit* array_lit,
                                         int const indent) {
   ind(indent);
@@ -388,14 +425,32 @@ void PrintModelVisitor::print_array_lit(MiniZinc::ArrayLit* array_lit,
   }
 }
 
+void PrintModelVisitor::print_array_access(MiniZinc::ArrayAccess* array_access,
+                                           int const indent) {
+  ind(indent);
+  fmt::println("Array access");
+
+  ind(indent + 2);
+  fmt::println("array:");
+  match_expr(array_access->v(), indent + 4);
+
+  ind(indent + 2);
+  fmt::println("indexes:");
+  for (auto& ix : array_access->idx()) {
+    match_expr(ix, indent + 4);
+  }
+}
+
 void PrintModelVisitor::print_solve_type(MiniZinc::SolveI* solve_item) {
   switch (solve_item->st()) {
   case MiniZinc::SolveI::SolveType::ST_MAX: {
-    fmt::println("MAX");
+    fmt::println("MAX"); 
+    match_expr(solve_item->e(), 2);
     break;
   }
   case MiniZinc::SolveI::SolveType::ST_MIN: {
     fmt::println("MIN");
+    match_expr(solve_item->e(), 2);
     break;
   }
   case MiniZinc::SolveI::SolveType::ST_SAT: {
@@ -418,45 +473,59 @@ void PrintModelVisitor::match_expr(MiniZinc::Expression* expr,
     print_float_lit(float_lit, indent);
     break;
   }
-  case MiniZinc::Expression::E_SETLIT:
+  case MiniZinc::Expression::E_SETLIT: {
+    ind(indent);
     fmt::println("E_SETLIT");
     break;
-  case MiniZinc::Expression::E_BOOLLIT:
+  }
+  case MiniZinc::Expression::E_BOOLLIT: {
+    ind(indent);
     fmt::println("E_BOOLLIT");
     break;
+  }
   case MiniZinc::Expression::E_STRINGLIT: {
     auto* string_lit = MiniZinc::Expression::cast<MiniZinc::StringLit>(expr);
 
     ind(indent);
-    fmt::println("E_STRINGLIT: {}", string_lit->v().c_str() != nullptr
-                                        ? string_lit->v().c_str()
-                                        : "nullptr");
+    fmt::println("string: {}", string_lit->v().c_str() != nullptr
+                                   ? string_lit->v().c_str()
+                                   : "nullptr");
     break;
   }
   case MiniZinc::Expression::E_ID: {
     auto* id = MiniZinc::Expression::cast<MiniZinc::Id>(expr);
     ind(indent + 2);
-    fmt::println("E_ID: {}", id->v().c_str());
+    fmt::println("id: {}", id->v().c_str());
     break;
   }
-  case MiniZinc::Expression::E_ANON:
+  case MiniZinc::Expression::E_ANON: {
+    ind(indent);
     fmt::println("E_ANON");
     break;
+  }
   case MiniZinc::Expression::E_ARRAYLIT: {
     auto* array_lit = MiniZinc::Expression::cast<MiniZinc::ArrayLit>(expr);
     print_array_lit(array_lit, indent);
 
     break;
   }
-  case MiniZinc::Expression::E_ARRAYACCESS:
-    fmt::println("E_ARRAYACCESS");
+  case MiniZinc::Expression::E_ARRAYACCESS: {
+    auto* array_access =
+        MiniZinc::Expression::cast<MiniZinc::ArrayAccess>(expr);
+    print_array_access(array_access, indent);
+
     break;
-  case MiniZinc::Expression::E_FIELDACCESS:
+  }
+  case MiniZinc::Expression::E_FIELDACCESS: {
+    ind(indent);
     fmt::println("E_FIELDACCESS");
     break;
-  case MiniZinc::Expression::E_COMP:
-    fmt::println("E_COMP");
+  }
+  case MiniZinc::Expression::E_COMP: {
+    auto* comp = MiniZinc::Expression::cast<MiniZinc::Comprehension>(expr);
+    print_comprehension(comp, indent);
     break;
+  }
   case MiniZinc::Expression::E_ITE: {
     auto* ite = MiniZinc::Expression::cast<MiniZinc::ITE>(expr);
     print_ite(ite, indent);
@@ -467,9 +536,11 @@ void PrintModelVisitor::match_expr(MiniZinc::Expression* expr,
     print_bin_op(bin_op, indent);
     break;
   }
-  case MiniZinc::Expression::E_UNOP:
+  case MiniZinc::Expression::E_UNOP: {
+    ind(indent);
     fmt::println("E_UNOP");
     break;
+  }
   case MiniZinc::Expression::E_CALL: {
     auto* call = MiniZinc::Expression::cast<MiniZinc::Call>(expr);
     print_fn_call(call, indent);
@@ -485,12 +556,16 @@ void PrintModelVisitor::match_expr(MiniZinc::Expression* expr,
     print_let_expr(let, indent);
     break;
   }
-  case MiniZinc::Expression::E_TI:
+  case MiniZinc::Expression::E_TI: {
+    ind(indent);
     fmt::println("E_TI");
     break;
-  case MiniZinc::Expression::E_TIID:
+  }
+  case MiniZinc::Expression::E_TIID: {
+    ind(indent);
     fmt::println("E_TIID");
     break;
+  }
   }
 }
 } // namespace parser

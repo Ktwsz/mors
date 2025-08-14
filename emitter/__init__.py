@@ -43,7 +43,7 @@ class Emitter:
                 return ""
             case BinOp.OpKind.MULT :
                 return ""
-            case BinOp.OpKind.DIV :
+            case BinOp.OpKind.IDIV :
                 return ""
             case BinOp.OpKind.DOTDOT:
                 return f"range({self.ast_expr(bin_op.lhs)}, {self.ast_expr(bin_op.rhs)} +1)"

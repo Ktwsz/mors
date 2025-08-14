@@ -5,6 +5,7 @@
 #include <minizinc/type.hh>
 
 #include <optional>
+#include <ranges>
 #include <utility>
 #include <variant>
 
@@ -73,13 +74,9 @@ auto Transformer::map(MiniZinc::TypeInst* type_inst) -> ast::Type {
 
 auto Transformer::handle_const_decl(MiniZinc::VarDecl* var_decl)
     -> ast::VarDecl {
-  auto value = map(var_decl->e());
-  if (!value)
-    assert(false);
-
   return ast::DeclConst{.id = std::string{var_decl->id()->v().c_str()},
                         .type = map(var_decl->ti()),
-                        .value = *value};
+                        .value = var_decl->e() ? map(var_decl->e()) : std::nullopt};
 }
 
 auto Transformer::handle_var_decl(MiniZinc::VarDecl* var_decl) -> ast::VarDecl {
@@ -99,6 +96,35 @@ auto Transformer::map(MiniZinc::VarDecl* var_decl)
     return handle_const_decl(var_decl);
 
   return handle_var_decl(var_decl);
+}
+
+auto Transformer::map(MiniZinc::Comprehension* comp) -> ast::Comprehension {
+  auto body = map(comp->e());
+  assert(body);
+
+  std::vector<ast::Generator> generators;
+
+  for (auto const i :
+       std::views::iota(0u, comp->numberOfGenerators()) | std::views::reverse) {
+
+    if (comp->in(i) == nullptr)
+      continue;
+
+    auto const in_expr = map(comp->in(i));
+    assert(in_expr);
+
+    for (auto const j :
+         std::views::iota(0u, comp->numberOfDecls(i)) | std::views::reverse) {
+      auto decl_expr = handle_const_decl(comp->decl(i, j));
+      assert(std::holds_alternative<ast::DeclConst>(decl_expr));
+
+      generators.push_back(ast::Generator{
+          .variable = std::get<ast::DeclConst>(decl_expr), .in = *in_expr});
+    }
+  }
+
+  return ast::Comprehension{.body = std::move(*body),
+                            .generators = std::move(generators)};
 }
 
 auto Transformer::map(MiniZinc::Expression* expr)
@@ -185,14 +211,31 @@ auto Transformer::map(MiniZinc::Expression* expr)
 
     return ast_array;
   }
-  // case MiniZinc::Expression::E_ARRAYACCESS:
-  //   fmt::println("E_ARRAYACCESS");
-  //   break;
+  case MiniZinc::Expression::E_COMP: {
+    auto* comp = MiniZinc::Expression::cast<MiniZinc::Comprehension>(expr);
+    return std::make_shared<ast::Expr>(map(comp));
+  }
+  case MiniZinc::Expression::E_ARRAYACCESS: {
+    auto* array_access =
+        MiniZinc::Expression::cast<MiniZinc::ArrayAccess>(expr);
+
+    auto ast_array = std::make_shared<ast::Expr>(ast::ArrayAccess{});
+
+    auto arr_expr = map(array_access->v());
+    assert(arr_expr && "Array Access: nullopt array");
+    std::get<ast::ArrayAccess>(*ast_array).arr = *arr_expr;
+
+    for (auto& ix : array_access->idx()) {
+      auto ix_expr = map(ix);
+      assert(ix_expr && "Array Access: nullopt index");
+
+      std::get<ast::ArrayAccess>(*ast_array).indexes.push_back(*ix_expr);
+    }
+
+    return ast_array;
+  }
   // case MiniZinc::Expression::E_FIELDACCESS:
   //   fmt::println("E_FIELDACCESS");
-  //   break;
-  // case MiniZinc::Expression::E_COMP:
-  //   fmt::println("E_COMP");
   //   break;
   // case MiniZinc::Expression::E_ITE: {
   //   auto* ite = MiniZinc::Expression::cast<MiniZinc::ITE>(expr);
@@ -239,10 +282,18 @@ auto Transformer::map(MiniZinc::BinOp* bin_op) -> ast::ExprHandle {
       return ast::BinOp::OpKind::MINUS;
     case MiniZinc::BOT_MULT:
       return ast::BinOp::OpKind::MULT;
-    case MiniZinc::BOT_DIV:
-      return ast::BinOp::OpKind::DIV;
+    case MiniZinc::BOT_IDIV:
+      return ast::BinOp::OpKind::IDIV;
     case MiniZinc::BOT_EQ:
       return ast::BinOp::OpKind::EQ;
+    case MiniZinc::BOT_GQ:
+      return ast::BinOp::OpKind::GQ;
+    case MiniZinc::BOT_GR:
+      return ast::BinOp::OpKind::GR;
+    case MiniZinc::BOT_LE:
+      return ast::BinOp::OpKind::LE;
+    case MiniZinc::BOT_LQ:
+      return ast::BinOp::OpKind::LQ;
     default:
       assert(false);
     }

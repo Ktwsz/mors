@@ -18,6 +18,7 @@ PYBIND11_MODULE(ir_python, m) {
   py::class_<ast::types::Int>(m, "TypeInt")
       .def("type", [](ast::types::Int const&) { return "int"; });
 
+// TODO: floats not supported for now
   py::class_<ast::types::Float>(m, "TypeFloat")
       .def("type", [](ast::types::Float const&) { return "float"; });
 
@@ -40,6 +41,7 @@ PYBIND11_MODULE(ir_python, m) {
   py::class_<ast::LiteralInt>(m, "LiteralInt")
       .def_readonly("value", &ast::LiteralInt::value);
 
+// TODO: floats not supported for now
   py::class_<ast::LiteralFloat>(m, "LiteralFloat")
       .def_readonly("value", &ast::LiteralFloat::value);
 
@@ -48,6 +50,18 @@ PYBIND11_MODULE(ir_python, m) {
 
   py::class_<ast::LiteralArray>(m, "LiteralArray")
       .def_readonly("value", &ast::LiteralArray::value);
+
+  py::class_<ast::ArrayAccess>(m, "ArrayAccess")
+      .def_readonly("arr", &ast::ArrayAccess::arr)
+      .def_readonly("indexes", &ast::ArrayAccess::indexes);
+
+  py::class_<ast::Generator>(m, "Generator")
+      .def_readonly("variable", &ast::Generator::variable)
+      .def_readonly("in", &ast::Generator::in);
+
+  py::class_<ast::Comprehension>(m, "Comprehension")
+      .def_readonly("body", &ast::Comprehension::body)
+      .def_readonly("generators", &ast::Comprehension::generators);
 
   py::class_<ast::IdExpr>(m, "IdExpr").def_readwrite("id", &ast::IdExpr::id);
 
@@ -69,10 +83,14 @@ PYBIND11_MODULE(ir_python, m) {
       .value("PLUS", ast::BinOp::OpKind::PLUS)
       .value("MINUS", ast::BinOp::OpKind::MINUS)
       .value("MULT", ast::BinOp::OpKind::MULT)
-      .value("DIV", ast::BinOp::OpKind::DIV)
+      .value("IDIV", ast::BinOp::OpKind::IDIV)
       .value("DOTDOT", ast::BinOp::OpKind::DOTDOT)
       .value("EQ", ast::BinOp::OpKind::EQ)
       .value("NQ", ast::BinOp::OpKind::NQ)
+      .value("GQ", ast::BinOp::OpKind::GQ)
+      .value("GR", ast::BinOp::OpKind::GR)
+      .value("LE", ast::BinOp::OpKind::LE)
+      .value("LQ", ast::BinOp::OpKind::LQ)
       .value("PLUSPLUS", ast::BinOp::OpKind::PLUSPLUS)
       .export_values();
 

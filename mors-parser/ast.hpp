@@ -16,8 +16,10 @@ struct LiteralArray;
 struct IdExpr;
 struct BinOp;
 struct Call;
+struct Comprehension;
+struct ArrayAccess;
 using Expr = std::variant<LiteralInt, LiteralFloat, LiteralString, LiteralArray,
-                          IdExpr, BinOp, Call>;
+                          IdExpr, BinOp, Call, Comprehension, ArrayAccess>;
 using ExprHandle = std::shared_ptr<Expr>;
 
 struct LiteralInt {
@@ -28,6 +30,7 @@ struct LiteralString {
   std::string value;
 };
 
+// TODO: floats not supported for now
 struct LiteralFloat {
   double value;
 };
@@ -45,10 +48,14 @@ struct BinOp {
     PLUS,
     MINUS,
     MULT,
-    DIV,
+    IDIV,
     DOTDOT,
     EQ,
     NQ,
+    GQ,
+    GR,
+    LE,
+    LQ,
     PLUSPLUS
   };
   OpKind kind;
@@ -62,9 +69,15 @@ struct Call {
   std::vector<ExprHandle> args;
 };
 
+struct ArrayAccess {
+  ExprHandle arr;
+
+  std::vector<ExprHandle> indexes;
+};
+
 namespace types {
 struct Int {};
-struct Float {};
+struct Float {}; // TODO: floats not supported for now
 struct Bool {};
 
 template <typename T> struct Set {};
@@ -81,7 +94,6 @@ using Type = std::variant<types::Int, types::Float, types::Bool,
                           types::Set<types::Int>, types::Set<types::Float>,
                           types::Set<types::Bool>, types::Array>;
 // using TypeHandle = std::shared_ptr<Type>;
-
 
 namespace types {
 struct Array {
@@ -102,11 +114,24 @@ struct DeclConst {
   std::string id;
   Type type;
 
-  ExprHandle value;
+  std::optional<ExprHandle> value;
 };
 
 using VarDecl = std::variant<DeclVariable, DeclConst>;
 
+struct Generator {
+  DeclConst variable;
+
+  ExprHandle in;
+};
+
+struct Comprehension {
+  ExprHandle body;
+
+  std::vector<Generator> generators;
+};
+
+//TODO - expr to solve
 enum struct SolveType { SAT, MIN, MAX };
 
 struct Tree {
