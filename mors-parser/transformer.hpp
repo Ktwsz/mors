@@ -10,7 +10,7 @@
 namespace parser {
 
 struct Transformer {
-  MiniZinc::Model const& model;
+  MiniZinc::Model & model;
   MiniZinc::EnvI& env;
 
   std::string input_model_path;
@@ -25,6 +25,7 @@ struct Transformer {
 private:
   auto handle_const_decl(MiniZinc::VarDecl* var_decl) -> ast::VarDecl;
   auto handle_var_decl(MiniZinc::VarDecl* var_decl) -> ast::VarDecl;
+  auto find_objective_expr() -> ast::ExprHandle;
 };
 
 } // namespace parser

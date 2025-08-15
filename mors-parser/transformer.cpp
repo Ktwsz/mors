@@ -313,13 +313,30 @@ auto Transformer::map(MiniZinc::BinOp* bin_op) -> ast::ExprHandle {
 
 auto Transformer::map(MiniZinc::SolveI* solve_item) -> ast::SolveType {
   switch (solve_item->st()) {
-  case MiniZinc::SolveI::SolveType::ST_MAX: // TODO: read expr to maximise
-    return ast::SolveType::MAX;
-  case MiniZinc::SolveI::SolveType::ST_MIN: // TODO: read expr to minimise
-    return ast::SolveType::MIN;
+  case MiniZinc::SolveI::SolveType::ST_MAX:
+    return ast::solve_type::Max{.expr = find_objective_expr()};
+  case MiniZinc::SolveI::SolveType::ST_MIN:
+    return ast::solve_type::Min{.expr = find_objective_expr()};
   case MiniZinc::SolveI::SolveType::ST_SAT:
-    return ast::SolveType::SAT;
+    return ast::solve_type::Sat{};
   }
+  assert(false);
+}
+
+auto Transformer::find_objective_expr() -> ast::ExprHandle {
+  for (auto& var_decl_item : model.vardecls()) { // TODO: add const version
+    auto var_decl =
+        MiniZinc::Expression::cast<MiniZinc::VarDecl>(var_decl_item.e());
+    if (var_decl->id()->str() != "_objective")
+      continue;
+
+    assert(var_decl->e());
+    auto var_decl_expr = map(var_decl->e());
+    assert(var_decl_expr);
+
+    return *var_decl_expr;
+  }
+
   assert(false);
 }
 

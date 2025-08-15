@@ -99,11 +99,12 @@ PYBIND11_MODULE(ir_python, m) {
       .def_readonly("type", &ast::DeclConst::type)
       .def_readonly("value", &ast::DeclConst::value);
 
-  py::enum_<ast::SolveType>(m, "SolveType", "enum.Enum")
-      .value("MIN", ast::SolveType::MIN)
-      .value("MAX", ast::SolveType::MAX)
-      .value("SAT", ast::SolveType::SAT)
-      .export_values();
+  py::class_<ast::solve_type::Sat> SolveTypeSat(m, "SolveTypeSat");
+  py::class_<ast::solve_type::Min>(m, "SolveTypeMin")
+      .def_readonly("expr", &ast::solve_type::Min::expr);
+  py::class_<ast::solve_type::Max>(m, "SolveTypeMax")
+      .def_readonly("expr", &ast::solve_type::Max::expr);
+
 
   py::class_<ast::Tree>(m, "Tree")
       .def_readonly("decls", &ast::Tree::decls)

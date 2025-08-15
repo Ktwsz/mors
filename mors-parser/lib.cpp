@@ -92,6 +92,16 @@ auto main(ParserOpts const& opts) -> std::expected<ast::Tree, err::Error> {
 
     fmt::println("--- SOLVE ---");
     vis.print_solve_type(model.solveItem());
+    if (model.solveItem()->st() != MiniZinc::SolveI::ST_SAT) {
+      for (auto& var_decl : model.vardecls()) {
+        if (MiniZinc::Expression::cast<MiniZinc::VarDecl>(var_decl.e())
+                ->id()
+                ->str() != "_objective")
+          continue;
+
+        vis.print_var_decl(var_decl.e(), 4);
+      }
+    }
 
     fmt::println("--- OUTPUT ---");
     vis.match_expr(model.outputItem()->e());

@@ -131,8 +131,19 @@ struct Comprehension {
   std::vector<Generator> generators;
 };
 
-//TODO - expr to solve
-enum struct SolveType { SAT, MIN, MAX };
+namespace solve_type {
+
+struct Sat {};
+struct Min {
+  ExprHandle expr;
+};
+struct Max {
+  ExprHandle expr;
+};
+
+} // namespace solve_type
+using SolveType =
+    std::variant<solve_type::Sat, solve_type::Max, solve_type::Min>;
 
 struct Tree {
   std::vector<VarDecl> decls;
