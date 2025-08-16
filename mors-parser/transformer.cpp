@@ -14,8 +14,6 @@ namespace {
 template <class... Ts> struct overloaded : Ts... {
   using Ts::operator()...;
 };
-// explicit deduction guide (not needed as of C++20)
-template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 auto resolve_base_type(MiniZinc::Type::BaseType base_type) -> ast::Type {
   // enum BaseType {
@@ -97,6 +95,31 @@ auto Transformer::map(MiniZinc::VarDecl* var_decl)
     return handle_const_decl(var_decl);
 
   return handle_var_decl(var_decl);
+}
+
+auto Transformer::map(MiniZinc::SetLit* set_lit) -> ast::ExprHandle {
+  if (auto* isv = set_lit->isv(); isv != nullptr) {
+    auto const& min = isv->min();
+    auto const& max = isv->max();
+
+    assert(min.isFinite());
+    assert(max.isFinite());
+
+    return std::make_shared<ast::Expr>(ast::BinOp{
+        .kind = ast::BinOp::OpKind::DOTDOT,
+        .lhs = std::make_shared<ast::Expr>(ast::LiteralInt{min.toInt()}),
+        .rhs = std::make_shared<ast::Expr>(ast::LiteralInt{max.toInt()})});
+  }
+
+  auto ast_set = std::make_shared<ast::Expr>(ast::LiteralSet{});
+  for (auto& set_expr : set_lit->v()) {
+    auto ast_expr = map(set_expr);
+    assert(ast_expr && "Set Literal: nullopt item");
+
+    std::get<ast::LiteralArray>(*ast_set).value.push_back(*ast_expr);
+  }
+
+  return ast_set;
 }
 
 auto Transformer::map(MiniZinc::Comprehension* comp) -> ast::Comprehension {
@@ -184,12 +207,14 @@ auto Transformer::map(MiniZinc::Expression* expr)
 
     return std::make_shared<ast::Expr>(ast::LiteralFloat{value.toDouble()});
   }
-  // case MiniZinc::Expression::E_SETLIT:
-  //   fmt::println("E_SETLIT");
-  //   break;
-  // case MiniZinc::Expression::E_BOOLLIT:
-  //   fmt::println("E_BOOLLIT");
-  //   break;
+  case MiniZinc::Expression::E_SETLIT: {
+    auto* set_lit = MiniZinc::Expression::cast<MiniZinc::SetLit>(expr);
+    return map(set_lit);
+  }
+  case MiniZinc::Expression::E_BOOLLIT: {
+    auto* bool_lit = MiniZinc::Expression::cast<MiniZinc::BoolLit>(expr);
+    return std::make_shared<ast::Expr>(ast::LiteralBool{bool_lit->v()});
+  }
   case MiniZinc::Expression::E_STRINGLIT: {
     auto* string_lit = MiniZinc::Expression::cast<MiniZinc::StringLit>(expr);
     return std::make_shared<ast::Expr>(

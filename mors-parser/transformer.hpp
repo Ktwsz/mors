@@ -23,6 +23,8 @@ struct Transformer {
   auto map(MiniZinc::SolveI*) -> ast::SolveType;
 
 private:
+  auto map(MiniZinc::SetLit*) -> ast::ExprHandle;
+
   auto handle_const_decl(MiniZinc::VarDecl* var_decl) -> ast::VarDecl;
   auto handle_var_decl(MiniZinc::VarDecl* var_decl) -> ast::VarDecl;
   auto find_objective_expr() -> ast::ExprHandle;

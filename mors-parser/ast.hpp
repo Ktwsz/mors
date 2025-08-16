@@ -9,18 +9,24 @@
 
 namespace parser::ast {
 
+struct LiteralBool;
 struct LiteralInt;
 struct LiteralFloat;
 struct LiteralString;
 struct LiteralArray;
+struct LiteralSet;
 struct IdExpr;
 struct BinOp;
 struct Call;
 struct Comprehension;
 struct ArrayAccess;
-using Expr = std::variant<LiteralInt, LiteralFloat, LiteralString, LiteralArray,
+using Expr = std::variant<LiteralBool, LiteralInt, LiteralFloat, LiteralString, LiteralArray, LiteralSet,
                           IdExpr, BinOp, Call, Comprehension, ArrayAccess>;
 using ExprHandle = std::shared_ptr<Expr>;
+
+struct LiteralBool {
+  bool value;
+};
 
 struct LiteralInt {
   long long value;
@@ -36,6 +42,10 @@ struct LiteralFloat {
 };
 
 struct LiteralArray {
+  std::vector<ExprHandle> value;
+};
+
+struct LiteralSet {
   std::vector<ExprHandle> value;
 };
 

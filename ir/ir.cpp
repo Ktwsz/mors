@@ -18,7 +18,7 @@ PYBIND11_MODULE(ir_python, m) {
   py::class_<ast::types::Int>(m, "TypeInt")
       .def("type", [](ast::types::Int const&) { return "int"; });
 
-// TODO: floats not supported for now
+  // TODO: floats not supported for now
   py::class_<ast::types::Float>(m, "TypeFloat")
       .def("type", [](ast::types::Float const&) { return "float"; });
 
@@ -38,10 +38,13 @@ PYBIND11_MODULE(ir_python, m) {
       .def("type", [](ast::types::Array const&) { return "array"; })
       .def_readonly("dims", &ast::types::Array::dims);
 
+  py::class_<ast::LiteralBool>(m, "LiteralBool")
+      .def_readonly("value", &ast::LiteralBool::value);
+
   py::class_<ast::LiteralInt>(m, "LiteralInt")
       .def_readonly("value", &ast::LiteralInt::value);
 
-// TODO: floats not supported for now
+  // TODO: floats not supported for now
   py::class_<ast::LiteralFloat>(m, "LiteralFloat")
       .def_readonly("value", &ast::LiteralFloat::value);
 
@@ -50,6 +53,9 @@ PYBIND11_MODULE(ir_python, m) {
 
   py::class_<ast::LiteralArray>(m, "LiteralArray")
       .def_readonly("value", &ast::LiteralArray::value);
+
+  py::class_<ast::LiteralSet>(m, "LiteralSet")
+      .def_readonly("value", &ast::LiteralSet::value);
 
   py::class_<ast::ArrayAccess>(m, "ArrayAccess")
       .def_readonly("arr", &ast::ArrayAccess::arr)
@@ -104,7 +110,6 @@ PYBIND11_MODULE(ir_python, m) {
       .def_readonly("expr", &ast::solve_type::Min::expr);
   py::class_<ast::solve_type::Max>(m, "SolveTypeMax")
       .def_readonly("expr", &ast::solve_type::Max::expr);
-
 
   py::class_<ast::Tree>(m, "Tree")
       .def_readonly("decls", &ast::Tree::decls)

@@ -235,13 +235,32 @@ void PrintModelVisitor::print_let_expr(MiniZinc::Let* let, int const indent) {
 
 void PrintModelVisitor::print_int_lit(MiniZinc::IntLit* int_lit,
                                       int const indent) {
-  ind(indent + 2);
+  ind(indent);
   fmt::println("integer: {}", MiniZinc::IntLit::v(int_lit).toInt());
+}
+
+void PrintModelVisitor::print_set_lit(MiniZinc::SetLit* set_lit,
+                                      int const indent) {
+  ind(indent);
+  fmt::println("set:");
+
+  if (auto* isv = set_lit->isv(); isv != nullptr) {
+    ind(indent + 2);
+    fmt::println("range:");
+
+    ind(indent + 4);
+    fmt::println("{}...{}", isv->min().toInt(), isv->max().toInt());
+    return;
+  }
+
+  for (auto const& expr : set_lit->v()) {
+    match_expr(expr, indent + 2);
+  }
 }
 
 void PrintModelVisitor::print_float_lit(MiniZinc::FloatLit* float_lit,
                                         int const indent) {
-  ind(indent + 2);
+  ind(indent);
   fmt::println("float");
   ind(indent + 2);
   fmt::println("value: {}", MiniZinc::FloatLit::v(float_lit).toDouble());
@@ -444,7 +463,7 @@ void PrintModelVisitor::print_array_access(MiniZinc::ArrayAccess* array_access,
 void PrintModelVisitor::print_solve_type(MiniZinc::SolveI* solve_item) {
   switch (solve_item->st()) {
   case MiniZinc::SolveI::SolveType::ST_MAX: {
-    fmt::println("MAX"); 
+    fmt::println("MAX");
     match_expr(solve_item->e(), 2);
     break;
   }
@@ -474,13 +493,14 @@ void PrintModelVisitor::match_expr(MiniZinc::Expression* expr,
     break;
   }
   case MiniZinc::Expression::E_SETLIT: {
-    ind(indent);
-    fmt::println("E_SETLIT");
+    auto* set_lit = MiniZinc::Expression::cast<MiniZinc::SetLit>(expr);
+    print_set_lit(set_lit, indent);
     break;
   }
   case MiniZinc::Expression::E_BOOLLIT: {
+    auto* bool_lit = MiniZinc::Expression::cast<MiniZinc::BoolLit>(expr);
     ind(indent);
-    fmt::println("E_BOOLLIT");
+    fmt::println("bool: {}", bool_lit->v());
     break;
   }
   case MiniZinc::Expression::E_STRINGLIT: {
