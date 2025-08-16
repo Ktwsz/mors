@@ -13,39 +13,6 @@ void ind(int const indent) {
 }
 } // namespace
 
-bool PrintModelVisitor::enterModel(MiniZinc::Model*) { return true; }
-
-bool PrintModelVisitor::enter(MiniZinc::Item* /*m*/) { return true; }
-
-void PrintModelVisitor::vIncludeI(MiniZinc::IncludeI* include) {
-  fmt::println("includeI: {}", include->f().c_str());
-}
-
-void PrintModelVisitor::vVarDeclI(MiniZinc::VarDeclI* varDecl) {
-  // if (varDecl->loc().filename().endsWith(input_model_path)) {
-  match_expr(varDecl->e());
-  // }
-}
-
-void PrintModelVisitor::vAssignI(MiniZinc::AssignI* /*ai*/) {
-  fmt::println("assignI");
-}
-
-void PrintModelVisitor::vConstraintI(MiniZinc::ConstraintI* constraint) {
-  fmt::println("constraint expr");
-  match_expr(constraint->e());
-}
-
-void PrintModelVisitor::vSolveI(MiniZinc::SolveI* /*si*/) {
-  fmt::println("solveI");
-}
-
-void PrintModelVisitor::vOutputI(MiniZinc::OutputI* /*oi*/) {
-  fmt::println("output expr");
-}
-
-void PrintModelVisitor::vFunctionI(MiniZinc::FunctionI* functionI) {}
-
 void PrintModelVisitor::print_type(MiniZinc::Type const& type,
                                    int const indent) {
   ind(indent);
@@ -514,7 +481,7 @@ void PrintModelVisitor::match_expr(MiniZinc::Expression* expr,
   }
   case MiniZinc::Expression::E_ID: {
     auto* id = MiniZinc::Expression::cast<MiniZinc::Id>(expr);
-    ind(indent + 2);
+    ind(indent);
     fmt::println("id: {}", id->v().c_str());
     break;
   }

@@ -10,22 +10,6 @@ struct PrintModelVisitor {
 
   std::string input_model_path;
 
-  static bool enterModel(MiniZinc::Model*);
-  static bool enter(MiniZinc::Item* /*m*/);
-
-  void vIncludeI(MiniZinc::IncludeI* include);
-  void vVarDeclI(MiniZinc::VarDeclI* varDecl);
-
-  void vAssignI(MiniZinc::AssignI* /*ai*/);
-
-  void vConstraintI(MiniZinc::ConstraintI* constraint);
-
-  void vSolveI(MiniZinc::SolveI* /*si*/);
-
-  void vOutputI(MiniZinc::OutputI* /*oi*/);
-
-  void vFunctionI(MiniZinc::FunctionI* functionI);
-
   void print_type(MiniZinc::Type const& type, int indent);
 
   void print_var_decl(MiniZinc::VarDecl* var_decl, int indent);

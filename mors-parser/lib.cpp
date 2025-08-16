@@ -3,8 +3,6 @@
 #include "minizinc/ast.hh"
 #include "transformer.hpp"
 
-#include <iostream>
-#include <ranges>
 #include <sstream>
 #include <string_view>
 
@@ -18,10 +16,12 @@ using namespace std::string_view_literals;
 
 constexpr std::string_view instance_check_only = "--instance-check-only"sv;
 constexpr std::string_view include = "-I"sv;
-constexpr std::string_view verbose = "-v"sv;
 } // namespace flags
 
-auto main(ParserOpts const& opts) -> std::expected<ast::Tree, err::Error> {
+namespace {
+
+void log_flags(ParserOpts const& opts) {
+
   if (opts.verbose)
     fmt::println("std path: {}", opts.stdlib_dir);
 
@@ -30,32 +30,47 @@ auto main(ParserOpts const& opts) -> std::expected<ast::Tree, err::Error> {
 
   if (opts.verbose)
     fmt::println("output file: {}", opts.get_output_file());
+}
 
-  std::ostringstream flattener_os, flattener_log;
-  auto flt = MiniZinc::Flattener{flattener_os, flattener_log, opts.stdlib_dir};
-  flt.setFlagVerbose(opts.verbose);
+auto create_flags(ParserOpts const& opts) -> std::vector<std::string> {
+  return {opts.model_path, std::string{flags::instance_check_only},
+          std::string{flags::include}, opts.get_ortools_include_dir()};
+}
 
-  std::vector const flattener_args{
-      opts.model_path, std::string{flags::instance_check_only},
-      std::string{flags::include}, opts.get_ortools_include_dir()};
+auto feed_flags(MiniZinc::Flattener& flt, ParserOpts const& opts,
+                std::ostringstream& flattener_os,
+                std::ostringstream& flattener_log)
+    -> std::optional<err::Error> {
+  auto flattener_args = create_flags(opts);
 
   for (int i = 0; static_cast<size_t>(i) < flattener_args.size(); i++) {
     if (auto const ok = flt.processOption(i, flattener_args); !ok) {
-      return std::unexpected{
-          err::InvalidFlag{.os = std::move(flattener_os),
-                           .log = std::move(flattener_log)}
-      };
+      return err::InvalidFlag{.os = std::move(flattener_os),
+                              .log = std::move(flattener_log)};
     }
   }
 
   for (int i = 0; static_cast<size_t>(i) < opts.infiles.size(); i++) {
     if (auto const ok = flt.processOption(i, opts.infiles); !ok) {
-      return std::unexpected{
-          err::InvalidFlag{.os = std::move(flattener_os),
-                           .log = std::move(flattener_log)}
-      };
+      return err::InvalidFlag{.os = std::move(flattener_os),
+                              .log = std::move(flattener_log)};
     }
   }
+
+  return std::nullopt;
+}
+
+} // namespace
+
+auto main(ParserOpts const& opts) -> std::expected<ast::Tree, err::Error> {
+  log_flags(opts);
+
+  std::ostringstream flattener_os, flattener_log;
+  MiniZinc::Flattener flt{flattener_os, flattener_log, opts.stdlib_dir};
+  flt.setFlagVerbose(opts.verbose);
+
+  if (auto err = feed_flags(flt, opts, flattener_os, flattener_log); err)
+    return std::unexpected{std::move(*err)};
 
   if (auto const warnings_view = flattener_log.view(); !warnings_view.empty())
     fmt::println("MiniZinc Parser returned warnings:\n{}", warnings_view);
@@ -106,7 +121,7 @@ auto main(ParserOpts const& opts) -> std::expected<ast::Tree, err::Error> {
     fmt::println("--- OUTPUT ---");
     vis.match_expr(model.outputItem()->e());
 
-    return std::unexpected{err::MznParsingError{}};
+    return ast::Tree{};
   }
 
   Transformer transformer{.model = model,
