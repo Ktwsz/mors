@@ -154,6 +154,12 @@ void PrintModelVisitor::print_fn_call(MiniZinc::Call* call, int const indent) {
 
   if (functionItem->e()) {
     ind(indent + 2);
+    fmt::println("function params: ");
+    for (auto const ix: std::views::iota(0u, functionItem->paramCount())) {
+        print_var_decl(functionItem->param(ix), indent + 4);
+    }
+
+    ind(indent + 2);
     fmt::println("function body: ");
 
     match_expr(functionItem->e(), indent + 4);

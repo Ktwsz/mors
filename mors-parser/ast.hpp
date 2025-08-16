@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -20,8 +21,9 @@ struct BinOp;
 struct Call;
 struct Comprehension;
 struct ArrayAccess;
-using Expr = std::variant<LiteralBool, LiteralInt, LiteralFloat, LiteralString, LiteralArray, LiteralSet,
-                          IdExpr, BinOp, Call, Comprehension, ArrayAccess>;
+using Expr = std::variant<LiteralBool, LiteralInt, LiteralFloat, LiteralString,
+                          LiteralArray, LiteralSet, IdExpr, BinOp, Call,
+                          Comprehension, ArrayAccess>;
 using ExprHandle = std::shared_ptr<Expr>;
 
 struct LiteralBool {
@@ -152,6 +154,16 @@ struct Max {
 };
 
 } // namespace solve_type
+
+struct Function {
+  std::string id;
+  std::vector<VarDecl> params;
+
+  ExprHandle body;
+};
+
+using FunctionMap = std::map<std::string, Function>;
+
 using SolveType =
     std::variant<solve_type::Sat, solve_type::Max, solve_type::Min>;
 
@@ -162,6 +174,8 @@ struct Tree {
   SolveType solve_type;
 
   ExprHandle output;
+
+  FunctionMap functions;
 };
 // case MiniZinc::Expression::E_SETLIT:
 // case MiniZinc::Expression::E_ANON:

@@ -151,6 +151,23 @@ auto Transformer::map(MiniZinc::Comprehension* comp) -> ast::Comprehension {
                             .generators = std::move(generators)};
 }
 
+void Transformer::save(MiniZinc::FunctionI* function) {
+  if (function->e() == nullptr)
+    return;
+
+  auto const function_body = map(function->e());
+  assert(function_body);
+
+  std::string const id{function->id().c_str()};
+
+  std::vector<ast::VarDecl> params;
+  for (auto const ix : std::views::iota(0u, function->paramCount())) {
+    params.push_back(handle_var_decl(function->param(ix)));
+  }
+
+  functions.emplace(id, ast::Function{id, params, *function_body});
+}
+
 auto Transformer::map(MiniZinc::Expression* expr)
     -> std::optional<ast::ExprHandle> {
   switch (MiniZinc::Expression::eid(expr)) {
@@ -185,7 +202,7 @@ auto Transformer::map(MiniZinc::Expression* expr)
       return std::nullopt;
     }
 
-    // TODO: remember to copy function declaration as well
+    save(model.matchFn(env, call, true, false));
 
     auto ast_call =
         std::make_shared<ast::Expr>(ast::Call{.id = id, .args = {}});

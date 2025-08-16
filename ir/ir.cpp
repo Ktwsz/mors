@@ -111,11 +111,17 @@ PYBIND11_MODULE(ir_python, m) {
   py::class_<ast::solve_type::Max>(m, "SolveTypeMax")
       .def_readonly("expr", &ast::solve_type::Max::expr);
 
+  py::class_<ast::Function>(m, "Function")
+      .def_readonly("id", &ast::Function::id)
+      .def_readonly("params", &ast::Function::params)
+      .def_readonly("body", &ast::Function::body);
+
   py::class_<ast::Tree>(m, "Tree")
       .def_readonly("decls", &ast::Tree::decls)
       .def_readonly("constraints", &ast::Tree::constraints)
       .def_readonly("solve_type", &ast::Tree::solve_type)
-      .def_readonly("output", &ast::Tree::output);
+      .def_readonly("output", &ast::Tree::output)
+      .def_readonly("functions", &ast::Tree::functions);
 }
 
 } // namespace IR
