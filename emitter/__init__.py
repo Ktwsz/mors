@@ -47,7 +47,7 @@ class Emitter:
             if len(expr.get().indexes)==1:
                 return f"{self.ast_expr(expr.get().arr, is_output)}[{self.ast_expr(expr.get().indexes[0],is_output)}]"
             else:
-                return f"{self.ast_expr(expr.get().arr, is_output)}[({",".join([self.ast_expr(ix,is_output) for ix in expr.get().indexes])})]"
+                return f"{self.ast_expr(expr.get().arr, is_output)}[({", ".join([self.ast_expr(ix,is_output) for ix in expr.get().indexes])})]"
         else :
             return ""
 
@@ -107,21 +107,26 @@ class Emitter:
         #not a clue so far
     def unparse_ast_tree(self, file_to_write):
         file_to_write.write(ast.unparse(self.ast_tree))
+
     def ast_output(self, out):
-        if (type(out.get())==LiteralArray):
-            self.ast_LiteralArray(out.get(), True, None)
+        if type(out.get())==LiteralArray:
+            for print_expr in self.ast_LiteralArray(out.get(), True, None):
+                self.ast_tree.body.append(ast.parse(print_expr))
         else:
             return ""
+
     def ast_LiteralArray(self, litarr: LiteralArray, is_output: bool, dimmensions: list[ExprHandle] | None):
         if is_output:
-            for expr in litarr.value:
-                self.ast_tree.body.append(ast.parse(f"print({self.ast_expr(expr, is_output)},end=\"\")"))
+            return [
+                f"print({self.ast_expr(expr, is_output)},end=\"\")"
+                for expr in litarr.value
+            ]
         else:
-            literal_values="[" + "".join([self.ast_expr(expr, is_output) + "," for expr in litarr.value]) + "]"
+            literal_values="[" + ", ".join([self.ast_expr(expr, is_output) for expr in litarr.value]) + "]"
             if len(dimmensions)==1:
-                self.ast_tree.body.append(ast.parse(f"zip({self.ast_expr(dimmensions[0], is_output)},{literal_values})"))
+                return f"zip({self.ast_expr(dimmensions[0], is_output)},{literal_values})"
             else:
-                self.ast_tree.body.append(ast.parse(f"zip(product([{"".join([self.ast_expr(dimmensions[i], is_output)+ "," for i in range(len(dimmensions))])}],{literal_values}))"))
+                return f"zip(product([{", ".join([self.ast_expr(dimmensions[i], is_output) for i in range(len(dimmensions))])}],{literal_values}))"
 
 def hello_world(tree: Tree, file_path: str): # dir and filename to add
     print("hello from python")
