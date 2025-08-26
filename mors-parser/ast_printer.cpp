@@ -155,8 +155,8 @@ void PrintModelVisitor::print_fn_call(MiniZinc::Call* call, int const indent) {
   if (functionItem->e()) {
     ind(indent + 2);
     fmt::println("function params: ");
-    for (auto const ix: std::views::iota(0u, functionItem->paramCount())) {
-        print_var_decl(functionItem->param(ix), indent + 4);
+    for (auto const ix : std::views::iota(0u, functionItem->paramCount())) {
+      print_var_decl(functionItem->param(ix), indent + 4);
     }
 
     ind(indent + 2);
@@ -394,12 +394,11 @@ void PrintModelVisitor::print_comprehension(MiniZinc::Comprehension* comp,
       match_expr(comp->in(i), indent + 6);
     }
 
-    // TODO
-    // if (comp->where(i) != nullptr) {
-    //   ind(indent + 4);
-    //   fmt::println("where:");
-    //   match_expr(comp->where(i), indent + 6);
-    // }
+    if (comp->where(i) != nullptr) {
+      ind(indent + 4);
+      fmt::println("where:");
+      match_expr(comp->where(i), indent + 6);
+    }
   }
 
   ind(indent + 2);

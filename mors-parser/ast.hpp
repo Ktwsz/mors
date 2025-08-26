@@ -102,10 +102,8 @@ struct Array;
 
 } // namespace types
 
-using Type = std::variant<types::Int, types::Float, types::Bool,
-                          types::Set<types::Int>, types::Set<types::Float>,
-                          types::Set<types::Bool>, types::Array>;
-// using TypeHandle = std::shared_ptr<Type>;
+using Type = std::variant<types::Int, types::Float, types::Bool, types::IntSet,
+                          types::FloatSet, types::BoolSet, types::Array>;
 
 namespace types {
 struct Array {
@@ -131,11 +129,15 @@ struct DeclConst {
 
 using VarDecl = std::variant<DeclVariable, DeclConst>;
 
-struct Generator {
+using Filter = ExprHandle;
+
+struct Iterator {
   DeclConst variable;
 
   ExprHandle in;
 };
+
+using Generator = std::variant<Iterator, Filter>;
 
 struct Comprehension {
   ExprHandle body;

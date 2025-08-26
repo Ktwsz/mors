@@ -131,19 +131,26 @@ auto Transformer::map(MiniZinc::Comprehension* comp) -> ast::Comprehension {
   for (auto const i :
        std::views::iota(0u, comp->numberOfGenerators()) | std::views::reverse) {
 
-    if (comp->in(i) == nullptr)
-      continue;
+    assert((comp->in(i) != nullptr || comp->where(i) != nullptr) &&
+           "Null generator");
 
-    auto const in_expr = map(comp->in(i));
-    assert(in_expr);
+    if (comp->in(i) != nullptr) {
+      auto const in_expr = map(comp->in(i));
 
-    for (auto const j :
-         std::views::iota(0u, comp->numberOfDecls(i)) | std::views::reverse) {
-      auto decl_expr = handle_const_decl(comp->decl(i, j));
-      assert(std::holds_alternative<ast::DeclConst>(decl_expr));
+      for (auto const j :
+           std::views::iota(0u, comp->numberOfDecls(i)) | std::views::reverse) {
+        auto decl_expr = handle_const_decl(comp->decl(i, j));
+        assert(std::holds_alternative<ast::DeclConst>(decl_expr));
 
-      generators.push_back(ast::Generator{
-          .variable = std::get<ast::DeclConst>(decl_expr), .in = *in_expr});
+        generators.push_back(ast::Iterator{
+            .variable = std::get<ast::DeclConst>(decl_expr), .in = *in_expr});
+      }
+    }
+
+    if (comp->where(i) != nullptr) {
+      auto const where_expr = map(comp->where(i));
+      assert(where_expr && "Null filter after mapping");
+      generators.push_back(*where_expr);
     }
   }
 

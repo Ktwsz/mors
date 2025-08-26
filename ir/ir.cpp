@@ -61,9 +61,11 @@ PYBIND11_MODULE(ir_python, m) {
       .def_readonly("arr", &ast::ArrayAccess::arr)
       .def_readonly("indexes", &ast::ArrayAccess::indexes);
 
-  py::class_<ast::Generator>(m, "Generator")
-      .def_readonly("variable", &ast::Generator::variable)
-      .def_readonly("in_expr", &ast::Generator::in);
+  py::class_<ast::Iterator>(m, "Iterator")
+      .def_readonly("variable", &ast::Iterator::variable)
+      .def_readonly("in_expr", &ast::Iterator::in);
+
+  py::class_<ast::Generator>(m, "Generator");
 
   py::class_<ast::Comprehension>(m, "Comprehension")
       .def_readonly("body", &ast::Comprehension::body)
