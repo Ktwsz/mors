@@ -63,7 +63,7 @@ PYBIND11_MODULE(ir_python, m) {
 
   py::class_<ast::Generator>(m, "Generator")
       .def_readonly("variable", &ast::Generator::variable)
-      .def_readonly("in", &ast::Generator::in);
+      .def_readonly("in_expr", &ast::Generator::in);
 
   py::class_<ast::Comprehension>(m, "Comprehension")
       .def_readonly("body", &ast::Comprehension::body)
