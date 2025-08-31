@@ -88,7 +88,7 @@ auto Transformer::handle_var_decl(MiniZinc::VarDecl* var_decl) -> ast::VarDecl {
 
 auto Transformer::map(MiniZinc::VarDecl* var_decl)
     -> std::optional<ast::VarDecl> {
-  if (!var_decl->item()->loc().filename().endsWith(input_model_path))
+  if (!var_decl->item()->loc().filename().endsWith(input_model_path) || var_decl->id()->str() == "_objective")
     return std::nullopt;
 
   if (MiniZinc::Expression::type(var_decl->ti()).isPar())
