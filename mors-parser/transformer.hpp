@@ -13,7 +13,7 @@ struct Transformer {
   MiniZinc::Model& model;
   MiniZinc::EnvI& env;
 
-  ast::FunctionMap functions;
+  ast::FunctionMap& functions;
 
   std::string input_model_path;
 

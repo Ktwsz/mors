@@ -6,6 +6,7 @@
 
 #include <optional>
 #include <ranges>
+#include <string_view>
 #include <utility>
 #include <variant>
 
@@ -38,6 +39,16 @@ auto resolve_base_type(MiniZinc::Type::BaseType base_type) -> ast::Type {
   default:
     assert(false);
   }
+}
+
+auto reformat_id(std::string_view const id) -> std::string {
+    if (id[0] != '\\') {
+        return std::string{id};
+    }
+
+    size_t const ix = id.find('@');
+
+    return std::string{id.substr(ix+1)} + "_" + std::string{id.substr(1, ix-1)};
 }
 } // namespace
 
@@ -88,7 +99,8 @@ auto Transformer::handle_var_decl(MiniZinc::VarDecl* var_decl) -> ast::VarDecl {
 
 auto Transformer::map(MiniZinc::VarDecl* var_decl)
     -> std::optional<ast::VarDecl> {
-  if (!var_decl->item()->loc().filename().endsWith(input_model_path) || var_decl->id()->str() == "_objective")
+  if (!var_decl->item()->loc().filename().endsWith(input_model_path) ||
+      var_decl->id()->str() == "_objective")
     return std::nullopt;
 
   if (MiniZinc::Expression::type(var_decl->ti()).isPar())
@@ -165,11 +177,13 @@ void Transformer::save(MiniZinc::FunctionI* function) {
   auto const function_body = map(function->e());
   assert(function_body);
 
-  std::string const id{function->id().c_str()};
+  auto const id = reformat_id(std::string{function->id().c_str()});
 
-  std::vector<ast::VarDecl> params;
+  std::vector<std::string> params;
   for (auto const ix : std::views::iota(0u, function->paramCount())) {
-    params.push_back(handle_var_decl(function->param(ix)));
+    auto const& id = function->param(ix)->id();
+    assert(id->v().c_str() != nullptr && id->v() != "");
+    params.push_back(std::string{id->v().c_str()});
   }
 
   functions.emplace(id, ast::Function{id, params, *function_body});
@@ -201,7 +215,7 @@ auto Transformer::map(MiniZinc::Expression* expr)
     auto* call = MiniZinc::Expression::cast<MiniZinc::Call>(expr);
 
     assert(call->id().c_str() != nullptr && "Function call: null function id");
-    auto const id = std::string{call->id().c_str()};
+    auto const id = reformat_id(std::string{call->id().c_str()});
     assert(!id.empty() && "Function call: empty function id");
 
     if (id == "assert") {
@@ -246,9 +260,6 @@ auto Transformer::map(MiniZinc::Expression* expr)
                                ? std::string{string_lit->v().c_str()}
                                : std::string{}});
   }
-  // case MiniZinc::Expression::E_ANON:
-  //   fmt::println("E_ANON");
-  //   break;
   case MiniZinc::Expression::E_ARRAYLIT: {
     auto* array_lit = MiniZinc::Expression::cast<MiniZinc::ArrayLit>(expr);
     auto ast_array = std::make_shared<ast::Expr>(ast::LiteralArray{});
@@ -284,6 +295,9 @@ auto Transformer::map(MiniZinc::Expression* expr)
 
     return ast_array;
   }
+  // case MiniZinc::Expression::E_ANON:
+  //   fmt::println("E_ANON");
+  //   break;
   // case MiniZinc::Expression::E_FIELDACCESS:
   //   fmt::println("E_FIELDACCESS");
   //   break;
@@ -344,6 +358,8 @@ auto Transformer::map(MiniZinc::BinOp* bin_op) -> ast::ExprHandle {
       return ast::BinOp::OpKind::LE;
     case MiniZinc::BOT_LQ:
       return ast::BinOp::OpKind::LQ;
+    case MiniZinc::BOT_AND:
+      return ast::BinOp::OpKind::AND;
     default:
       assert(false);
     }

@@ -100,6 +100,7 @@ PYBIND11_MODULE(ir_python, m) {
       .value("LE", ast::BinOp::OpKind::LE)
       .value("LQ", ast::BinOp::OpKind::LQ)
       .value("PLUSPLUS", ast::BinOp::OpKind::PLUSPLUS)
+      .value("AND", ast::BinOp::OpKind::AND)
       .export_values();
 
   py::class_<ast::DeclConst>(m, "DeclConst")

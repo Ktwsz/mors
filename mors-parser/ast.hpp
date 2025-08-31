@@ -68,7 +68,8 @@ struct BinOp {
     GR,
     LE,
     LQ,
-    PLUSPLUS
+    PLUSPLUS,
+    AND
   };
   OpKind kind;
 
@@ -159,7 +160,7 @@ struct Max {
 
 struct Function {
   std::string id;
-  std::vector<VarDecl> params;
+  std::vector<std::string> params;
 
   ExprHandle body;
 };
