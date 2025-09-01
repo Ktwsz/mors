@@ -175,16 +175,16 @@ void PrintModelVisitor::print_fn_call(MiniZinc::Call* call, int const indent) {
 void PrintModelVisitor::print_ite(MiniZinc::ITE* ite, int const indent) {
   for (unsigned int i = 0; i < ite->size(); i++) {
     ind(indent);
-    fmt::print("if-condition: ");
+    fmt::println("if-condition: ");
     match_expr(ite->ifExpr(i), indent + 2);
 
     ind(indent);
-    fmt::print("if-body: ");
+    fmt::println("if-body: ");
     match_expr(ite->thenExpr(i), indent + 2);
   }
 
   ind(indent);
-  fmt::print("else: ");
+  fmt::println("else: ");
   match_expr(ite->elseExpr(), indent + 2);
 }
 
@@ -381,10 +381,10 @@ void PrintModelVisitor::print_comprehension(MiniZinc::Comprehension* comp,
   fmt::println("generators:");
 
   for (auto const i :
-       std::views::iota(0u, comp->numberOfGenerators()) | std::views::reverse) {
+       std::views::iota(0u, comp->numberOfGenerators())) {
 
     for (auto const j :
-         std::views::iota(0u, comp->numberOfDecls(i)) | std::views::reverse) {
+         std::views::iota(0u, comp->numberOfDecls(i))) {
       match_expr(comp->decl(i, j), indent + 4);
     }
 

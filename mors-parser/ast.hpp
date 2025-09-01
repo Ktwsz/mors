@@ -21,9 +21,10 @@ struct BinOp;
 struct Call;
 struct Comprehension;
 struct ArrayAccess;
+struct IfThenElse;
 using Expr = std::variant<LiteralBool, LiteralInt, LiteralFloat, LiteralString,
                           LiteralArray, LiteralSet, IdExpr, BinOp, Call,
-                          Comprehension, ArrayAccess>;
+                          Comprehension, ArrayAccess, IfThenElse>;
 using ExprHandle = std::shared_ptr<Expr>;
 
 struct LiteralBool {
@@ -61,6 +62,7 @@ struct BinOp {
     MINUS,
     MULT,
     IDIV,
+    MOD,
     DOTDOT,
     EQ,
     NQ,
@@ -69,7 +71,8 @@ struct BinOp {
     LE,
     LQ,
     PLUSPLUS,
-    AND
+    AND,
+    OR
   };
   OpKind kind;
 
@@ -86,6 +89,12 @@ struct ArrayAccess {
   ExprHandle arr;
 
   std::vector<ExprHandle> indexes;
+};
+
+struct IfThenElse {
+    std::vector<std::pair<ExprHandle, ExprHandle>> if_then;
+
+    std::optional<ExprHandle> else_expr;
 };
 
 namespace types {

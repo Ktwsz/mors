@@ -42,13 +42,14 @@ auto resolve_base_type(MiniZinc::Type::BaseType base_type) -> ast::Type {
 }
 
 auto reformat_id(std::string_view const id) -> std::string {
-    if (id[0] != '\\') {
-        return std::string{id};
-    }
+  if (id[0] != '\\') {
+    return std::string{id};
+  }
 
-    size_t const ix = id.find('@');
+  size_t const ix = id.find('@');
 
-    return std::string{id.substr(ix+1)} + "_" + std::string{id.substr(1, ix-1)};
+  return std::string{id.substr(ix + 1)} + "_" +
+         std::string{id.substr(1, ix - 1)};
 }
 } // namespace
 
@@ -141,7 +142,7 @@ auto Transformer::map(MiniZinc::Comprehension* comp) -> ast::Comprehension {
   std::vector<ast::Generator> generators;
 
   for (auto const i :
-       std::views::iota(0u, comp->numberOfGenerators()) | std::views::reverse) {
+       std::views::iota(0u, comp->numberOfGenerators())) {
 
     assert((comp->in(i) != nullptr || comp->where(i) != nullptr) &&
            "Null generator");
@@ -150,7 +151,7 @@ auto Transformer::map(MiniZinc::Comprehension* comp) -> ast::Comprehension {
       auto const in_expr = map(comp->in(i));
 
       for (auto const j :
-           std::views::iota(0u, comp->numberOfDecls(i)) | std::views::reverse) {
+           std::views::iota(0u, comp->numberOfDecls(i))) {
         auto decl_expr = handle_const_decl(comp->decl(i, j));
         assert(std::holds_alternative<ast::DeclConst>(decl_expr));
 
@@ -295,17 +296,16 @@ auto Transformer::map(MiniZinc::Expression* expr)
 
     return ast_array;
   }
+  case MiniZinc::Expression::E_ITE: {
+    auto* ite = MiniZinc::Expression::cast<MiniZinc::ITE>(expr);
+    return map(ite);
+  }
   // case MiniZinc::Expression::E_ANON:
   //   fmt::println("E_ANON");
   //   break;
   // case MiniZinc::Expression::E_FIELDACCESS:
   //   fmt::println("E_FIELDACCESS");
   //   break;
-  // case MiniZinc::Expression::E_ITE: {
-  //   auto* ite = MiniZinc::Expression::cast<MiniZinc::ITE>(expr);
-  //   print_ite(ite, indent);
-  //   break;
-  // }
   // case MiniZinc::Expression::E_UNOP:
   //   fmt::println("E_UNOP");
   //   break;
@@ -348,6 +348,8 @@ auto Transformer::map(MiniZinc::BinOp* bin_op) -> ast::ExprHandle {
       return ast::BinOp::OpKind::MULT;
     case MiniZinc::BOT_IDIV:
       return ast::BinOp::OpKind::IDIV;
+    case MiniZinc::BOT_MOD:
+      return ast::BinOp::OpKind::MOD;
     case MiniZinc::BOT_EQ:
       return ast::BinOp::OpKind::EQ;
     case MiniZinc::BOT_GQ:
@@ -360,6 +362,8 @@ auto Transformer::map(MiniZinc::BinOp* bin_op) -> ast::ExprHandle {
       return ast::BinOp::OpKind::LQ;
     case MiniZinc::BOT_AND:
       return ast::BinOp::OpKind::AND;
+    case MiniZinc::BOT_OR:
+      return ast::BinOp::OpKind::OR;
     default:
       assert(false);
     }
@@ -374,6 +378,25 @@ auto Transformer::map(MiniZinc::BinOp* bin_op) -> ast::ExprHandle {
       ast::BinOp{.kind = match_kind(bin_op->op()),
                  .lhs = std::move(*lhs),
                  .rhs = std::move(*rhs)});
+}
+
+auto Transformer::map(MiniZinc::ITE* ite) -> ast::ExprHandle {
+  auto result = std::make_shared<ast::Expr>(ast::IfThenElse{});
+  auto& ite_result = std::get<ast::IfThenElse>(*result);
+
+  for (unsigned int i : std::views::iota(0u, ite->size())) {
+    auto const if_expr = map(ite->ifExpr(i));
+    auto const then_expr = map(ite->thenExpr(i));
+
+    assert(if_expr && then_expr && "If or then expr is null");
+
+    ite_result.if_then.push_back({std::move(*if_expr), std::move(*then_expr)});
+  }
+
+  if (auto* else_expr = ite->elseExpr(); else_expr != nullptr)
+    ite_result.else_expr = map(else_expr);
+
+  return result;
 }
 
 auto Transformer::map(MiniZinc::SolveI* solve_item) -> ast::SolveType {

@@ -71,6 +71,10 @@ PYBIND11_MODULE(ir_python, m) {
       .def_readonly("body", &ast::Comprehension::body)
       .def_readonly("generators", &ast::Comprehension::generators);
 
+  py::class_<ast::IfThenElse>(m, "IfThenElse")
+      .def_readonly("if_then", &ast::IfThenElse::if_then)
+      .def_readonly("else_expr", &ast::IfThenElse::else_expr);
+
   py::class_<ast::IdExpr>(m, "IdExpr").def_readwrite("id", &ast::IdExpr::id);
 
   py::class_<ast::BinOp> bin_op(m, "BinOp");
@@ -92,6 +96,7 @@ PYBIND11_MODULE(ir_python, m) {
       .value("MINUS", ast::BinOp::OpKind::MINUS)
       .value("MULT", ast::BinOp::OpKind::MULT)
       .value("IDIV", ast::BinOp::OpKind::IDIV)
+      .value("MOD", ast::BinOp::OpKind::MOD)
       .value("DOTDOT", ast::BinOp::OpKind::DOTDOT)
       .value("EQ", ast::BinOp::OpKind::EQ)
       .value("NQ", ast::BinOp::OpKind::NQ)
@@ -101,6 +106,7 @@ PYBIND11_MODULE(ir_python, m) {
       .value("LQ", ast::BinOp::OpKind::LQ)
       .value("PLUSPLUS", ast::BinOp::OpKind::PLUSPLUS)
       .value("AND", ast::BinOp::OpKind::AND)
+      .value("OR", ast::BinOp::OpKind::OR)
       .export_values();
 
   py::class_<ast::DeclConst>(m, "DeclConst")

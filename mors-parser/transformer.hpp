@@ -26,6 +26,7 @@ private:
   auto map(MiniZinc::TypeInst* type_inst) -> ast::Type;
   auto map(MiniZinc::Comprehension*) -> ast::Comprehension;
   auto map(MiniZinc::BinOp*) -> ast::ExprHandle;
+  auto map(MiniZinc::ITE*) -> ast::ExprHandle;
   void save(MiniZinc::FunctionI*);
 
   auto handle_const_decl(MiniZinc::VarDecl* var_decl) -> ast::VarDecl;
