@@ -1,6 +1,22 @@
 from ortools.sat.python import cp_model
 from itertools import product
 model = cp_model.CpModel()
+
+class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
+
+    def __init__(self):
+        cp_model.CpSolverSolutionCallback.__init__(self)
+        self.__solution_count = 0
+
+    def on_solution_callback(self) -> None:
+        self.__solution_count += 1
+        print('   ' + format_40(S) + '' + format_40(E) + '' + format_40(N) + '' + format_40(D) + '\n', end='')
+        print('+  ' + format_40(M) + '' + format_40(O) + '' + format_40(R) + '' + format_40(E) + '\n', end='')
+        print('= ' + format_40(M) + '' + format_40(O) + '' + format_40(N) + '' + format_40(E) + '' + format_40(Y) + '\n', end='')
+
+    @property
+    def solution_count(self) -> int:
+        return self.__solution_count
 S = model.new_int_var_from_domain(cp_model.Domain.FromValues(range(1, 9 + 1)), 'S')
 E = model.new_int_var_from_domain(cp_model.Domain.FromValues(range(0, 9 + 1)), 'E')
 N = model.new_int_var_from_domain(cp_model.Domain.FromValues(range(0, 9 + 1)), 'N')
@@ -21,7 +37,5 @@ def all_different_42(x):
 def analyse_all_different_43(x):
     True
 solver = cp_model.CpSolver()
-status = solver.solve(model)
-print('   ' + format_40(S) + '' + format_40(E) + '' + format_40(N) + '' + format_40(D) + '\n', end='')
-print('+  ' + format_40(M) + '' + format_40(O) + '' + format_40(R) + '' + format_40(E) + '\n', end='')
-print('= ' + format_40(M) + '' + format_40(O) + '' + format_40(N) + '' + format_40(E) + '' + format_40(Y) + '\n', end='')
+solution_printer = VarArraySolutionPrinter()
+status = solver.solve(model, solution_printer)

@@ -1,6 +1,20 @@
 from ir_python import *
 import ast
 
+SOLUTION_PRINTER_TEMPLATE = """
+class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
+    def __init__(self):
+        cp_model.CpSolverSolutionCallback.__init__(self)
+        self.__solution_count = 0
+
+    def on_solution_callback(self) -> None:
+        self.__solution_count += 1
+
+    @property
+    def solution_count(self) -> int:
+        return self.__solution_count
+"""
+
 STATE_DEFAULT = 1
 STATE_OUTPUT = 2
 STATE_CONSTRAINT = 3
@@ -20,8 +34,27 @@ class Emitter:
     def init_file(self):    
         self.ast_tree.body.append(ast.parse("from ortools.sat.python import cp_model\nfrom itertools import product\n\n\nmodel=cp_model.CpModel()\n"))
 
+        template = ast.parse(SOLUTION_PRINTER_TEMPLATE).body[0]
+        self.ast_tree.body.append(template)
+
+        self.solution_printer_constructor = next(filter(lambda fn: fn.name == '__init__', template.body))
+        self.solution_printer_callback = next(filter(lambda fn: fn.name == 'on_solution_callback', template.body))
+                
+        self.solution_printer_params = []
+
+    def output_variable(self, name):
+        if name in self.solution_printer_params:
+            return
+        
+        self.solution_printer_params.append(name)
+        self.solution_printer_constructor.args.args.append(ast.arg(arg=name))
+        self.solution_printer_constructor.body.append(ast.parse(f"self.{name}={name}").body[0])
+
+
     def finalize_file(self):
-        self.ast_tree.body.append(ast.parse("solver = cp_model.CpSolver()\nstatus = solver.solve(model)\n"))
+        self.ast_tree.body.append(ast.parse("solver = cp_model.CpSolver()"))
+        self.ast_tree.body.append(ast.parse(f"solution_printer = VarArraySolutionPrinter({", ".join(self.solution_printer_params)})"))
+        self.ast_tree.body.append(ast.parse("status = solver.solve(model, solution_printer)\n"))
     #     TO BE DECIDED IN WHAT FORM WE FINALIZE MAIN 
     #     self.ast_tree.body.append( ast.parse("""
     #     if __name__ == "__main__":
@@ -40,6 +73,31 @@ class Emitter:
             case _:
                 return ""
             
+    def get_expr_type(self, expr: ExprHandle):
+        if (type(expr.get())==BinOp):
+            return self.get_expr_type(expr.get().lhs)
+        elif (type(expr.get())==LiteralInt):
+            return "int"
+        elif (type(expr.get())==LiteralBool):
+            return "bool"
+        elif (type(expr.get())==LiteralArray):
+            return "array"
+        elif (type(expr.get())==IdExpr):
+            return "" # TODO
+        elif (type(expr.get())==LiteralString):
+            return "string"
+        elif (type(expr.get())==Call):
+            return "" #TODO
+        elif (type(expr.get())==Comprehension):
+            return "array"
+        elif (type(expr.get())==IfThenElse):
+            return self.get_expr_type(expr.get().if_then[0][1])
+        elif(type(expr.get())==ArrayAccess):
+            return "" #TODO
+        else :
+            return ""
+
+
     def ast_expr(self, expr: ExprHandle, state):
         if (type(expr.get())==BinOp):
             if is_constraint(state):
@@ -53,7 +111,11 @@ class Emitter:
         elif (type(expr.get())==LiteralArray):
             return self.ast_LiteralArray(expr.get(), state)
         elif (type(expr.get())==IdExpr):
-            return str(expr.get().id) if not is_output(state) else f"solver.Value({expr.get().id})"
+            if is_output(state):
+                self.output_variable(expr.get().id)
+                return f"self.value(self.{expr.get().id})"
+            else:
+                return str(expr.get().id)
         elif (type(expr.get())==LiteralString):
             return f"\"{expr.get().value.encode('unicode_escape').decode("utf-8")}\""
         elif (type(expr.get())==Call):
@@ -95,6 +157,8 @@ class Emitter:
             case BinOp.OpKind.LQ:
                 return f"{self.ast_expr(bin_op.lhs, state)} <= {self.ast_expr(bin_op.rhs, state)}"
             case BinOp.OpKind.PLUSPLUS:
+                if is_output(state) and (self.get_expr_type(bin_op.lhs) == "array"):
+                    return f"{self.ast_expr(bin_op.lhs, state)}\n{self.ast_expr(bin_op.rhs, state)}"
                 return f"{self.ast_expr(bin_op.lhs, state)} + {self.ast_expr(bin_op.rhs, state)}"
             case BinOp.OpKind.AND:
                 return f"{self.ast_expr(bin_op.lhs, state)} and {self.ast_expr(bin_op.rhs, state)}"
@@ -103,7 +167,7 @@ class Emitter:
             
     def ast_Call(self, call: Call, state):
         match(call.id):
-            case "format_29":
+            case "format_29" | "format_31" | "format_32" | "format_33":
                 return f"str({self.ast_expr(call.args[0], state)})"
             case "max":
                 return f"max({self.ast_expr(call.args[0], STATE_DEFAULT)})" # TODO: match arg type
@@ -143,12 +207,10 @@ class Emitter:
 
 
     def ast_Comprehension(self, compr: Comprehension, state):
-        if is_output(state):
-            ...
-        elif is_constraint(state):
+        if is_output(state) or is_constraint(state):
             if_py, current = self.ast_generator(compr.generators, state)
             print(self.ast_expr(compr.body, state))
-            current.body.append(ast.parse(self.ast_expr(compr.body, state)))
+            current.body.append(ast.parse(f"print({self.ast_expr(compr.body, state)})"))
             return ast.unparse(ast.fix_missing_locations(if_py))
         else:
             return f"[{self.ast_expr(compr.body, state)}  {self.ast_generator(compr.generators, state)}]"
@@ -167,9 +229,7 @@ class Emitter:
 
 
     def ast_generator(self, generators: list[Generator], state):
-        if is_output(state):
-            ...
-        elif is_constraint(state):
+        if is_output(state) or is_constraint(state):
             gen=ast.Module()
             current = gen
             for generator in generators:
@@ -207,12 +267,12 @@ class Emitter:
     def unparse_ast_tree(self, file_to_write):
         file_to_write.write(ast.unparse(self.ast_tree))
 
-    def ast_output(self, out):
+    def ast_output(self, out):        
         if type(out.get())==LiteralArray:
             for print_expr in self.ast_output_LiteralArray(out.get()):
-                self.ast_tree.body.append(ast.parse(print_expr))
+                self.solution_printer_callback.body.append(ast.parse(print_expr))
         else:
-            return ""
+            self.solution_printer_callback.body.append(ast.parse(self.ast_expr(out, STATE_OUTPUT)))
 
     def ast_var_Array(self, var: DeclVariable, state):
         dimensions = var.type.dims
@@ -237,11 +297,19 @@ class Emitter:
         ]) + "]"
 
     def ast_decl_LiteralArray(self, litarr: LiteralArray, dimensions: list[ExprHandle] | None):
-            literal_values="[" + ", ".join([self.ast_expr(expr, STATE_DEFAULT) for expr in litarr.value]) + "]"
-            if len(dimensions)==1:
-                return f"zip({self.ast_expr(dimensions[0], STATE_DEFAULT)},{literal_values})"
-            else:
-                return f"zip(product({", ".join([self.ast_expr(dimensions[i], STATE_DEFAULT) for i in range(len(dimensions))])}),{literal_values})"
+        literal_values="[" + ", ".join([self.ast_expr(expr, STATE_DEFAULT) for expr in litarr.value]) + "]"
+        if len(dimensions)==1:
+            return f"zip({self.ast_expr(dimensions[0], STATE_DEFAULT)},{literal_values})"
+        else:
+            return f"zip(product({", ".join([self.ast_expr(dimensions[i], STATE_DEFAULT) for i in range(len(dimensions))])}),{literal_values})"
+
+    def ast_model_solve_type(self, solve_type):
+        if (type(solve_type)==SolveTypeMax):
+            self.ast_tree.body.append(ast.parse(f"model.maximize({self.ast_expr(solve_type.expr, STATE_DEFAULT)})"))
+        elif(type(solve_type)==SolveTypeMin):
+            self.ast_tree.body.append(ast.parse(f"model.minimize({self.ast_expr(solve_type.expr, STATE_DEFAULT)})"))
+        else:
+            ...
 
 def hello_world(tree: Tree, file_path: str):
     print("hello from python")
@@ -262,9 +330,10 @@ def hello_world(tree: Tree, file_path: str):
     while i < len(emitter.to_generate):
         emitter.ast_Function(emitter.to_generate[i])
         i += 1
-
-    emitter.finalize_file()
+    
+    emitter.ast_model_solve_type(tree.solve_type)
     emitter.ast_output(tree.output)
+    emitter.finalize_file()
     emitter.unparse_ast_tree(file_to_write)
     print(tree.solve_type)
     file_to_write.close()
