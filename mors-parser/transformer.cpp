@@ -68,8 +68,10 @@ auto Transformer::map(MiniZinc::TypeInst* type_inst) -> ast::Type {
     ast::types::Array arr{};
 
     for (auto inner : type_inst->ranges()) {
-      assert(inner->domain() != nullptr && "prayge");
-      arr.dims.push_back(*map(inner->domain()));
+      if (inner->domain())
+        arr.dims.push_back(*map(inner->domain()));
+      else
+        arr.dims.push_back(std::nullopt);
     }
 
     return arr;
@@ -263,12 +265,11 @@ auto Transformer::map(MiniZinc::Expression* expr)
                 [](ast::DeclConst const& var) { return var.is_global; },
             },
             var),
-        .is_var =
-            std::visit(overloaded{
-                           [](ast::DeclVariable const& ) { return true; },
-                           [](ast::DeclConst const& ) { return false; },
-                       },
-                       var),
+        .is_var = std::visit(overloaded{
+                                 [](ast::DeclVariable const&) { return true; },
+                                 [](ast::DeclConst const&) { return false; },
+                             },
+                             var),
         .expr_type = std::visit(
             overloaded{
                 [](ast::DeclVariable const& var) { return var.var_type; },

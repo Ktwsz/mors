@@ -51,7 +51,7 @@ using ExprHandle = std::shared_ptr<Expr>;
 
 namespace types {
 struct Array {
-  std::vector<ExprHandle> dims;
+  std::vector<std::optional<ExprHandle>> dims;
 };
 } // namespace types
 
