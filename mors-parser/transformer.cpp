@@ -108,16 +108,21 @@ auto Transformer::handle_var_decl(MiniZinc::VarDecl* var_decl) -> ast::VarDecl {
                                        : std::nullopt};
 }
 
-auto Transformer::map(MiniZinc::VarDecl* var_decl)
+auto Transformer::map(MiniZinc::VarDecl* var_decl, bool const is_global)
     -> std::optional<ast::VarDecl> {
   if (!var_decl->item()->loc().filename().endsWith(input_model_path) ||
       var_decl->id()->str() == "_objective")
     return std::nullopt;
 
-  auto const var = MiniZinc::Expression::type(var_decl->ti()).isPar()
-                     ? handle_const_decl(var_decl)
-                     : handle_var_decl(var_decl);
+  auto var = MiniZinc::Expression::type(var_decl->ti()).isPar()
+               ? handle_const_decl(var_decl)
+               : handle_var_decl(var_decl);
 
+  std::visit(overloaded{
+                 [&](ast::DeclVariable& var) { var.is_global = is_global; },
+                 [&](ast::DeclConst& var) { var.is_global = is_global; },
+             },
+             var);
   variable_map[std::visit(
                    overloaded{
                        [](ast::DeclVariable const& var) { return var.id; },
@@ -252,6 +257,18 @@ auto Transformer::map(MiniZinc::Expression* expr)
 
     return std::make_shared<ast::Expr>(ast::IdExpr{
         .id = id_str,
+        .is_global = std::visit(
+            overloaded{
+                [](ast::DeclVariable const& var) { return var.is_global; },
+                [](ast::DeclConst const& var) { return var.is_global; },
+            },
+            var),
+        .is_var =
+            std::visit(overloaded{
+                           [](ast::DeclVariable const& ) { return true; },
+                           [](ast::DeclConst const& ) { return false; },
+                       },
+                       var),
         .expr_type = std::visit(
             overloaded{
                 [](ast::DeclVariable const& var) { return var.var_type; },
@@ -280,6 +297,7 @@ auto Transformer::map(MiniZinc::Expression* expr)
 
     auto ast_call = std::make_shared<ast::Expr>(
         ast::Call{.id = id, .args = {}, .expr_type = map(function_item->ti())});
+
     for (auto& call_arg : call->args()) {
       auto ast_arg = map(call_arg);
       assert(ast_arg && "Function call: nullopt arg");

@@ -92,6 +92,8 @@ PYBIND11_MODULE(ir_python, m) {
 
   py::class_<ast::IdExpr>(m, "IdExpr")
       .def_readwrite("id", &ast::IdExpr::id)
+      .def_readwrite("is_global", &ast::IdExpr::is_global)
+      .def_readwrite("is_var", &ast::IdExpr::is_var)
       .def_readonly("expr_type", &ast::IdExpr::expr_type);
 
   py::class_<ast::BinOp> bin_op(m, "BinOp");

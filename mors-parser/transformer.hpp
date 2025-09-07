@@ -18,7 +18,7 @@ struct Transformer {
 
   std::string input_model_path;
 
-  auto map(MiniZinc::VarDecl*) -> std::optional<ast::VarDecl>;
+  auto map(MiniZinc::VarDecl*, bool is_global) -> std::optional<ast::VarDecl>;
   auto map(MiniZinc::Expression*) -> std::optional<ast::ExprHandle>;
   auto map(MiniZinc::SolveI*) -> ast::SolveType;
 

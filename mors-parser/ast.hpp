@@ -95,6 +95,9 @@ struct LiteralSet {
 struct IdExpr {
   std::string id;
 
+  bool is_global;
+  bool is_var;
+
   Type expr_type;
 };
 
@@ -152,12 +155,16 @@ struct DeclVariable {
 
   Type var_type;
 
+  bool is_global = false;
+
   std::optional<ExprHandle> domain;
 };
 
 struct DeclConst {
   std::string id;
   Type type;
+
+  bool is_global = false;
 
   std::optional<ExprHandle> value;
 };

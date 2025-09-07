@@ -132,7 +132,7 @@ auto main(ParserOpts const& opts) -> std::expected<ast::Tree, err::Error> {
                           .input_model_path = opts.model_path};
 
   for (auto& var_decl : model.vardecls()) {
-    if (auto decl = transformer.map(var_decl.e()); decl) {
+    if (auto decl = transformer.map(var_decl.e(), true); decl) {
       tree.decls.push_back(std::move(*decl));
     }
   }
