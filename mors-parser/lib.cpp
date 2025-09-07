@@ -128,6 +128,7 @@ auto main(ParserOpts const& opts) -> std::expected<ast::Tree, err::Error> {
   Transformer transformer{.model = model,
                           .env = flt.getEnv()->envi(),
                           .functions = tree.functions,
+                          .variable_map = tree.variable_map,
                           .input_model_path = opts.model_path};
 
   for (auto& var_decl : model.vardecls()) {

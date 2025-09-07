@@ -25,6 +25,9 @@ PYBIND11_MODULE(ir_python, m) {
   py::class_<ast::types::Bool>(m, "TypeBool")
       .def("type", [](ast::types::Bool const&) { return "bool"; });
 
+  py::class_<ast::types::String>(m, "TypeString")
+      .def("type", [](ast::types::String const&) { return "string"; });
+
   py::class_<ast::types::IntSet>(m, "IntSet")
       .def("type", [](ast::types::IntSet const&) { return "int_set"; });
 
@@ -34,32 +37,42 @@ PYBIND11_MODULE(ir_python, m) {
   py::class_<ast::types::BoolSet>(m, "BoolSet")
       .def("type", [](ast::types::BoolSet const&) { return "bool_set"; });
 
+  py::class_<ast::types::UnspecifiedSet>(m, "UnspecifiedSet")
+      .def("type", [](ast::types::UnspecifiedSet const&) { return "unspecified_set"; });
+
   py::class_<ast::types::Array>(m, "Array")
       .def("type", [](ast::types::Array const&) { return "array"; })
       .def_readonly("dims", &ast::types::Array::dims);
 
   py::class_<ast::LiteralBool>(m, "LiteralBool")
-      .def_readonly("value", &ast::LiteralBool::value);
+      .def_readonly("value", &ast::LiteralBool::value)
+      .def_readonly("expr_type", &ast::LiteralBool::expr_type);
 
   py::class_<ast::LiteralInt>(m, "LiteralInt")
-      .def_readonly("value", &ast::LiteralInt::value);
+      .def_readonly("value", &ast::LiteralInt::value)
+      .def_readonly("expr_type", &ast::LiteralInt::expr_type);
 
   // TODO: floats not supported for now
   py::class_<ast::LiteralFloat>(m, "LiteralFloat")
-      .def_readonly("value", &ast::LiteralFloat::value);
+      .def_readonly("value", &ast::LiteralFloat::value)
+      .def_readonly("expr_type", &ast::LiteralFloat::expr_type);
 
   py::class_<ast::LiteralString>(m, "LiteralString")
-      .def_readonly("value", &ast::LiteralString::value);
+      .def_readonly("value", &ast::LiteralString::value)
+      .def_readonly("expr_type", &ast::LiteralString::expr_type);
 
   py::class_<ast::LiteralArray>(m, "LiteralArray")
-      .def_readonly("value", &ast::LiteralArray::value);
+      .def_readonly("value", &ast::LiteralArray::value)
+      .def_readonly("expr_type", &ast::LiteralArray::expr_type);
 
   py::class_<ast::LiteralSet>(m, "LiteralSet")
-      .def_readonly("value", &ast::LiteralSet::value);
+      .def_readonly("value", &ast::LiteralSet::value)
+      .def_readonly("expr_type", &ast::LiteralSet::expr_type);
 
   py::class_<ast::ArrayAccess>(m, "ArrayAccess")
       .def_readonly("arr", &ast::ArrayAccess::arr)
-      .def_readonly("indexes", &ast::ArrayAccess::indexes);
+      .def_readonly("indexes", &ast::ArrayAccess::indexes)
+      .def_readonly("expr_type", &ast::ArrayAccess::expr_type);
 
   py::class_<ast::Iterator>(m, "Iterator")
       .def_readonly("variable", &ast::Iterator::variable)
@@ -69,22 +82,28 @@ PYBIND11_MODULE(ir_python, m) {
 
   py::class_<ast::Comprehension>(m, "Comprehension")
       .def_readonly("body", &ast::Comprehension::body)
-      .def_readonly("generators", &ast::Comprehension::generators);
+      .def_readonly("generators", &ast::Comprehension::generators)
+      .def_readonly("expr_type", &ast::Comprehension::expr_type);
 
   py::class_<ast::IfThenElse>(m, "IfThenElse")
       .def_readonly("if_then", &ast::IfThenElse::if_then)
-      .def_readonly("else_expr", &ast::IfThenElse::else_expr);
+      .def_readonly("else_expr", &ast::IfThenElse::else_expr)
+      .def_readonly("expr_type", &ast::IfThenElse::expr_type);
 
-  py::class_<ast::IdExpr>(m, "IdExpr").def_readwrite("id", &ast::IdExpr::id);
+  py::class_<ast::IdExpr>(m, "IdExpr")
+      .def_readwrite("id", &ast::IdExpr::id)
+      .def_readonly("expr_type", &ast::IdExpr::expr_type);
 
   py::class_<ast::BinOp> bin_op(m, "BinOp");
   bin_op.def_readonly("kind", &ast::BinOp::kind)
       .def_readonly("lhs", &ast::BinOp::lhs)
-      .def_readonly("rhs", &ast::BinOp::rhs);
+      .def_readonly("rhs", &ast::BinOp::rhs)
+      .def_readonly("expr_type", &ast::BinOp::expr_type);
 
   py::class_<ast::Call>(m, "Call")
       .def_readonly("id", &ast::Call::id)
-      .def_readonly("args", &ast::Call::args);
+      .def_readonly("args", &ast::Call::args)
+      .def_readonly("expr_type", &ast::Call::expr_type);
 
   py::class_<ast::DeclVariable>(m, "DeclVariable")
       .def_readonly("id", &ast::DeclVariable::id)

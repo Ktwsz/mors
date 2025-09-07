@@ -152,6 +152,10 @@ void PrintModelVisitor::print_fn_call(MiniZinc::Call* call, int const indent) {
   ind(indent + 2);
   fmt::println("id: {}", functionItem->id().c_str());
 
+  ind(indent + 2);
+  fmt::println("return:");
+  print_type_inst(functionItem->ti(), indent + 4);
+
   if (functionItem->e()) {
     ind(indent + 2);
     fmt::println("function params: ");
@@ -380,11 +384,9 @@ void PrintModelVisitor::print_comprehension(MiniZinc::Comprehension* comp,
   ind(indent + 2);
   fmt::println("generators:");
 
-  for (auto const i :
-       std::views::iota(0u, comp->numberOfGenerators())) {
+  for (auto const i : std::views::iota(0u, comp->numberOfGenerators())) {
 
-    for (auto const j :
-         std::views::iota(0u, comp->numberOfDecls(i))) {
+    for (auto const j : std::views::iota(0u, comp->numberOfDecls(i))) {
       match_expr(comp->decl(i, j), indent + 4);
     }
 

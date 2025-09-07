@@ -9,6 +9,28 @@
 #include <vector>
 
 namespace parser::ast {
+namespace types {
+struct Unspecified {};
+struct Int {};
+struct Float {}; // TODO: floats not supported for now
+struct Bool {};
+struct String {};
+
+template <typename T> struct Set {};
+
+using IntSet = Set<Int>;
+using FloatSet = Set<Float>;
+using BoolSet = Set<Bool>;
+
+using UnspecifiedSet = Set<Unspecified>;
+
+struct Array;
+
+} // namespace types
+
+using Type = std::variant<types::Int, types::Float, types::Bool, types::String,
+                          types::IntSet, types::FloatSet, types::BoolSet,
+                          types::UnspecifiedSet, types::Array>;
 
 struct LiteralBool;
 struct LiteralInt;
@@ -27,33 +49,53 @@ using Expr = std::variant<LiteralBool, LiteralInt, LiteralFloat, LiteralString,
                           Comprehension, ArrayAccess, IfThenElse>;
 using ExprHandle = std::shared_ptr<Expr>;
 
+namespace types {
+struct Array {
+  std::vector<ExprHandle> dims;
+};
+} // namespace types
+
 struct LiteralBool {
   bool value;
+
+  Type expr_type = types::Bool{};
 };
 
 struct LiteralInt {
   long long value;
+
+  Type expr_type = types::Int{};
 };
 
 struct LiteralString {
   std::string value;
+
+  Type expr_type = types::String{};
 };
 
 // TODO: floats not supported for now
 struct LiteralFloat {
   double value;
+
+  Type expr_type = types::Float{};
 };
 
 struct LiteralArray {
   std::vector<ExprHandle> value;
+
+  Type expr_type = types::Array{};
 };
 
 struct LiteralSet {
   std::vector<ExprHandle> value;
+
+  Type expr_type = types::UnspecifiedSet{};
 };
 
 struct IdExpr {
   std::string id;
+
+  Type expr_type;
 };
 
 struct BinOp {
@@ -77,50 +119,33 @@ struct BinOp {
   OpKind kind;
 
   ExprHandle lhs, rhs;
+
+  Type expr_type;
 };
 
 struct Call {
   std::string id;
 
   std::vector<ExprHandle> args;
+
+  Type expr_type;
 };
 
 struct ArrayAccess {
   ExprHandle arr;
 
   std::vector<ExprHandle> indexes;
+
+  Type expr_type = types::Int{};
 };
 
 struct IfThenElse {
-    std::vector<std::pair<ExprHandle, ExprHandle>> if_then;
+  std::vector<std::pair<ExprHandle, ExprHandle>> if_then;
 
-    std::optional<ExprHandle> else_expr;
+  std::optional<ExprHandle> else_expr;
+
+  Type expr_type;
 };
-
-namespace types {
-struct Int {};
-struct Float {}; // TODO: floats not supported for now
-struct Bool {};
-
-template <typename T> struct Set {};
-
-using IntSet = Set<Int>;
-using FloatSet = Set<Float>;
-using BoolSet = Set<Bool>;
-
-struct Array;
-
-} // namespace types
-
-using Type = std::variant<types::Int, types::Float, types::Bool, types::IntSet,
-                          types::FloatSet, types::BoolSet, types::Array>;
-
-namespace types {
-struct Array {
-  // std::vector<TypeHandle> dims;
-  std::vector<ExprHandle> dims;
-};
-} // namespace types
 
 struct DeclVariable {
   std::string id;
@@ -153,6 +178,8 @@ struct Comprehension {
   ExprHandle body;
 
   std::vector<Generator> generators;
+
+  Type expr_type = types::Array{};
 };
 
 namespace solve_type {
@@ -175,6 +202,7 @@ struct Function {
 };
 
 using FunctionMap = std::map<std::string, Function>;
+using VariableMap = std::map<std::string, std::vector<VarDecl>>;
 
 using SolveType =
     std::variant<solve_type::Sat, solve_type::Max, solve_type::Min>;
@@ -187,18 +215,8 @@ struct Tree {
 
   ExprHandle output;
 
+  VariableMap variable_map;
   FunctionMap functions;
 };
-// case MiniZinc::Expression::E_SETLIT:
-// case MiniZinc::Expression::E_ANON:
-// case MiniZinc::Expression::E_ARRAYACCESS:
-// case MiniZinc::Expression::E_FIELDACCESS:
-// case MiniZinc::Expression::E_COMP:
-// case MiniZinc::Expression::E_ITE:
-// case MiniZinc::Expression::E_UNOP:
-// case MiniZinc::Expression::E_CALL:
-// case MiniZinc::Expression::E_LET:
-// case MiniZinc::Expression::E_TI:
-// case MiniZinc::Expression::E_TIID:
 
 } // namespace parser::ast
