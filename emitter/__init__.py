@@ -32,20 +32,22 @@ class Emitter:
         self.to_generate = []
 
     def init_file(self):    
-        self.ast_tree.body.append(ast.parse("from ortools.sat.python import cp_model\nfrom itertools import product\n\n\nmodel=cp_model.CpModel()\n"))
+        self.ast_tree.body.append(ast.parse("import math\nfrom ortools.sat.python import cp_model\nfrom itertools import product\n\n\nmodel=cp_model.CpModel()\n"))
 
         template = ast.parse(SOLUTION_PRINTER_TEMPLATE).body[0]
         self.ast_tree.body.append(template)
+        self.function_place = len(self.ast_tree.body)
 
         self.solution_printer_constructor = next(filter(lambda fn: fn.name == '__init__', template.body))
         self.solution_printer_callback = next(filter(lambda fn: fn.name == 'on_solution_callback', template.body))
                 
         self.solution_printer_params = []
 
-    def output_variable(self, name):
-        if name in self.solution_printer_params:
+    def output_variable(self, id_expr):
+        if not id_expr.is_global or id_expr.id in self.solution_printer_params:
             return
         
+        name = id_expr.id
         self.solution_printer_params.append(name)
         self.solution_printer_constructor.args.args.append(ast.arg(arg=name))
         self.solution_printer_constructor.body.append(ast.parse(f"self.{name}={name}").body[0])
@@ -72,31 +74,6 @@ class Emitter:
                 self.ast_tree.body.append(ast.parse(f"{decl.id} = dict({self.ast_decl_LiteralArray(decl.value.get(), decl.type.dims)})"))
             case _:
                 return ""
-            
-    def get_expr_type(self, expr: ExprHandle):
-        if (type(expr.get())==BinOp):
-            return self.get_expr_type(expr.get().lhs)
-        elif (type(expr.get())==LiteralInt):
-            return "int"
-        elif (type(expr.get())==LiteralBool):
-            return "bool"
-        elif (type(expr.get())==LiteralArray):
-            return "array"
-        elif (type(expr.get())==IdExpr):
-            return "" # TODO
-        elif (type(expr.get())==LiteralString):
-            return "string"
-        elif (type(expr.get())==Call):
-            return "" #TODO
-        elif (type(expr.get())==Comprehension):
-            return "array"
-        elif (type(expr.get())==IfThenElse):
-            return self.get_expr_type(expr.get().if_then[0][1])
-        elif(type(expr.get())==ArrayAccess):
-            return "" #TODO
-        else :
-            return ""
-
 
     def ast_expr(self, expr: ExprHandle, state):
         if (type(expr.get())==BinOp):
@@ -109,11 +86,26 @@ class Emitter:
         elif (type(expr.get())==LiteralBool):
             return str(expr.get().value)
         elif (type(expr.get())==LiteralArray):
+            if is_output(state):
+                return ast.unparse(ast.fix_missing_locations(ast.Module(body=[
+                    ast.parse(f"print({self.ast_expr(expr, STATE_OUTPUT)},end=\"\")")
+                    for expr in expr.get().value
+                ])))
+
             return self.ast_LiteralArray(expr.get(), state)
         elif (type(expr.get())==IdExpr):
             if is_output(state):
-                self.output_variable(expr.get().id)
-                return f"self.value(self.{expr.get().id})"
+                self.output_variable(expr.get())
+
+                if expr.get().is_global:
+                    name = f"self.{expr.get().id}"
+                else:
+                    name = expr.get().id
+
+                if expr.get().is_var and expr.get().expr_type.type() != 'array':
+                    return f"self.value({name})"
+                else:
+                    return name
             else:
                 return str(expr.get().id)
         elif (type(expr.get())==LiteralString):
@@ -125,10 +117,16 @@ class Emitter:
         elif (type(expr.get())==IfThenElse):
             return self.ast_IfThenElse(expr.get(),state)
         elif(type(expr.get())==ArrayAccess):
-            if len(expr.get().indexes)==1:
-                return f"{self.ast_expr(expr.get().arr, state)}[{self.ast_expr(expr.get().indexes[0],state)}]"
+            if is_output(state):
+                if len(expr.get().indexes)==1:
+                    return f"self.value({self.ast_expr(expr.get().arr, state)}[{self.ast_expr(expr.get().indexes[0],state)}])"
+                else:
+                    return f"self.value({self.ast_expr(expr.get().arr, state)}[({", ".join([self.ast_expr(ix,state) for ix in expr.get().indexes])})])"
             else:
-                return f"{self.ast_expr(expr.get().arr, state)}[({", ".join([self.ast_expr(ix,state) for ix in expr.get().indexes])})]"
+                if len(expr.get().indexes)==1:
+                    return f"{self.ast_expr(expr.get().arr, state)}[{self.ast_expr(expr.get().indexes[0],state)}]"
+                else:
+                    return f"{self.ast_expr(expr.get().arr, state)}[({", ".join([self.ast_expr(ix,state) for ix in expr.get().indexes])})]"
         else :
             return ""
 
@@ -157,7 +155,7 @@ class Emitter:
             case BinOp.OpKind.LQ:
                 return f"{self.ast_expr(bin_op.lhs, state)} <= {self.ast_expr(bin_op.rhs, state)}"
             case BinOp.OpKind.PLUSPLUS:
-                if is_output(state) and (self.get_expr_type(bin_op.lhs) == "array"):
+                if is_output(state) and bin_op.lhs.get().expr_type.type() == "array":
                     return f"{self.ast_expr(bin_op.lhs, state)}\n{self.ast_expr(bin_op.rhs, state)}"
                 return f"{self.ast_expr(bin_op.lhs, state)} + {self.ast_expr(bin_op.rhs, state)}"
             case BinOp.OpKind.AND:
@@ -167,10 +165,13 @@ class Emitter:
             
     def ast_Call(self, call: Call, state):
         match(call.id):
-            case "format_29" | "format_31" | "format_32" | "format_33":
+            case "format_29" | "format_31" | "format_32" | "format_33" | "format_40" | "show" :
                 return f"str({self.ast_expr(call.args[0], state)})"
             case "max":
-                return f"max({self.ast_expr(call.args[0], STATE_DEFAULT)})" # TODO: match arg type
+                arg = self.ast_expr(call.args[0], STATE_DEFAULT)
+                if type(call.args[0].get()) == IdExpr and call.args[0].get().expr_type.type() == 'array':
+                    arg += '.values()'
+                return f"max({arg})"
             case "min":
                 return f"min({self.ast_expr(call.args[0], STATE_DEFAULT)})"
             case "sum":
@@ -178,7 +179,7 @@ class Emitter:
             case "ceil":
                 return f"math.ceil({self.ast_expr(call.args[0], STATE_DEFAULT)})"
             case "log":
-                return f"math.log({self.ast_expr(call.args[0], STATE_DEFAULT)})" # TODO: - 
+                return f"math.log({self.ast_expr(call.args[1], STATE_DEFAULT)})" 
             case "int2float":
                 return f"float({self.ast_expr(call.args[0], STATE_DEFAULT)})" 
             case "array1d":
@@ -190,27 +191,37 @@ class Emitter:
                     return f"all({self.ast_expr(call.args[0], STATE_DEFAULT)})"
             case "fzn_all_different_int":
                 return f"model.add_all_different({self.ast_expr(call.args[0], STATE_DEFAULT)})"
+            case "show_int":
+                return f"str({self.ast_expr(call.args[1],state)}).rjust({self.ast_expr(call.args[0],state)}) if {self.ast_expr(call.args[0],state)} > 0 else str({self.ast_expr(call.args[1],state)}).ljust({self.ast_expr(call.args[0],state)})"
             case _:
-                if call.id not in self.to_generate:
-                    self.to_generate.append(call.id)
+                if (call.id, state) not in self.to_generate:
+                    self.to_generate.append((call.id, state))
                 return f"{call.id}({", ".join([self.ast_expr(arg, STATE_DEFAULT) for arg in call.args])})"
 
-    def ast_Function(self, function_id: str):
+    def ast_Function(self, function_id: str, state):
         if function_id not in self.tree.functions:
             return
 
         function = self.tree.functions[function_id]
         fn = ast.FunctionDef(function.id)
         fn.args = ast.arguments(args = [ast.arg(arg=fn_arg) for fn_arg in function.params])
-        fn.body.append(ast.parse(self.ast_expr(function.body, STATE_DEFAULT)))
-        self.ast_tree.body.append(ast.fix_missing_locations(fn))
+
+        if is_output(state):
+            fn.body.append(ast.parse(self.ast_expr(function.body, state)))
+        else:
+            fn.body.append(ast.Return(ast.parse(self.ast_expr(function.body, STATE_DEFAULT)).body[0].value))
+
+        self.ast_tree.body.insert(self.function_place, ast.fix_missing_locations(fn))
 
 
     def ast_Comprehension(self, compr: Comprehension, state):
         if is_output(state) or is_constraint(state):
             if_py, current = self.ast_generator(compr.generators, state)
             print(self.ast_expr(compr.body, state))
-            current.body.append(ast.parse(f"print({self.ast_expr(compr.body, state)})"))
+            if is_output(state):
+                current.body.append(ast.parse(f"print({self.ast_expr(compr.body, state)})"))
+            else:
+                current.body.append(ast.parse(self.ast_expr(compr.body, state)))
             return ast.unparse(ast.fix_missing_locations(if_py))
         else:
             return f"[{self.ast_expr(compr.body, state)}  {self.ast_generator(compr.generators, state)}]"
@@ -234,7 +245,7 @@ class Emitter:
             current = gen
             for generator in generators:
                 if type(generator) == Iterator:
-                    current.body.append(ast.For(target=ast.Name(generator.variable.id), iter=ast.parse(self.ast_expr(generator.in_expr, STATE_DEFAULT)).body[0].value))
+                    current.body.append(ast.For(target=ast.Name(generator.variable.id), iter=ast.parse(self.ast_expr(generator.in_expr, state if is_output(state) else STATE_DEFAULT)).body[0].value))
                 else:
                     current.body.append(ast.If(ast.parse(self.ast_expr(generator, STATE_DEFAULT)).body[0].value))
                 current = current.body[0]
@@ -249,6 +260,9 @@ class Emitter:
             return gen
 
     def ast_declare_var(self, id: str, domain: ExprHandle):
+        if domain is None:
+            return f"model.new_int_var_from_domain(cp_model.Domain.FromValues(range(-2147483648, 2147483647)), {id})"
+
         return f"model.new_int_var_from_domain(cp_model.Domain.FromValues({self.ast_expr(domain, STATE_DEFAULT)}), {id})"
 
     def ast_var(self, decl: DeclVariable):
@@ -268,11 +282,7 @@ class Emitter:
         file_to_write.write(ast.unparse(self.ast_tree))
 
     def ast_output(self, out):        
-        if type(out.get())==LiteralArray:
-            for print_expr in self.ast_output_LiteralArray(out.get()):
-                self.solution_printer_callback.body.append(ast.parse(print_expr))
-        else:
-            self.solution_printer_callback.body.append(ast.parse(self.ast_expr(out, STATE_OUTPUT)))
+        self.solution_printer_callback.body.append(ast.parse(self.ast_expr(out, STATE_OUTPUT)))
 
     def ast_var_Array(self, var: DeclVariable, state):
         dimensions = var.type.dims
@@ -283,12 +293,6 @@ class Emitter:
         else:
             return f"{{key: {self.ast_declare_var(new_id, var.domain)} for key in product({", ".join([self.ast_expr(dimensions[i], state) for i in range(len(dimensions))])}) }}"
 
-
-    def ast_output_LiteralArray(self, litarr: LiteralArray):
-        return [
-            f"print({self.ast_expr(expr, STATE_OUTPUT)},end=\"\")"
-            for expr in litarr.value
-        ]
 
     def ast_LiteralArray(self, litarr: LiteralArray, state):
         return "[" + ", ".join([
@@ -328,7 +332,7 @@ def hello_world(tree: Tree, file_path: str):
 
     i = 0
     while i < len(emitter.to_generate):
-        emitter.ast_Function(emitter.to_generate[i])
+        emitter.ast_Function(emitter.to_generate[i][0], emitter.to_generate[i][1])
         i += 1
     
     emitter.ast_model_solve_type(tree.solve_type)
