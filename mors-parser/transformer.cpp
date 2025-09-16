@@ -281,6 +281,10 @@ auto Transformer::map(MiniZinc::Expression* expr)
     auto* bin_op = MiniZinc::Expression::cast<MiniZinc::BinOp>(expr);
     return map(bin_op);
   }
+  case MiniZinc::Expression::E_UNOP: {
+    auto* un_op = MiniZinc::Expression::cast<MiniZinc::UnOp>(expr);
+    return map(un_op);
+  }
   case MiniZinc::Expression::E_CALL: {
     auto* call = MiniZinc::Expression::cast<MiniZinc::Call>(expr);
 
@@ -380,9 +384,6 @@ auto Transformer::map(MiniZinc::Expression* expr)
   // case MiniZinc::Expression::E_FIELDACCESS:
   //   fmt::println("E_FIELDACCESS");
   //   break;
-  // case MiniZinc::Expression::E_UNOP:
-  //   fmt::println("E_UNOP");
-  //   break;
   // case MiniZinc::Expression::E_LET: {
   //   auto* let = MiniZinc::Expression::cast<MiniZinc::Let>(expr);
   //   print_let_expr(let, indent);
@@ -440,8 +441,7 @@ auto Transformer::map(MiniZinc::BinOp* bin_op) -> ast::ExprHandle {
 
   auto lhs = map(bin_op->lhs());
   auto rhs = map(bin_op->rhs());
-  if (!lhs || !rhs)
-    assert(false);
+  assert(lhs && rhs);
 
   auto expr_type = std::visit(
       overloaded{
@@ -453,6 +453,33 @@ auto Transformer::map(MiniZinc::BinOp* bin_op) -> ast::ExprHandle {
       ast::BinOp{.kind = match_kind(bin_op->op()),
                  .lhs = std::move(*lhs),
                  .rhs = std::move(*rhs),
+                 .expr_type = std::move(expr_type)});
+}
+
+auto Transformer::map(MiniZinc::UnOp* un_op) -> ast::ExprHandle {
+  auto match_kind = [](MiniZinc::UnOpType const t) {
+    switch (t) {
+    case MiniZinc::UOT_NOT:
+      return ast::UnaryOp::OpKind::NOT;
+    case MiniZinc::UOT_PLUS:
+      return ast::UnaryOp::OpKind::PLUS;
+    case MiniZinc::UOT_MINUS:
+      return ast::UnaryOp::OpKind::MINUS;
+    }
+  };
+
+  auto expr = map(un_op->e());
+  assert(expr);
+
+  auto expr_type = std::visit(
+      overloaded{
+          [](HasType auto const& t) { return t.expr_type; },
+      },
+      **expr);
+
+  return std::make_shared<ast::Expr>(
+      ast::UnaryOp{.kind = match_kind(un_op->op()),
+                 .expr = std::move(*expr),
                  .expr_type = std::move(expr_type)});
 }
 

@@ -40,12 +40,13 @@ struct LiteralArray;
 struct LiteralSet;
 struct IdExpr;
 struct BinOp;
+struct UnaryOp;
 struct Call;
 struct Comprehension;
 struct ArrayAccess;
 struct IfThenElse;
 using Expr = std::variant<LiteralBool, LiteralInt, LiteralFloat, LiteralString,
-                          LiteralArray, LiteralSet, IdExpr, BinOp, Call,
+                          LiteralArray, LiteralSet, IdExpr, BinOp, UnaryOp, Call,
                           Comprehension, ArrayAccess, IfThenElse>;
 using ExprHandle = std::shared_ptr<Expr>;
 
@@ -118,10 +119,32 @@ struct BinOp {
     PLUSPLUS,
     AND,
     OR
+    // BOT_DIV,
+    // BOT_POW,
+    // BOT_IN,
+    // BOT_SUBSET,
+    // BOT_SUPERSET,
+    // BOT_UNION,
+    // BOT_DIFF,
+    // BOT_SYMDIFF,
+    // BOT_INTERSECT,
+    // BOT_EQUIV,
+    // BOT_IMPL,
+    // BOT_RIMPL,
+    // BOT_XOR,
   };
   OpKind kind;
 
   ExprHandle lhs, rhs;
+
+  Type expr_type;
+};
+
+struct UnaryOp {
+  enum class OpKind : uint8_t { NOT, PLUS, MINUS };
+  OpKind kind;
+
+  ExprHandle expr;
 
   Type expr_type;
 };

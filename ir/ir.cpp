@@ -38,7 +38,8 @@ PYBIND11_MODULE(ir_python, m) {
       .def("type", [](ast::types::BoolSet const&) { return "bool_set"; });
 
   py::class_<ast::types::UnspecifiedSet>(m, "UnspecifiedSet")
-      .def("type", [](ast::types::UnspecifiedSet const&) { return "unspecified_set"; });
+      .def("type",
+           [](ast::types::UnspecifiedSet const&) { return "unspecified_set"; });
 
   py::class_<ast::types::Array>(m, "Array")
       .def("type", [](ast::types::Array const&) { return "array"; })
@@ -102,16 +103,6 @@ PYBIND11_MODULE(ir_python, m) {
       .def_readonly("rhs", &ast::BinOp::rhs)
       .def_readonly("expr_type", &ast::BinOp::expr_type);
 
-  py::class_<ast::Call>(m, "Call")
-      .def_readonly("id", &ast::Call::id)
-      .def_readonly("args", &ast::Call::args)
-      .def_readonly("expr_type", &ast::Call::expr_type);
-
-  py::class_<ast::DeclVariable>(m, "DeclVariable")
-      .def_readonly("id", &ast::DeclVariable::id)
-      .def_readonly("type", &ast::DeclVariable::var_type)
-      .def_readonly("domain", &ast::DeclVariable::domain);
-
   py::enum_<ast::BinOp::OpKind>(bin_op, "OpKind", "enum.Enum")
       .value("PLUS", ast::BinOp::OpKind::PLUS)
       .value("MINUS", ast::BinOp::OpKind::MINUS)
@@ -129,6 +120,27 @@ PYBIND11_MODULE(ir_python, m) {
       .value("AND", ast::BinOp::OpKind::AND)
       .value("OR", ast::BinOp::OpKind::OR)
       .export_values();
+
+  py::class_<ast::UnaryOp> un_op(m, "UnaryOp");
+  un_op.def_readonly("kind", &ast::UnaryOp::kind)
+      .def_readonly("expr", &ast::UnaryOp::expr)
+      .def_readonly("expr_type", &ast::UnaryOp::expr_type);
+
+  py::enum_<ast::UnaryOp::OpKind>(un_op, "OpKind", "enum.Enum")
+      .value("NOT", ast::UnaryOp::OpKind::NOT)
+      .value("PLUS", ast::UnaryOp::OpKind::PLUS)
+      .value("MINUS", ast::UnaryOp::OpKind::MINUS)
+      .export_values();
+
+  py::class_<ast::Call>(m, "Call")
+      .def_readonly("id", &ast::Call::id)
+      .def_readonly("args", &ast::Call::args)
+      .def_readonly("expr_type", &ast::Call::expr_type);
+
+  py::class_<ast::DeclVariable>(m, "DeclVariable")
+      .def_readonly("id", &ast::DeclVariable::id)
+      .def_readonly("type", &ast::DeclVariable::var_type)
+      .def_readonly("domain", &ast::DeclVariable::domain);
 
   py::class_<ast::DeclConst>(m, "DeclConst")
       .def_readonly("id", &ast::DeclConst::id)
