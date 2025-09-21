@@ -164,7 +164,7 @@ struct ArrayAccess {
 
   Type expr_type = types::Int{};
 
-  bool is_var = false;
+  bool is_index_var_type = false;
 };
 
 struct IfThenElse {

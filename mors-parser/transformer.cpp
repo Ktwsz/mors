@@ -364,22 +364,23 @@ auto Transformer::map(MiniZinc::Expression* expr)
     assert(arr_expr && "Array Access: nullopt array");
     ast_array_ref.arr = *arr_expr;
 
-    bool is_index_var_type = false;
-
     for (auto& ix : array_access->idx()) {
       auto ix_expr = map(ix);
       assert(ix_expr && "Array Access: nullopt index");
 
-      if (std::holds_alternative<ast::IdExpr>(**ix_expr) &&
-          std::get<ast::IdExpr>(**ix_expr).is_var)
-        is_index_var_type = true;
+      ast_array_ref.is_index_var_type =
+          ast_array_ref.is_index_var_type ||
+          std::visit(overloaded{[](ast::IdExpr const& id) { return id.is_var; },
+                                [](ast::ArrayAccess const& acc) {
+                                  return std::holds_alternative<ast::IdExpr>(
+                                             *acc.arr) &&
+                                         std::get<ast::IdExpr>(*acc.arr).is_var;
+                                },
+                                [](auto const& t) { return false; }},
+                     **ix_expr);
 
       ast_array_ref.indexes.push_back(*ix_expr);
     }
-
-    ast_array_ref.is_var =
-        std::holds_alternative<ast::IdExpr>(*ast_array_ref.arr) &&
-        std::get<ast::IdExpr>(*ast_array_ref.arr).is_var && is_index_var_type;
 
     return ast_array;
   }

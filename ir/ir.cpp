@@ -74,7 +74,7 @@ PYBIND11_MODULE(ir_python, m) {
       .def_readonly("arr", &ast::ArrayAccess::arr)
       .def_readonly("indexes", &ast::ArrayAccess::indexes)
       .def_readonly("expr_type", &ast::ArrayAccess::expr_type)
-      .def_readonly("is_var", &ast::ArrayAccess::is_var);
+      .def_readonly("is_index_var_type", &ast::ArrayAccess::is_index_var_type);
 
   py::class_<ast::Iterator>(m, "Iterator")
       .def_readonly("variable", &ast::Iterator::variable)
