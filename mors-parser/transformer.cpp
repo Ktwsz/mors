@@ -358,16 +358,28 @@ auto Transformer::map(MiniZinc::Expression* expr)
 
     auto ast_array = std::make_shared<ast::Expr>(ast::ArrayAccess{});
 
+    auto& ast_array_ref = std::get<ast::ArrayAccess>(*ast_array);
+
     auto arr_expr = map(array_access->v());
     assert(arr_expr && "Array Access: nullopt array");
-    std::get<ast::ArrayAccess>(*ast_array).arr = *arr_expr;
+    ast_array_ref.arr = *arr_expr;
+
+    bool is_index_var_type = false;
 
     for (auto& ix : array_access->idx()) {
       auto ix_expr = map(ix);
       assert(ix_expr && "Array Access: nullopt index");
 
-      std::get<ast::ArrayAccess>(*ast_array).indexes.push_back(*ix_expr);
+      if (std::holds_alternative<ast::IdExpr>(**ix_expr) &&
+          std::get<ast::IdExpr>(**ix_expr).is_var)
+        is_index_var_type = true;
+
+      ast_array_ref.indexes.push_back(*ix_expr);
     }
+
+    ast_array_ref.is_var =
+        std::holds_alternative<ast::IdExpr>(*ast_array_ref.arr) &&
+        std::get<ast::IdExpr>(*ast_array_ref.arr).is_var && is_index_var_type;
 
     return ast_array;
   }
@@ -434,6 +446,8 @@ auto Transformer::map(MiniZinc::BinOp* bin_op) -> ast::ExprHandle {
       return ast::BinOp::OpKind::AND;
     case MiniZinc::BOT_OR:
       return ast::BinOp::OpKind::OR;
+    case MiniZinc::BOT_IMPL:
+      return ast::BinOp::OpKind::IMPL;
     default:
       assert(false);
     }
@@ -479,8 +493,8 @@ auto Transformer::map(MiniZinc::UnOp* un_op) -> ast::ExprHandle {
 
   return std::make_shared<ast::Expr>(
       ast::UnaryOp{.kind = match_kind(un_op->op()),
-                 .expr = std::move(*expr),
-                 .expr_type = std::move(expr_type)});
+                   .expr = std::move(*expr),
+                   .expr_type = std::move(expr_type)});
 }
 
 auto Transformer::map(MiniZinc::ITE* ite) -> ast::ExprHandle {

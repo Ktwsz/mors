@@ -73,7 +73,8 @@ PYBIND11_MODULE(ir_python, m) {
   py::class_<ast::ArrayAccess>(m, "ArrayAccess")
       .def_readonly("arr", &ast::ArrayAccess::arr)
       .def_readonly("indexes", &ast::ArrayAccess::indexes)
-      .def_readonly("expr_type", &ast::ArrayAccess::expr_type);
+      .def_readonly("expr_type", &ast::ArrayAccess::expr_type)
+      .def_readonly("is_var", &ast::ArrayAccess::is_var);
 
   py::class_<ast::Iterator>(m, "Iterator")
       .def_readonly("variable", &ast::Iterator::variable)
@@ -119,6 +120,7 @@ PYBIND11_MODULE(ir_python, m) {
       .value("PLUSPLUS", ast::BinOp::OpKind::PLUSPLUS)
       .value("AND", ast::BinOp::OpKind::AND)
       .value("OR", ast::BinOp::OpKind::OR)
+      .value("IMPL", ast::BinOp::OpKind::IMPL)
       .export_values();
 
   py::class_<ast::UnaryOp> un_op(m, "UnaryOp");

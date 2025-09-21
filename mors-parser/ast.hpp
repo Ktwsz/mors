@@ -118,7 +118,8 @@ struct BinOp {
     LQ,
     PLUSPLUS,
     AND,
-    OR
+    OR,
+    IMPL
     // BOT_DIV,
     // BOT_POW,
     // BOT_IN,
@@ -129,7 +130,6 @@ struct BinOp {
     // BOT_SYMDIFF,
     // BOT_INTERSECT,
     // BOT_EQUIV,
-    // BOT_IMPL,
     // BOT_RIMPL,
     // BOT_XOR,
   };
@@ -163,6 +163,8 @@ struct ArrayAccess {
   std::vector<ExprHandle> indexes;
 
   Type expr_type = types::Int{};
+
+  bool is_var = false;
 };
 
 struct IfThenElse {

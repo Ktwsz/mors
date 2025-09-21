@@ -376,6 +376,32 @@ void PrintModelVisitor::print_bin_op(MiniZinc::BinOp* bin_op,
   match_expr(bin_op->rhs(), indent + 4);
 }
 
+void PrintModelVisitor::print_un_op(MiniZinc::UnOp* un_op, int const indent) {
+  ind(indent);
+  fmt::println("Unary Op");
+
+  ind(indent + 2);
+  fmt::print("op: ");
+  switch (un_op->op()) {
+  case MiniZinc::UOT_NOT: {
+    fmt::println("UOT_NOT");
+    break;
+  }
+  case MiniZinc::UOT_PLUS: {
+    fmt::println("UOT_PLUS");
+    break;
+  }
+  case MiniZinc::UOT_MINUS: {
+    fmt::println("UOT_MINUS");
+    break;
+  }
+  }
+
+  ind(indent + 2);
+  fmt::println("expr: ");
+  match_expr(un_op->e(), indent + 4);
+}
+
 void PrintModelVisitor::print_comprehension(MiniZinc::Comprehension* comp,
                                             int const indent) {
   ind(indent);
@@ -532,7 +558,8 @@ void PrintModelVisitor::match_expr(MiniZinc::Expression* expr,
   }
   case MiniZinc::Expression::E_UNOP: {
     ind(indent);
-    fmt::println("E_UNOP");
+    auto* un_op = MiniZinc::Expression::cast<MiniZinc::UnOp>(expr);
+    print_un_op(un_op, indent);
     break;
   }
   case MiniZinc::Expression::E_CALL: {
