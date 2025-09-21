@@ -25,8 +25,8 @@ do
         DATA=models/$MODEL/$MODEL.dzn
     fi 
     
-    eval "./build/Debug/mors models/${MODEL}/${MODEL}.mzn $DATA --stdlib-dir $MINIZINC_PATH -I $SOLVER_PATH"
-    eval "python3.11 models/${MODEL}/${MODEL}.py"
+    eval "./build/Debug/mors models/${MODEL}/${MODEL}.mzn $DATA --stdlib-dir $MINIZINC_PATH -I $SOLVER_PATH" || true
+    # eval "python3.11 models/${MODEL}/${MODEL}.py"
 done
 
 

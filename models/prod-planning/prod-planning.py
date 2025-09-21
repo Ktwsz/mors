@@ -1,5 +1,6 @@
 import math
 from ortools.sat.python import cp_model
+import mors_lib
 from itertools import product
 model = cp_model.CpModel()
 
@@ -16,9 +17,9 @@ class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
     def on_solution_callback(self) -> None:
         self.__solution_count += 1
         for p in self.Products:
-            print('' + str(p) + ' = ' + str(self.value(self.produce[p])) + ';\n')
+            print('' + (str(p) + (' = ' + (str(self.value(self.produce[p])) + ';\n'))), end='')
         for r in self.Resources:
-            print('' + str(r) + ' = ' + str(self.value(self.used[r])) + ';\n')
+            print('' + (str(r) + (' = ' + (str(self.value(self.used[r])) + ';\n'))), end='')
 
     @property
     def solution_count(self) -> int:

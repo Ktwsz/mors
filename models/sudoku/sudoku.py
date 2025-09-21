@@ -1,22 +1,23 @@
 import math
 from ortools.sat.python import cp_model
+import mors_lib
 from itertools import product
 model = cp_model.CpModel()
 
 class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
 
-    def __init__(self, PuzzleRange, puzzle, digs):
+    def __init__(self, PuzzleRange, digs, puzzle):
         cp_model.CpSolverSolutionCallback.__init__(self)
         self.__solution_count = 0
         self.PuzzleRange = PuzzleRange
-        self.puzzle = puzzle
         self.digs = digs
+        self.puzzle = puzzle
 
     def on_solution_callback(self) -> None:
         self.__solution_count += 1
         for i in self.PuzzleRange:
             for j in self.PuzzleRange:
-                print(str(self.value(self.puzzle[i, j])).rjust(self.digs) if self.digs > 0 else str(self.value(self.puzzle[i, j])).ljust(self.digs) + ' ' + None + None)
+                print(mors_lib.show_int(self.digs, self.value(self.puzzle[i, j])) + ' ' + (' ' if j % S == 0 else '') + ((('\n\n' if i % S == 0 else '\n') if i != N else '') if j == N else ''), end='')
         print('\n', end='')
 
     @property
@@ -52,5 +53,5 @@ for a in SubSquareRange:
     for o in SubSquareRange:
         alldifferent_40([puzzle[(a - 1) * S + a1, (o - 1) * S + o1] for a1 in SubSquareRange for o1 in SubSquareRange])
 solver = cp_model.CpSolver()
-solution_printer = VarArraySolutionPrinter(PuzzleRange, puzzle, digs)
+solution_printer = VarArraySolutionPrinter(PuzzleRange, digs, puzzle)
 status = solver.solve(model, solution_printer)

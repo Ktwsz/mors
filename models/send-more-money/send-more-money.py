@@ -1,5 +1,6 @@
 import math
 from ortools.sat.python import cp_model
+import mors_lib
 from itertools import product
 model = cp_model.CpModel()
 
@@ -19,9 +20,9 @@ class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
 
     def on_solution_callback(self) -> None:
         self.__solution_count += 1
-        print('   ' + str(self.value(self.S)) + '' + str(self.value(self.E)) + '' + str(self.value(self.N)) + '' + str(self.value(self.D)) + '\n', end='')
-        print('+  ' + str(self.value(self.M)) + '' + str(self.value(self.O)) + '' + str(self.value(self.R)) + '' + str(self.value(self.E)) + '\n', end='')
-        print('= ' + str(self.value(self.M)) + '' + str(self.value(self.O)) + '' + str(self.value(self.N)) + '' + str(self.value(self.E)) + '' + str(self.value(self.Y)) + '\n', end='')
+        print('   ' + (str(self.value(self.S)) + ('' + (str(self.value(self.E)) + ('' + (str(self.value(self.N)) + ('' + (str(self.value(self.D)) + '\n'))))))), end='')
+        print('+  ' + (str(self.value(self.M)) + ('' + (str(self.value(self.O)) + ('' + (str(self.value(self.R)) + ('' + (str(self.value(self.E)) + '\n'))))))), end='')
+        print('= ' + (str(self.value(self.M)) + ('' + (str(self.value(self.O)) + ('' + (str(self.value(self.N)) + ('' + (str(self.value(self.E)) + ('' + (str(self.value(self.Y)) + '\n'))))))))), end='')
 
     @property
     def solution_count(self) -> int:
