@@ -32,7 +32,6 @@ def is_expr(state):
 def is_stmt(state):
     return state == STATE_OUTPUT or state == STATE_CONSTRAINT
 
-
 class Emitter:
     def __init__(self, tree):
         self.ast_tree = ast.Module()
@@ -122,16 +121,15 @@ class Emitter:
         elif (type(expr.get())==IfThenElse):
             return self.ast_IfThenElse(expr.get(),state)
         elif(type(expr.get())==ArrayAccess):
+            # TODO - check for cosntraint expr state, if id is var and one of ixs is also var
             if is_output(state):
-                if len(expr.get().indexes)==1:
-                    return f"self.value({self.ast_expr(expr.get().arr, state)}[{self.ast_expr(expr.get().indexes[0],state)}])"
-                else:
-                    return f"self.value({self.ast_expr(expr.get().arr, state)}[({", ".join([self.ast_expr(ix,state) for ix in expr.get().indexes])})])"
+                return f"self.value({self.ast_expr(expr.get().arr, state)}[({", ".join([self.ast_expr(ix,state) for ix in expr.get().indexes])})])"
             else:
-                if len(expr.get().indexes)==1:
-                    return f"{self.ast_expr(expr.get().arr, state)}[{self.ast_expr(expr.get().indexes[0],state)}]"
-                else:
-                    return f"{self.ast_expr(expr.get().arr, state)}[({", ".join([self.ast_expr(ix,state) for ix in expr.get().indexes])})]"
+                print(expr.get().arr.get().id)
+                print(is_constraint(state)  , expr.get().is_index_var_type)
+                if is_constraint(state) and expr.get().is_index_var_type:
+                    return f"mors_lib.access(model, {self.ast_expr(expr.get().arr, state)}, ({", ".join([self.ast_expr(ix,state) for ix in expr.get().indexes])}))"
+                return f"{self.ast_expr(expr.get().arr, state)}[({", ".join([self.ast_expr(ix,state) for ix in expr.get().indexes])})]"
         else :
             return ""
 
@@ -224,6 +222,13 @@ class Emitter:
                     return f"mors_lib.or_(model, {self.ast_expr(bin_op.lhs, STATE_CONSTRAINT_EXPR)}, {self.ast_expr(bin_op.rhs, STATE_CONSTRAINT_EXPR)})"
 
                 return f"({lhs}) or ({rhs})"
+            case BinOp.OpKind.IMPL:
+                if is_constraint(state):
+                    if is_stmt(state):
+                        return f"mors_lib.finalize(mors_lib.impl_(model, {self.ast_expr(bin_op.lhs, STATE_CONSTRAINT_EXPR)}, {self.ast_expr(bin_op.rhs, STATE_CONSTRAINT_EXPR)}))"
+                    return f"mors_lib.impl_(model, {self.ast_expr(bin_op.lhs, STATE_CONSTRAINT_EXPR)}, {self.ast_expr(bin_op.rhs, STATE_CONSTRAINT_EXPR)})"
+
+                return f"" #TODO
             case _:
                 return ""
             
