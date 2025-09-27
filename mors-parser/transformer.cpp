@@ -153,7 +153,7 @@ auto Transformer::map(MiniZinc::SetLit* set_lit) -> ast::ExprHandle {
 
   auto ast_set = std::make_shared<ast::Expr>(ast::LiteralSet{});
 
-  auto& ast_set_ref = std::get<ast::LiteralArray>(*ast_set);
+  auto& ast_set_ref = std::get<ast::LiteralSet>(*ast_set);
   for (auto& set_expr : set_lit->v()) {
     auto ast_expr = map(set_expr);
     assert(ast_expr && "Set Literal: nullopt item");
@@ -207,6 +207,8 @@ auto Transformer::map(MiniZinc::Comprehension* comp) -> ast::Comprehension {
 }
 
 void Transformer::save(MiniZinc::FunctionI* function) {
+  if (function->id().endsWith("abs")) // TODO - identify BIFs
+    return;
   if (function->e() == nullptr)
     return;
 
@@ -449,6 +451,10 @@ auto Transformer::map(MiniZinc::BinOp* bin_op) -> ast::ExprHandle {
       return ast::BinOp::OpKind::OR;
     case MiniZinc::BOT_IMPL:
       return ast::BinOp::OpKind::IMPL;
+    case MiniZinc::BOT_IN:
+      return ast::BinOp::OpKind::IN;
+    case MiniZinc::BOT_EQUIV:
+      return ast::BinOp::OpKind::EQUIV;
     default:
       assert(false);
     }

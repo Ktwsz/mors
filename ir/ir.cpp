@@ -121,6 +121,8 @@ PYBIND11_MODULE(ir_python, m) {
       .value("AND", ast::BinOp::OpKind::AND)
       .value("OR", ast::BinOp::OpKind::OR)
       .value("IMPL", ast::BinOp::OpKind::IMPL)
+      .value("IN", ast::BinOp::OpKind::IN)
+      .value("EQUIV", ast::BinOp::OpKind::EQUIV)
       .export_values();
 
   py::class_<ast::UnaryOp> un_op(m, "UnaryOp");

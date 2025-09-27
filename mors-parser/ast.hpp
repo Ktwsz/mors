@@ -119,17 +119,17 @@ struct BinOp {
     PLUSPLUS,
     AND,
     OR,
-    IMPL
+    IMPL,
+    IN,
+    EQUIV
     // BOT_DIV,
     // BOT_POW,
-    // BOT_IN,
     // BOT_SUBSET,
     // BOT_SUPERSET,
     // BOT_UNION,
     // BOT_DIFF,
     // BOT_SYMDIFF,
     // BOT_INTERSECT,
-    // BOT_EQUIV,
     // BOT_RIMPL,
     // BOT_XOR,
   };
