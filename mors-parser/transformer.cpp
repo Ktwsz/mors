@@ -416,6 +416,35 @@ auto Transformer::map(MiniZinc::Expression* expr)
   }
 }
 
+namespace {
+auto is_bool_operator(MiniZinc::BinOpType const t) -> bool {
+  switch (t) {
+  case MiniZinc::BOT_NQ:
+  case MiniZinc::BOT_EQ:
+  case MiniZinc::BOT_GQ:
+  case MiniZinc::BOT_GR:
+  case MiniZinc::BOT_LE:
+  case MiniZinc::BOT_LQ:
+  case MiniZinc::BOT_AND:
+  case MiniZinc::BOT_OR:
+  case MiniZinc::BOT_IMPL:
+  case MiniZinc::BOT_IN:
+  case MiniZinc::BOT_EQUIV:
+    return true;
+  case MiniZinc::BOT_DOTDOT:
+  case MiniZinc::BOT_PLUSPLUS:
+  case MiniZinc::BOT_PLUS:
+  case MiniZinc::BOT_MINUS:
+  case MiniZinc::BOT_MULT:
+  case MiniZinc::BOT_IDIV:
+  case MiniZinc::BOT_MOD:
+    return false;
+  default:
+    assert(false);
+  }
+}
+} // namespace
+
 auto Transformer::map(MiniZinc::BinOp* bin_op) -> ast::ExprHandle {
   auto match_kind = [](MiniZinc::BinOpType const t) {
     switch (t) {
@@ -464,11 +493,14 @@ auto Transformer::map(MiniZinc::BinOp* bin_op) -> ast::ExprHandle {
   auto rhs = map(bin_op->rhs());
   assert(lhs && rhs);
 
-  auto expr_type = std::visit(
-      overloaded{
-          [](HasType auto const& t) { return t.expr_type; },
-      },
-      **lhs);
+  auto expr_type =
+      is_bool_operator(bin_op->op())
+          ? ast::types::Bool{}
+          : std::visit(
+                overloaded{
+                    [](HasType auto const& t) { return t.expr_type; },
+                },
+                **lhs);
 
   return std::make_shared<ast::Expr>(
       ast::BinOp{.kind = match_kind(bin_op->op()),
