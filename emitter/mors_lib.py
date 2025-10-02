@@ -32,71 +32,105 @@ def access(model, arr, indexes):
                     return i
         else:
             return ixs
-            
 
+    def get_new_domain(arr):
+        domain = Domain.FromValues([])
+        for v in arr:
+            if type(v) == IntVar:
+                add_domain = Domain.FromFlatIntervals(v.proto.domain)
+            else:
+                add_domain = Domain.FromValues([v])
+            domain = domain.union_with(add_domain)
+        return domain
+
+    def values_from_flat_interval(interval):
+        values = []
+        for i in range(0, len(interval), 2):
+            values.extend(list(range(interval[i], interval[i+1]+1)))
+        return values
+
+            
     slice = slice_dict(arr, indexes)
-    element = model.new_int_var_from_domain(Domain.FromValues(range(1, 6)), str(uuid.uuid4())) # copy domain
-    model.AddElement(find_ix(indexes), slice, element)
+    element = model.new_int_var_from_domain(get_new_domain(slice), str(uuid.uuid4()))
+
+    ix_var = find_ix(indexes)
+    new_ix = model.new_int_var(0, len(slice)-1, str(uuid.uuid4()))
+
+    model.AddElement(new_ix, values_from_flat_interval(ix_var.proto.domain), ix_var)
+
+    model.AddElement(new_ix, slice, element)
     return element
 
 def finalize(a):
     a[0].only_enforce_if(True)
     a[1].only_enforce_if(False)
 
-def and_(model, a, b):
-    a, not_a = a
+def b(model, c1, c2):
+    b = model.new_bool_var(str(uuid.uuid4()))
+    c1.only_enforce_if(b)
+    c2.only_enforce_if(~b)
 
-    a_bool = model.new_bool_var(str(uuid.uuid4()))
-    a.only_enforce_if(a_bool)
-    not_a.only_enforce_if(~a_bool)
+    return b
 
-    b, not_b = b
+def and_(model, a_bool, b_bool):
+    c1 = model.add_bool_and(a_bool, b_bool)
+    c2 = model.add_bool_or(~a_bool, ~b_bool)
 
-    b_bool = model.new_bool_var(str(uuid.uuid4()))
-    b.only_enforce_if(b_bool)
-    not_b.only_enforce_if(~b_bool)
-
-    return model.add_bool_and(a_bool, b_bool), model.add_bool_or(~a_bool, ~b_bool)
+    return b(model, c1, c2)
 
 
-def or_(model, a, b):
-    a, not_a = a
+def or_(model, a_bool, b_bool):
+    c1 = model.add_bool_or(a_bool, b_bool)
+    c2 = model.add_bool_and(~a_bool, ~b_bool)
 
-    a_bool = model.new_bool_var(str(uuid.uuid4()))
-    a.only_enforce_if(a_bool)
-    not_a.only_enforce_if(~a_bool)
+    return b(model, c1, c2)
 
-    b, not_b = b
+def forall_(model, bools):
+    c1 = model.add_bool_and(bools)
+    c2 = model.add_bool_or([~b for b in bools])
 
-    b_bool = model.new_bool_var(str(uuid.uuid4()))
-    b.only_enforce_if(b_bool)
-    not_b.only_enforce_if(~b_bool)
+    return b(model, c1, c2)
 
-    return model.add_bool_or(a_bool, b_bool), model.add_bool_and(~a_bool, ~b_bool)
+def impl_(model, a_bool, b_bool):
+    c1 = model.add_implication(a_bool, b_bool)
+    c2 = model.add_bool_and(a_bool, ~b_bool)
 
-def forall_(model, comp):
-    bools = [model.new_bool_var(str(uuid.uuid4())) for _ in range(len(comp))]
+    return b(model, c1, c2)
 
-    for (con, not_con), b in zip(comp, bools):
-        con.only_enforce_if(b)
-        not_con.only_enforce_if(~b)
+def not_(a):
+    return a[1], a[0]
 
-    return model.add_bool_and(bools), model.add_bool_or([~b for b in bools])
+def abs_(model, a):
+    target = model.new_int_var_from_domain(Domain.all_values(), str(uuid.uuid4()))
 
-def impl_(model, a, b):
-    a, not_a = a
+    model.add_abs_equality(target, a)
+    return target
 
-    a_bool = model.new_bool_var(str(uuid.uuid4()))
-    a.only_enforce_if(a_bool)
-    not_a.only_enforce_if(~a_bool)
+def mod_(model, a, b):
+    target = model.new_int_var_from_domain(Domain.all_values(), str(uuid.uuid4()))
 
-    b, not_b = b
+    model.add_modulo_equality(target, a, b)
+    return target
 
-    b_bool = model.new_bool_var(str(uuid.uuid4()))
-    b.only_enforce_if(b_bool)
-    not_b.only_enforce_if(~b_bool)
+def equiv_(model, a, b):
+    return and_(model, impl_(model, a, b), impl_(model, b, a))
+# ~(a -> b and b -> a) = (~(a -> b) or ~(b -> a)) = (~(~a or b) or ~(~b or a)) = ((a and ~b) or (b and ~a)) = ((a or b) and (~a or ~b))
 
-    return model.add_implication(a_bool, b_bool), model.add_bool_and(a_bool, ~b_bool)
+def in_(model, var, arr):
+    bools = [model.new_bool_var(str(uuid.uuid4())) for _ in range(len(arr))]
+
+    for value, b_ in zip(arr, bools):
+        model.Add(var == value).only_enforce_if(b_)
+        model.Add(var != value).only_enforce_if(~b_)
+
+    return b(model, model.add_bool_or(bools), model.add_bool_and([~b for b in bools]))
+
+def bool2int(model, a_bool):
+    b = model.new_int_var(0, 1, str(uuid.uuid4()))
+    model.Add(b == 1).only_enforce_if(a_bool)
+    model.Add(b == 0).only_enforce_if(~a_bool)
+
+    return b
 
 def show_int(a, b):
     return str(b).rjust(a) if a > 0 else str(b).ljust(a)

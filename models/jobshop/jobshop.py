@@ -34,12 +34,15 @@ digs = math.ceil(math.log(float(total)))
 s = {key: model.new_int_var_from_domain(cp_model.Domain.FromValues(range(0, total + 1)), 's' + str(key)) for key in product(JOB, TASK)}
 end = model.new_int_var_from_domain(cp_model.Domain.FromValues(range(0, total + 1)), 'end')
 for i in JOB:
-    mors_lib.finalize(mors_lib.and_(model, mors_lib.forall_(model, [(model.Add(s[i, j] + d[i, j] <= s[i, j + 1]), model.Add(s[i, j] + d[i, j] > s[i, j + 1])) for j in TASK if j < last]), (model.Add(s[i, last] + d[i, last] <= end), model.Add(s[i, last] + d[i, last] > end))))
+    for j in TASK:
+        if j < last:
+            model.Add(s[i, j] + d[i, j] <= s[i, j + 1])
+    model.Add(s[i, last] + d[i, last] <= end)
 for j in TASK:
     for i in JOB:
         for k in JOB:
             if i < k:
-                mors_lib.finalize(mors_lib.or_(model, (model.Add(s[i, j] + d[i, j] <= s[k, j]), model.Add(s[i, j] + d[i, j] > s[k, j])), (model.Add(s[k, j] + d[k, j] <= s[i, j]), model.Add(s[k, j] + d[k, j] > s[i, j]))))
+                model.Add(mors_lib.or_(model, mors_lib.b(model, model.Add(s[i, j] + d[i, j] <= s[k, j]), model.Add(s[i, j] + d[i, j] > s[k, j])), mors_lib.b(model, model.Add(s[k, j] + d[k, j] <= s[i, j]), model.Add(s[k, j] + d[k, j] > s[i, j]))) == True)
 model.minimize(end)
 solver = cp_model.CpSolver()
 solution_printer = VarArraySolutionPrinter(end, JOB, TASK, digs, s)
