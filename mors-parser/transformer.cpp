@@ -2,6 +2,8 @@
 #include "ast.hpp"
 
 #include <fmt/base.h>
+#include <fmt/format.h>
+#include <functional>
 #include <minizinc/type.hh>
 
 #include <optional>
@@ -68,7 +70,8 @@ auto Transformer::map(MiniZinc::TypeInst* type_inst) -> ast::Type {
     ast::types::Array arr{};
 
     for (auto inner : type_inst->ranges()) {
-      if (inner->domain())
+      if (inner->domain() &&
+          MiniZinc::Expression::eid(inner->domain()) != MiniZinc::TIId::eid)
         arr.dims.push_back(*map(inner->domain()));
       else
         arr.dims.push_back(std::nullopt);
@@ -103,11 +106,14 @@ auto Transformer::handle_const_decl(MiniZinc::VarDecl* var_decl)
 }
 
 auto Transformer::handle_var_decl(MiniZinc::VarDecl* var_decl) -> ast::VarDecl {
-  return ast::DeclVariable{.id = std::string{var_decl->id()->v().c_str()},
-                           .var_type = map(var_decl->ti()),
-                           .domain = var_decl->ti()->domain() != nullptr
-                                       ? map(var_decl->ti()->domain())
-                                       : std::nullopt};
+  return ast::DeclVariable{
+      .id = std::string{var_decl->id()->v().c_str()},
+      .var_type = map(var_decl->ti()),
+      .domain = var_decl->ti()->domain() != nullptr &&
+                        MiniZinc::Expression::eid(var_decl->ti()->domain()) !=
+                            MiniZinc::TIId::eid
+                  ? map(var_decl->ti()->domain())
+                  : std::nullopt};
 }
 
 auto Transformer::map(MiniZinc::VarDecl* var_decl, bool const is_global)
@@ -294,10 +300,10 @@ auto Transformer::map(MiniZinc::Expression* expr)
     auto const id = reformat_id(std::string{call->id().c_str()});
     assert(!id.empty() && "Function call: empty function id");
 
-    if (id == "assert") {
-      fmt::println("skipping assert calls for now");
-      return std::nullopt;
-    }
+    // if (id == "assert") {
+    //   fmt::println("skipping assert calls for now");
+    //   return std::nullopt;
+    // }
 
     auto const function_item = model.matchFn(env, call, true, false);
     save(function_item);
@@ -393,24 +399,22 @@ auto Transformer::map(MiniZinc::Expression* expr)
   case MiniZinc::Expression::E_VARDECL: {
     assert(false && "Should not reach var decl through this function");
   }
-  // case MiniZinc::Expression::E_ANON:
-  //   fmt::println("E_ANON");
-  //   break;
-  // case MiniZinc::Expression::E_FIELDACCESS:
-  //   fmt::println("E_FIELDACCESS");
-  //   break;
-  // case MiniZinc::Expression::E_LET: {
-  //   auto* let = MiniZinc::Expression::cast<MiniZinc::Let>(expr);
-  //   print_let_expr(let, indent);
-  //   break;
-  // }
-  // case MiniZinc::Expression::E_TI:
-  //   fmt::println("E_TI");
-  //   break;
-  // case MiniZinc::Expression::E_TIID:
-  //   fmt::println("E_TIID");
-  //   break;
-  // }
+  case MiniZinc::Expression::E_ANON:
+    fmt::println("E_ANON");
+    assert(false);
+  case MiniZinc::Expression::E_FIELDACCESS:
+    fmt::println("E_FIELDACCESS");
+    assert(false);
+  case MiniZinc::Expression::E_LET: {
+    auto* let = MiniZinc::Expression::cast<MiniZinc::Let>(expr);
+    return map(let);
+  }
+  case MiniZinc::Expression::E_TI:
+    fmt::println("E_TI");
+    assert(false);
+  case MiniZinc::Expression::E_TIID:
+    fmt::println("E_TIID");
+    assert(false);
   default:
     assert(false);
   }
@@ -559,6 +563,48 @@ auto Transformer::map(MiniZinc::ITE* ite) -> ast::ExprHandle {
       *ite_result.if_then.front().second);
 
   return result;
+}
+
+auto Transformer::map(MiniZinc::Let* let) -> ast::ExprHandle {
+  let_in_ctr++;
+
+  std::vector<ast::DeclConst> args;
+
+  for (auto const& var : let->let()) {
+    assert("Expressions in let should be variable declarations" &&
+           MiniZinc::Expression::eid(var) == MiniZinc::VarDecl::eid);
+
+    args.push_back(std::get<ast::DeclConst>(
+        handle_const_decl(MiniZinc::Expression::cast<MiniZinc::VarDecl>(var))));
+    assert("Variable inside let should have assigned value" &&
+           args.back().value && *args.back().value);
+
+    variable_map[args.back().id].push_back(args.back());
+  }
+
+  auto const function_body = map(let->in());
+  assert(function_body);
+  std::string id = fmt::format("let_in_{}", let_in_ctr);
+  functions.emplace(
+      id, ast::Function{id,
+                        args | std::views::transform(&ast::DeclConst::id) |
+                            std::ranges::to<std::vector>(),
+                        *function_body});
+
+  for (auto const& s : args)
+    variable_map[s.id].pop_back();
+
+  return std::make_shared<ast::Expr>(ast::Call{
+      .id = id,
+      .args = args | std::views::transform([](ast::DeclConst const& decl) {
+                return *decl.value;
+              }) |
+              std::ranges::to<std::vector>(),
+      .expr_type = std::visit(
+          overloaded{
+              [](HasType auto const& t) { return t.expr_type; },
+          },
+          **function_body)});
 }
 
 auto Transformer::map(MiniZinc::SolveI* solve_item) -> ast::SolveType {

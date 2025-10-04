@@ -46,8 +46,8 @@ struct Comprehension;
 struct ArrayAccess;
 struct IfThenElse;
 using Expr = std::variant<LiteralBool, LiteralInt, LiteralFloat, LiteralString,
-                          LiteralArray, LiteralSet, IdExpr, BinOp, UnaryOp, Call,
-                          Comprehension, ArrayAccess, IfThenElse>;
+                          LiteralArray, LiteralSet, IdExpr, BinOp, UnaryOp,
+                          Call, Comprehension, ArrayAccess, IfThenElse>;
 using ExprHandle = std::shared_ptr<Expr>;
 
 namespace types {
@@ -247,7 +247,22 @@ struct Tree {
 
   ExprHandle output;
 
-  VariableMap variable_map;
+  VariableMap variable_map{
+      {"mzn_min_version_required",
+       {ast::DeclConst{
+
+           .id = "mzn_min_version_required",
+           .type = ast::types::Int{},
+           .is_global = true,
+           .value = std::make_shared<Expr>(LiteralInt{0})}}},
+      {"mzn_max_version_required",
+       {ast::DeclConst{
+
+           .id = "mzn_max_version_required",
+           .type = ast::types::Int{},
+           .is_global = true,
+           .value = std::make_shared<Expr>(LiteralInt{0})}}}
+  };
   FunctionMap functions;
 };
 
