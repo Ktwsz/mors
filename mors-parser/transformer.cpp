@@ -212,6 +212,32 @@ auto Transformer::map(MiniZinc::Comprehension* comp) -> ast::Comprehension {
                             .generators = std::move(generators)};
 }
 
+auto Transformer::map(MiniZinc::Call* call) -> ast::ExprHandle {
+  assert(call->id().c_str() != nullptr && "Function call: null function id");
+  auto const id = reformat_id(std::string{call->id().c_str()});
+  assert(!id.empty() && "Function call: empty function id");
+
+  // if (id == "assert") {
+  //   fmt::println("skipping assert calls for now");
+  //   return std::nullopt;
+  // }
+
+  auto const function_item = model.matchFn(env, call, true, false);
+  save(function_item);
+
+  auto ast_call = std::make_shared<ast::Expr>(
+      ast::Call{.id = id, .args = {}, .expr_type = map(function_item->ti())});
+
+  for (auto& call_arg : call->args()) {
+    auto ast_arg = map(call_arg);
+    assert(ast_arg && "Function call: nullopt arg");
+
+    std::get<ast::Call>(*ast_call).args.push_back(*ast_arg);
+  }
+
+  return ast_call;
+}
+
 void Transformer::save(MiniZinc::FunctionI* function) {
   if (function->id().endsWith("abs")) // TODO - identify BIFs
     return;
@@ -295,30 +321,7 @@ auto Transformer::map(MiniZinc::Expression* expr)
   }
   case MiniZinc::Expression::E_CALL: {
     auto* call = MiniZinc::Expression::cast<MiniZinc::Call>(expr);
-
-    assert(call->id().c_str() != nullptr && "Function call: null function id");
-    auto const id = reformat_id(std::string{call->id().c_str()});
-    assert(!id.empty() && "Function call: empty function id");
-
-    // if (id == "assert") {
-    //   fmt::println("skipping assert calls for now");
-    //   return std::nullopt;
-    // }
-
-    auto const function_item = model.matchFn(env, call, true, false);
-    save(function_item);
-
-    auto ast_call = std::make_shared<ast::Expr>(
-        ast::Call{.id = id, .args = {}, .expr_type = map(function_item->ti())});
-
-    for (auto& call_arg : call->args()) {
-      auto ast_arg = map(call_arg);
-      assert(ast_arg && "Function call: nullopt arg");
-
-      std::get<ast::Call>(*ast_call).args.push_back(*ast_arg);
-    }
-
-    return ast_call;
+    return map(call);
   }
   case MiniZinc::Expression::E_FLOATLIT: {
     auto const* float_lit =

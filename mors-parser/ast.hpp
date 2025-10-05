@@ -247,22 +247,6 @@ struct Tree {
 
   ExprHandle output;
 
-  VariableMap variable_map{
-      {"mzn_min_version_required",
-       {ast::DeclConst{
-
-           .id = "mzn_min_version_required",
-           .type = ast::types::Int{},
-           .is_global = true,
-           .value = std::make_shared<Expr>(LiteralInt{0})}}},
-      {"mzn_max_version_required",
-       {ast::DeclConst{
-
-           .id = "mzn_max_version_required",
-           .type = ast::types::Int{},
-           .is_global = true,
-           .value = std::make_shared<Expr>(LiteralInt{0})}}}
-  };
   FunctionMap functions;
 };
 
