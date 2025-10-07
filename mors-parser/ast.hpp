@@ -45,9 +45,10 @@ struct Call;
 struct Comprehension;
 struct ArrayAccess;
 struct IfThenElse;
+struct LetIn;
 using Expr = std::variant<LiteralBool, LiteralInt, LiteralFloat, LiteralString,
                           LiteralArray, LiteralSet, IdExpr, BinOp, UnaryOp,
-                          Call, Comprehension, ArrayAccess, IfThenElse>;
+                          Call, Comprehension, ArrayAccess, IfThenElse, LetIn>;
 using ExprHandle = std::shared_ptr<Expr>;
 
 namespace types {
@@ -199,6 +200,7 @@ struct DeclVariable {
   bool is_global = false;
 
   std::optional<ExprHandle> domain;
+  std::optional<ExprHandle> value;
 };
 
 struct DeclConst {
@@ -208,6 +210,16 @@ struct DeclConst {
   bool is_global = false;
 
   std::optional<ExprHandle> value;
+};
+
+struct LetIn {
+  std::string id;
+
+  std::vector<VarDecl> declarations;
+  std::vector<ExprHandle> constraints;
+
+  Type expr_type;
+  bool is_var = false;
 };
 
 using Filter = ExprHandle;
