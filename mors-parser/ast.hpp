@@ -60,18 +60,21 @@ struct LiteralBool {
   bool value;
 
   Type expr_type = types::Bool{};
+  bool is_var = false;
 };
 
 struct LiteralInt {
   long long value;
 
   Type expr_type = types::Int{};
+  bool is_var = false;
 };
 
 struct LiteralString {
   std::string value;
 
   Type expr_type = types::String{};
+  bool is_var = false;
 };
 
 // TODO: floats not supported for now
@@ -79,20 +82,26 @@ struct LiteralFloat {
   double value;
 
   Type expr_type = types::Float{};
+  bool is_var = false;
 };
 
 struct LiteralArray {
   std::vector<ExprHandle> value;
 
   Type expr_type = types::Array{};
+  bool is_var = false;
 };
 
 struct LiteralSet {
   std::vector<ExprHandle> value;
 
   Type expr_type = types::UnspecifiedSet{};
+  bool is_var = false;
 };
 
+struct DeclVariable;
+struct DeclConst;
+using VarDecl = std::variant<DeclVariable, DeclConst>;
 struct IdExpr {
   std::string id;
 
@@ -100,6 +109,8 @@ struct IdExpr {
   bool is_var;
 
   Type expr_type;
+
+  static auto from_var(std::string_view const id, VarDecl const& var) -> IdExpr;
 };
 
 struct BinOp {
@@ -138,6 +149,7 @@ struct BinOp {
   ExprHandle lhs, rhs;
 
   Type expr_type;
+  bool is_var;
 };
 
 struct UnaryOp {
@@ -147,6 +159,7 @@ struct UnaryOp {
   ExprHandle expr;
 
   Type expr_type;
+  bool is_var;
 };
 
 struct Call {
@@ -155,6 +168,7 @@ struct Call {
   std::vector<ExprHandle> args;
 
   Type expr_type;
+  bool is_var;
 };
 
 struct ArrayAccess {
@@ -163,6 +177,7 @@ struct ArrayAccess {
   std::vector<ExprHandle> indexes;
 
   Type expr_type = types::Int{};
+  bool is_var;
 
   bool is_index_var_type = false;
 };
@@ -173,6 +188,7 @@ struct IfThenElse {
   std::optional<ExprHandle> else_expr;
 
   Type expr_type;
+  bool is_var = false;
 };
 
 struct DeclVariable {
@@ -194,8 +210,6 @@ struct DeclConst {
   std::optional<ExprHandle> value;
 };
 
-using VarDecl = std::variant<DeclVariable, DeclConst>;
-
 using Filter = ExprHandle;
 
 struct Iterator {
@@ -212,6 +226,7 @@ struct Comprehension {
   std::vector<Generator> generators;
 
   Type expr_type = types::Array{};
+  bool is_var;
 };
 
 namespace solve_type {
@@ -228,7 +243,7 @@ struct Max {
 
 struct Function {
   std::string id;
-  std::vector<std::string> params;
+  std::vector<IdExpr> params;
 
   ExprHandle body;
 };

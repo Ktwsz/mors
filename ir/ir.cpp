@@ -47,33 +47,40 @@ PYBIND11_MODULE(ir_python, m) {
 
   py::class_<ast::LiteralBool>(m, "LiteralBool")
       .def_readonly("value", &ast::LiteralBool::value)
-      .def_readonly("expr_type", &ast::LiteralBool::expr_type);
+      .def_readonly("expr_type", &ast::LiteralBool::expr_type)
+      .def_readonly("is_var", &ast::LiteralBool::is_var);
 
   py::class_<ast::LiteralInt>(m, "LiteralInt")
       .def_readonly("value", &ast::LiteralInt::value)
-      .def_readonly("expr_type", &ast::LiteralInt::expr_type);
+      .def_readonly("expr_type", &ast::LiteralInt::expr_type)
+      .def_readonly("is_var", &ast::LiteralInt::is_var);
 
   // TODO: floats not supported for now
   py::class_<ast::LiteralFloat>(m, "LiteralFloat")
       .def_readonly("value", &ast::LiteralFloat::value)
-      .def_readonly("expr_type", &ast::LiteralFloat::expr_type);
+      .def_readonly("expr_type", &ast::LiteralFloat::expr_type)
+      .def_readonly("is_var", &ast::LiteralFloat::is_var);
 
   py::class_<ast::LiteralString>(m, "LiteralString")
       .def_readonly("value", &ast::LiteralString::value)
-      .def_readonly("expr_type", &ast::LiteralString::expr_type);
+      .def_readonly("expr_type", &ast::LiteralString::expr_type)
+      .def_readonly("is_var", &ast::LiteralString::is_var);
 
   py::class_<ast::LiteralArray>(m, "LiteralArray")
       .def_readonly("value", &ast::LiteralArray::value)
-      .def_readonly("expr_type", &ast::LiteralArray::expr_type);
+      .def_readonly("expr_type", &ast::LiteralArray::expr_type)
+      .def_readonly("is_var", &ast::LiteralArray::is_var);
 
   py::class_<ast::LiteralSet>(m, "LiteralSet")
       .def_readonly("value", &ast::LiteralSet::value)
-      .def_readonly("expr_type", &ast::LiteralSet::expr_type);
+      .def_readonly("expr_type", &ast::LiteralSet::expr_type)
+      .def_readonly("is_var", &ast::LiteralSet::is_var);
 
   py::class_<ast::ArrayAccess>(m, "ArrayAccess")
       .def_readonly("arr", &ast::ArrayAccess::arr)
       .def_readonly("indexes", &ast::ArrayAccess::indexes)
       .def_readonly("expr_type", &ast::ArrayAccess::expr_type)
+      .def_readonly("is_var", &ast::ArrayAccess::is_var)
       .def_readonly("is_index_var_type", &ast::ArrayAccess::is_index_var_type);
 
   py::class_<ast::Iterator>(m, "Iterator")
@@ -85,12 +92,14 @@ PYBIND11_MODULE(ir_python, m) {
   py::class_<ast::Comprehension>(m, "Comprehension")
       .def_readonly("body", &ast::Comprehension::body)
       .def_readonly("generators", &ast::Comprehension::generators)
-      .def_readonly("expr_type", &ast::Comprehension::expr_type);
+      .def_readonly("expr_type", &ast::Comprehension::expr_type)
+      .def_readonly("is_var", &ast::Comprehension::is_var);
 
   py::class_<ast::IfThenElse>(m, "IfThenElse")
       .def_readonly("if_then", &ast::IfThenElse::if_then)
       .def_readonly("else_expr", &ast::IfThenElse::else_expr)
-      .def_readonly("expr_type", &ast::IfThenElse::expr_type);
+      .def_readonly("expr_type", &ast::IfThenElse::expr_type)
+      .def_readonly("is_var", &ast::IfThenElse::is_var);
 
   py::class_<ast::IdExpr>(m, "IdExpr")
       .def_readwrite("id", &ast::IdExpr::id)
@@ -102,7 +111,8 @@ PYBIND11_MODULE(ir_python, m) {
   bin_op.def_readonly("kind", &ast::BinOp::kind)
       .def_readonly("lhs", &ast::BinOp::lhs)
       .def_readonly("rhs", &ast::BinOp::rhs)
-      .def_readonly("expr_type", &ast::BinOp::expr_type);
+      .def_readonly("expr_type", &ast::BinOp::expr_type)
+      .def_readonly("is_var", &ast::BinOp::is_var);
 
   py::enum_<ast::BinOp::OpKind>(bin_op, "OpKind", "enum.Enum")
       .value("PLUS", ast::BinOp::OpKind::PLUS)
@@ -128,7 +138,8 @@ PYBIND11_MODULE(ir_python, m) {
   py::class_<ast::UnaryOp> un_op(m, "UnaryOp");
   un_op.def_readonly("kind", &ast::UnaryOp::kind)
       .def_readonly("expr", &ast::UnaryOp::expr)
-      .def_readonly("expr_type", &ast::UnaryOp::expr_type);
+      .def_readonly("expr_type", &ast::UnaryOp::expr_type)
+      .def_readonly("is_var", &ast::UnaryOp::is_var);
 
   py::enum_<ast::UnaryOp::OpKind>(un_op, "OpKind", "enum.Enum")
       .value("NOT", ast::UnaryOp::OpKind::NOT)
@@ -139,7 +150,8 @@ PYBIND11_MODULE(ir_python, m) {
   py::class_<ast::Call>(m, "Call")
       .def_readonly("id", &ast::Call::id)
       .def_readonly("args", &ast::Call::args)
-      .def_readonly("expr_type", &ast::Call::expr_type);
+      .def_readonly("expr_type", &ast::Call::expr_type)
+      .def_readonly("is_var", &ast::Call::is_var);
 
   py::class_<ast::DeclVariable>(m, "DeclVariable")
       .def_readonly("id", &ast::DeclVariable::id)
