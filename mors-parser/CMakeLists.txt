@@ -9,6 +9,7 @@ ExternalProject_Add(libminizinc
 )
 
 find_package(fmt REQUIRED)
+find_package(nlohmann_json REQUIRED)
 
 include_directories(${EXTERNAL_INSTALL_LOCATION}/include)
 
@@ -24,6 +25,7 @@ add_dependencies(mors-parser libminizinc)
 target_include_directories(mors-parser PUBLIC "${PROJECT_SOURCE_DIR}/clipp/include")
                                        
 target_link_libraries(mors-parser ${EXTERNAL_INSTALL_LOCATION}/lib/libmzn.a
-                                  fmt::fmt)
+                                  fmt::fmt
+                                  nlohmann_json::nlohmann_json)
 
 target_compile_options(mors-parser PRIVATE -Wall -Wextra -Wpedantic) # TODO: fix compilations errors -Werror

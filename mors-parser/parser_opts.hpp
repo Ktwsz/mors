@@ -1,6 +1,8 @@
 #pragma once
 
 #include <expected>
+#include <optional>
+#include <map>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -21,6 +23,9 @@ struct ParserOpts {
 
   static auto create(int, char**) -> std::expected<ParserOpts, clipp::man_page>;
 
+  auto hasJsonInput() const -> bool;
+  auto isInputInJson(std::string const& id) const -> std::optional<std::string>;
+
   void dump_warnings() const;
 
   std::string get_ortools_include_dir() const;
@@ -30,8 +35,12 @@ struct ParserOpts {
 
 private:
   static auto init() -> ParserOpts;
+
+  void checkForJsonInput();
+
   std::string ortools_include_dir;
   std::string output_file;
+  std::map<std::string, std::string> json_variables;
 };
 
 } // namespace parser

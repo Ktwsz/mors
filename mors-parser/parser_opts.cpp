@@ -5,7 +5,10 @@
 #include <minizinc/file_utils.hh>
 #include <minizinc/solver_config.hh>
 
+#include <nlohmann/json.hpp>
+
 #include <filesystem>
+#include <fstream>
 
 namespace parser {
 
@@ -34,7 +37,33 @@ auto ParserOpts::create(int argc, char** argv)
     return std::unexpected{clipp::make_man_page(cli, argv[0])};
   }
 
+  opts.checkForJsonInput();
+
   return opts;
+}
+
+void ParserOpts::checkForJsonInput() {
+  for (std::string const& in : infiles) {
+    if (!in.ends_with(".json"))
+      continue;
+
+    std::fstream in_stream{in};
+
+    nlohmann::json data = nlohmann::json::parse(in_stream);
+    for (auto const& item : data.items())
+      json_variables[item.key()] = in;
+  }
+}
+
+auto ParserOpts::hasJsonInput() const -> bool {
+  return !json_variables.empty();
+}
+
+auto ParserOpts::isInputInJson(std::string const& id) const
+    -> std::optional<std::string> {
+  if (auto it = json_variables.find(id); it != json_variables.end())
+    return it->second;
+  return std::nullopt;
 }
 
 std::string ParserOpts::get_ortools_include_dir() const {
@@ -44,13 +73,13 @@ std::string ParserOpts::get_ortools_include_dir() const {
 }
 
 std::string ParserOpts::get_output_file() const {
-    if (!output_file.empty())
-        return output_file;
+  if (!output_file.empty())
+    return output_file;
 
-    std::filesystem::path output_path{model_path};
-    output_path.replace_extension(".py");
+  std::filesystem::path output_path{model_path};
+  output_path.replace_extension(".py");
 
-    return output_path.string();
+  return output_path.string();
 }
 
 auto ParserOpts::init() -> ParserOpts {

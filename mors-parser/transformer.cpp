@@ -1,3 +1,7 @@
+// TODO 
+// assert that we do not have floats
+// make mapping more monadic with expected
+// read config in parser opts
 #include "transformer.hpp"
 #include "ast.hpp"
 #include "utils.hpp"
@@ -107,13 +111,13 @@ auto Transformer::handle_var_decl(MiniZinc::VarDecl* var_decl) -> ast::VarDecl {
                             MiniZinc::TIId::eid
                   ? map(var_decl->ti()->domain())
                   : std::nullopt,
-                .value=var_decl->e() ? map(var_decl->e()) : std::nullopt};
+      .value = var_decl->e() ? map(var_decl->e()) : std::nullopt};
 }
 
 auto Transformer::map(MiniZinc::VarDecl* var_decl, bool const is_global,
                       bool const check_id) -> std::optional<ast::VarDecl> {
   if (check_id &&
-      (!var_decl->item()->loc().filename().endsWith(input_model_path) ||
+      (!var_decl->item()->loc().filename().endsWith(opts.model_path) ||
        var_decl->id()->str() == "_objective"))
     return std::nullopt;
 
@@ -126,6 +130,41 @@ auto Transformer::map(MiniZinc::VarDecl* var_decl, bool const is_global,
                  [&](ast::DeclConst& var) { var.is_global = is_global; },
              },
              var);
+
+  if (auto const json_path = opts.isInputInJson(utils::var_id(var));
+      json_path && is_global) {
+      auto var_value = utils::var_value(var);
+      if (std::holds_alternative<ast::Call>(*var_value)) {
+          auto &call = std::get<ast::Call>(*var_value);
+          call.args.back() = 
+        std::make_shared<ast::Expr>(ast::Call{
+            .id = "load_from_json",
+            .args = {std::make_shared<ast::Expr>(
+                ast::LiteralString{.value = *json_path})},
+            .expr_type = utils::var_type(var),
+            .is_var = false,
+        });
+      }
+    // auto load_json = std::make_shared<ast::Expr>(ast::Call{
+    //     .id = "arraynd",
+    //     .args = {std::make_shared<ast::Expr>(ast::Call{
+    //         .id = "load_from_json",
+    //         .args = {std::make_shared<ast::Expr>(
+    //             ast::LiteralString{.value = *json_path})},
+    //         .expr_type = utils::var_type(var),
+    //         .is_var = false,
+    //     })},
+    //     .expr_type = utils::var_type(var),
+    //     .is_var = false,
+    // });
+
+    // std::visit(
+    //     utils::overloaded{
+    //         [&](ast::DeclVariable& var) { var.value = std::move(load_json); },
+    //         [&](ast::DeclConst& var) { var.value = std::move(load_json); },
+    //     },
+    //     var);
+  }
 
   variable_map[utils::var_id(var)].push_back(var);
 
@@ -543,39 +582,42 @@ auto Transformer::map(MiniZinc::ITE* ite) -> ast::ExprHandle {
 auto Transformer::map(MiniZinc::Let* let) -> ast::ExprHandle {
   let_in_ctr++;
 
-std::vector<ast::VarDecl> args;
-std::vector<ast::ExprHandle> constraints;
+  std::vector<ast::VarDecl> args;
+  std::vector<ast::ExprHandle> constraints;
 
-for (auto const& expr : let->let()) {
-  if (MiniZinc::Expression::eid(expr) == MiniZinc::VarDecl::eid) {
-  auto ast_var =
-      map(MiniZinc::Expression::cast<MiniZinc::VarDecl>(expr), false, false);
-  assert(ast_var);
-  args.push_back(std::move(*ast_var));
-  continue;
+  for (auto const& expr : let->let()) {
+    if (MiniZinc::Expression::eid(expr) == MiniZinc::VarDecl::eid) {
+      auto ast_var = map(MiniZinc::Expression::cast<MiniZinc::VarDecl>(expr),
+                         false, false);
+      assert(ast_var);
+      args.push_back(std::move(*ast_var));
+      continue;
+    }
+
+    auto constraint = map(expr);
+    assert(constraint);
+    constraints.push_back(std::move(*constraint));
   }
 
-  auto constraint = map(expr);
-  assert(constraint);
-  constraints.push_back(std::move(*constraint));
-}
+  auto const function_body = map(let->in());
+  assert(function_body);
+  std::string id = fmt::format("in_{}", let_in_ctr);
+  functions.emplace(
+      id, ast::Function{
+              id, args | std::views::transform([](ast::VarDecl const& var) {
+                    return ast::IdExpr::from_var(utils::var_id(var), var);
+                  }) | std::ranges::to<std::vector>(),
+              *function_body});
 
-auto const function_body = map(let->in());
-assert(function_body);
-std::string id = fmt::format("in_{}", let_in_ctr);
-functions.emplace(id, ast::Function{id, args | std::views::transform([
-                                        ](ast::VarDecl const& var) {return ast::IdExpr::from_var(utils::var_id(var), var);}) | std::ranges::to<std::vector>(),
-                                    *function_body});
+  for (auto const& s : args)
+    variable_map[utils::var_id(s)].pop_back();
 
-for (auto const& s : args)
-  variable_map[utils::var_id(s)].pop_back();
-
-return std::make_shared<ast::Expr>(ast::LetIn{
-    .id = fmt::format("{}", let_in_ctr),
-    .declarations = std::move(args),
-    .constraints = std::move(constraints),
-    .expr_type = utils::expr_type(**function_body),
-  .is_var = utils::is_expr_var(**function_body)});
+  return std::make_shared<ast::Expr>(
+      ast::LetIn{.id = fmt::format("{}", let_in_ctr),
+                 .declarations = std::move(args),
+                 .constraints = std::move(constraints),
+                 .expr_type = utils::expr_type(**function_body),
+                 .is_var = utils::is_expr_var(**function_body)});
 }
 
 auto Transformer::map(MiniZinc::SolveI* solve_item) -> ast::SolveType {
