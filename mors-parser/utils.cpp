@@ -1,6 +1,7 @@
 #include "utils.hpp"
 
 #include <string>
+#include <cassert>
 #include <variant>
 
 namespace parser::utils {
@@ -26,11 +27,24 @@ auto is_expr_var(ast::Expr const& expr) -> bool {
                     expr);
 }
 
-
 auto var_id(ast::VarDecl const& var) -> std::string {
   return std::visit(overloaded{
                         [](ast::DeclVariable const& var) { return var.id; },
                         [](ast::DeclConst const& var) { return var.id; },
+                    },
+                    var);
+}
+
+auto var_value(ast::VarDecl const& var) -> ast::ExprHandle {
+  return std::visit(overloaded{
+                        [](ast::DeclVariable const& var) {
+                          assert(var.value);
+                          return *var.value;
+                        },
+                        [](ast::DeclConst const& var) {
+                          assert(var.value);
+                          return *var.value;
+                        },
                     },
                     var);
 }

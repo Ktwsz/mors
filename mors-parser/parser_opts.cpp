@@ -9,6 +9,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <print>
 
 namespace parser {
 
@@ -30,14 +31,15 @@ auto defineCli(ParserOpts& opts) -> clipp::group {
 
 auto ParserOpts::create(int argc, char** argv)
     -> std::expected<ParserOpts, clipp::man_page> {
-  auto opts = ParserOpts::init();
+  auto opts = ParserOpts{};
 
   auto cli = defineCli(opts);
   if (!clipp::parse(argc, argv, cli) || opts.help) {
     return std::unexpected{clipp::make_man_page(cli, argv[0])};
   }
 
-  opts.checkForJsonInput();
+  if (!opts.finalize())
+    return std::unexpected{clipp::make_man_page(cli, argv[0])};
 
   return opts;
 }
@@ -66,12 +68,6 @@ auto ParserOpts::isInputInJson(std::string const& id) const
   return std::nullopt;
 }
 
-std::string ParserOpts::get_ortools_include_dir() const {
-  return !ortools_include_dir.empty()
-           ? ortools_include_dir
-           : MiniZinc::FileUtils::file_path(stdlib_dir + "/solvers/cp-sat");
-}
-
 std::string ParserOpts::get_output_file() const {
   if (!output_file.empty())
     return output_file;
@@ -82,14 +78,19 @@ std::string ParserOpts::get_output_file() const {
   return output_path.string();
 }
 
-auto ParserOpts::init() -> ParserOpts {
-  auto opts = ParserOpts{};
+auto ParserOpts::finalize() -> bool {
+  // TODO - try catch ...
+  checkForJsonInput();
 
-  auto solver_configs = MiniZinc::SolverConfigs(opts.logs);
+  auto solver_configs = MiniZinc::SolverConfigs(logs);
 
-  opts.stdlib_dir = solver_configs.mznlibDir();
+  solver_configs.populate(std::cout);
+  auto ortools_conf = solver_configs.config("cp-sat");
 
-  return opts;
+  stdlib_dir = solver_configs.mznlibDir();
+  ortools_include_dir = ortools_conf.mznlibResolved();
+
+  return true;
 }
 
 void ParserOpts::dump_warnings() const {

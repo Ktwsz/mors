@@ -26,7 +26,7 @@ void log_flags(ParserOpts const& opts) {
     fmt::println("std path: {}", opts.stdlib_dir);
 
   if (opts.verbose)
-    fmt::println("OR-Tools path: {}", opts.get_ortools_include_dir());
+    fmt::println("OR-Tools path: {}", opts.ortools_include_dir);
 
   if (opts.verbose)
     fmt::println("output file: {}", opts.get_output_file());
@@ -34,7 +34,7 @@ void log_flags(ParserOpts const& opts) {
 
 auto create_flags(ParserOpts const& opts) -> std::vector<std::string> {
   return {opts.model_path, std::string{flags::instance_check_only},
-          std::string{flags::include}, opts.get_ortools_include_dir()};
+          std::string{flags::include}, opts.ortools_include_dir};
 }
 
 auto feed_flags(MiniZinc::Flattener& flt, ParserOpts const& opts,

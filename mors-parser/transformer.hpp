@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ast.hpp"
+#include "parser_opts.hpp"
 
 #include <minizinc/ast.hh>
 #include <minizinc/model.hh>
@@ -31,7 +32,7 @@ struct Transformer {
            .value = std::make_shared<ast::Expr>(ast::LiteralInt{0})}}}
   };
 
-  std::string input_model_path;
+  ParserOpts const& opts;
 
   size_t let_in_ctr = 0;
 

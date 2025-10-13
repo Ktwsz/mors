@@ -1,7 +1,6 @@
 // TODO 
 // assert that we do not have floats
 // make mapping more monadic with expected
-// read config in parser opts
 #include "transformer.hpp"
 #include "ast.hpp"
 #include "utils.hpp"
