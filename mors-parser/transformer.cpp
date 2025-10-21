@@ -1,4 +1,4 @@
-// TODO 
+// TODO
 // assert that we do not have floats
 // make mapping more monadic with expected
 #include "transformer.hpp"
@@ -67,7 +67,7 @@ auto Transformer::map(MiniZinc::TypeInst* type_inst) -> ast::Type {
     for (auto inner : type_inst->ranges()) {
       if (inner->domain() &&
           MiniZinc::Expression::eid(inner->domain()) != MiniZinc::TIId::eid)
-        arr.dims.push_back(*map(inner->domain()));
+        arr.dims.push_back(map(inner->domain()));
       else
         arr.dims.push_back(std::nullopt);
     }
@@ -95,22 +95,27 @@ auto Transformer::map(MiniZinc::TypeInst* type_inst) -> ast::Type {
 
 auto Transformer::handle_const_decl(MiniZinc::VarDecl* var_decl)
     -> ast::VarDecl {
-  return ast::DeclConst{.id = std::string{var_decl->id()->v().c_str()},
-                        .type = map(var_decl->ti()),
-                        .value =
-                            var_decl->e() ? map(var_decl->e()) : std::nullopt};
+  return ast::DeclConst{
+      .id = std::string{var_decl->id()->v().c_str()},
+      .type = map(var_decl->ti()),
+      .value = var_decl->e()
+                 ? std::optional<ast::ExprHandle>{map(var_decl->e())}
+                 : std::nullopt};
 }
 
 auto Transformer::handle_var_decl(MiniZinc::VarDecl* var_decl) -> ast::VarDecl {
   return ast::DeclVariable{
       .id = std::string{var_decl->id()->v().c_str()},
       .var_type = map(var_decl->ti()),
-      .domain = var_decl->ti()->domain() != nullptr &&
-                        MiniZinc::Expression::eid(var_decl->ti()->domain()) !=
-                            MiniZinc::TIId::eid
-                  ? map(var_decl->ti()->domain())
-                  : std::nullopt,
-      .value = var_decl->e() ? map(var_decl->e()) : std::nullopt};
+      .domain =
+          var_decl->ti()->domain() != nullptr &&
+                  MiniZinc::Expression::eid(var_decl->ti()->domain()) !=
+                      MiniZinc::TIId::eid
+              ? std::optional<ast::ExprHandle>{map(var_decl->ti()->domain())}
+              : std::nullopt,
+      .value = var_decl->e()
+                 ? std::optional<ast::ExprHandle>{map(var_decl->e())}
+                 : std::nullopt};
 }
 
 auto Transformer::map(MiniZinc::VarDecl* var_decl, bool const is_global,
@@ -132,18 +137,17 @@ auto Transformer::map(MiniZinc::VarDecl* var_decl, bool const is_global,
 
   if (auto const json_path = opts.isInputInJson(utils::var_id(var));
       json_path && is_global) {
-      auto var_value = utils::var_value(var);
-      if (std::holds_alternative<ast::Call>(*var_value)) {
-          auto &call = std::get<ast::Call>(*var_value);
-          call.args.back() = 
-        std::make_shared<ast::Expr>(ast::Call{
-            .id = "load_from_json",
-            .args = {std::make_shared<ast::Expr>(
-                ast::LiteralString{.value = *json_path})},
-            .expr_type = utils::var_type(var),
-            .is_var = false,
-        });
-      }
+    auto var_value = utils::var_value(var);
+    if (std::holds_alternative<ast::Call>(*var_value)) {
+      auto& call = std::get<ast::Call>(*var_value);
+      call.args.back() = std::make_shared<ast::Expr>(ast::Call{
+          .id = "load_from_json",
+          .args = {std::make_shared<ast::Expr>(
+              ast::LiteralString{.value = *json_path})},
+          .expr_type = utils::var_type(var),
+          .is_var = false,
+      });
+    }
     // auto load_json = std::make_shared<ast::Expr>(ast::Call{
     //     .id = "arraynd",
     //     .args = {std::make_shared<ast::Expr>(ast::Call{
@@ -159,7 +163,8 @@ auto Transformer::map(MiniZinc::VarDecl* var_decl, bool const is_global,
 
     // std::visit(
     //     utils::overloaded{
-    //         [&](ast::DeclVariable& var) { var.value = std::move(load_json); },
+    //         [&](ast::DeclVariable& var) { var.value = std::move(load_json);
+    //         },
     //         [&](ast::DeclConst& var) { var.value = std::move(load_json); },
     //     },
     //     var);
@@ -186,17 +191,12 @@ auto Transformer::map(MiniZinc::SetLit* set_lit) -> ast::ExprHandle {
         .is_var = false});
   }
 
-  auto ast_set = std::make_shared<ast::Expr>(ast::LiteralSet{});
+  auto ast_set = ast::LiteralSet{};
 
-  auto& ast_set_ref = std::get<ast::LiteralSet>(*ast_set);
-  for (auto& set_expr : set_lit->v()) {
-    auto ast_expr = map(set_expr);
-    assert(ast_expr && "Set Literal: nullopt item");
+  for (auto& set_expr : set_lit->v())
+    ast_set.value.push_back(map(set_expr));
 
-    ast_set_ref.value.push_back(*ast_expr);
-  }
-
-  return ast_set;
+  return std::make_shared<ast::Expr>(ast_set);
 }
 
 auto Transformer::map(MiniZinc::Comprehension* comp) -> ast::Comprehension {
@@ -209,10 +209,10 @@ auto Transformer::map(MiniZinc::Comprehension* comp) -> ast::Comprehension {
            "Null generator");
 
     if (comp->in(i) != nullptr) {
-      auto const in_expr = map(comp->in(i));
+      ast::ExprHandle const in_expr = map(comp->in(i));
 
       for (auto const j : std::views::iota(0u, comp->numberOfDecls(i))) {
-        auto decl_expr = handle_const_decl(comp->decl(i, j));
+        ast::VarDecl decl_expr = handle_const_decl(comp->decl(i, j));
         assert(std::holds_alternative<ast::DeclConst>(decl_expr));
 
         std::string const& tmp_id = std::get<ast::DeclConst>(decl_expr).id;
@@ -220,25 +220,22 @@ auto Transformer::map(MiniZinc::Comprehension* comp) -> ast::Comprehension {
         variable_map[tmp_id].push_back(decl_expr);
 
         generators.push_back(ast::Iterator{
-            .variable = std::get<ast::DeclConst>(decl_expr), .in = *in_expr});
+            .variable = std::get<ast::DeclConst>(std::move(decl_expr)),
+            .in = in_expr});
       }
     }
 
-    if (comp->where(i) != nullptr) {
-      auto const where_expr = map(comp->where(i));
-      assert(where_expr && "Null filter after mapping");
-      generators.push_back(*where_expr);
-    }
+    if (comp->where(i) != nullptr)
+      generators.push_back(map(comp->where(i)));
   }
 
-  auto body = map(comp->e());
-  assert(body);
-  bool const is_body_var = utils::is_expr_var(**body);
+  ast::ExprHandle body = map(comp->e());
+  bool const is_body_var = utils::is_expr_var(*body);
 
   for (auto const& s : decls_to_pop)
     variable_map[s].pop_back();
 
-  return ast::Comprehension{.body = std::move(*body),
+  return ast::Comprehension{.body = std::move(body),
                             .generators = std::move(generators),
                             .is_var = is_body_var};
 }
@@ -256,20 +253,37 @@ auto Transformer::map(MiniZinc::Call* call) -> ast::ExprHandle {
   auto const function_item = model.matchFn(env, call, true, false);
   save(function_item);
 
-  auto ast_call = std::make_shared<ast::Expr>(
-      ast::Call{.id = id,
-                .args = {},
-                .expr_type = map(function_item->ti()),
-                .is_var = function_item->ti()->type().isvar()});
+  auto ast_call = ast::Call{.id = id,
+                            .args = {},
+                            .expr_type = map(function_item->ti()),
+                            .is_var = function_item->ti()->type().isvar()};
 
-  for (auto& call_arg : call->args()) {
-    auto ast_arg = map(call_arg);
-    assert(ast_arg && "Function call: nullopt arg");
+  for (auto& call_arg : call->args())
+    ast_call.args.push_back(map(call_arg));
 
-    std::get<ast::Call>(*ast_call).args.push_back(*ast_arg);
+  return std::make_shared<ast::Expr>(ast_call);
+}
+
+auto Transformer::map(MiniZinc::ArrayAccess* array_access) -> ast::ExprHandle {
+  auto ast_array = ast::ArrayAccess{};
+
+  ast::ExprHandle arr_expr = map(array_access->v());
+
+  ast_array.is_var = utils::is_expr_var(*arr_expr);
+  ast_array.arr = std::move(arr_expr);
+
+  for (auto& ix : array_access->idx()) {
+    ast::ExprHandle ix_expr = map(ix);
+
+    ast_array.is_index_var_type =
+        ast_array.is_index_var_type || utils::is_expr_var(*ix_expr);
+
+    ast_array.is_var = ast_array.is_var || ast_array.is_index_var_type;
+
+    ast_array.indexes.push_back(std::move(ix_expr));
   }
 
-  return ast_call;
+  return std::make_shared<ast::Expr>(ast_array);
 }
 
 void Transformer::save(MiniZinc::FunctionI* function) {
@@ -289,7 +303,8 @@ void Transformer::save(MiniZinc::FunctionI* function) {
     //
     // return std::make_shared<ast::Expr>(ast::IdExpr::from_var(id_str, var));
 
-    auto const var = map(function->param(ix), false, false);
+    std::optional<ast::VarDecl> const var =
+        map(function->param(ix), false, false);
     assert("Parameter of a function should be a valid var decl" && var);
 
     std::string id = utils::var_id(*var);
@@ -299,17 +314,15 @@ void Transformer::save(MiniZinc::FunctionI* function) {
     params.push_back(ast::IdExpr::from_var(id, *var));
   }
 
-  auto const function_body = map(function->e());
-  assert(function_body);
+  ast::ExprHandle function_body = map(function->e());
 
   for (auto const& s : decls_to_pop)
     variable_map[s].pop_back();
 
-  functions.emplace(id, ast::Function{id, params, *function_body});
+  functions.emplace(id, ast::Function{id, params, std::move(function_body)});
 }
 
-auto Transformer::map(MiniZinc::Expression* expr)
-    -> std::optional<ast::ExprHandle> {
+auto Transformer::map(MiniZinc::Expression* expr) -> ast::ExprHandle {
   switch (MiniZinc::Expression::eid(expr)) {
   case MiniZinc::Expression::E_INTLIT: {
     auto const* int_lit = MiniZinc::Expression::cast<MiniZinc::IntLit>(expr);
@@ -367,15 +380,11 @@ auto Transformer::map(MiniZinc::Expression* expr)
   }
   case MiniZinc::Expression::E_ARRAYLIT: {
     auto* array_lit = MiniZinc::Expression::cast<MiniZinc::ArrayLit>(expr);
-    auto ast_array = std::make_shared<ast::Expr>(ast::LiteralArray{});
-    for (auto& array_expr : array_lit->getVec()) {
-      auto ast_expr = map(array_expr);
-      assert(ast_expr && "Array Literal: nullopt item");
+    auto ast_array = ast::LiteralArray{};
+    for (auto array_expr : array_lit->getVec())
+      ast_array.value.push_back(map(array_expr));
 
-      std::get<ast::LiteralArray>(*ast_array).value.push_back(*ast_expr);
-    }
-
-    return ast_array;
+    return std::make_shared<ast::Expr>(ast_array);
   }
   case MiniZinc::Expression::E_COMP: {
     auto* comp = MiniZinc::Expression::cast<MiniZinc::Comprehension>(expr);
@@ -385,30 +394,7 @@ auto Transformer::map(MiniZinc::Expression* expr)
     auto* array_access =
         MiniZinc::Expression::cast<MiniZinc::ArrayAccess>(expr);
 
-    auto ast_array = std::make_shared<ast::Expr>(ast::ArrayAccess{});
-
-    auto& ast_array_ref = std::get<ast::ArrayAccess>(*ast_array);
-
-    auto arr_expr = map(array_access->v());
-    assert(arr_expr && "Array Access: nullopt array");
-
-    ast_array_ref.is_var = utils::is_expr_var(**arr_expr);
-    ast_array_ref.arr = std::move(*arr_expr);
-
-    for (auto& ix : array_access->idx()) {
-      auto ix_expr = map(ix);
-      assert(ix_expr && "Array Access: nullopt index");
-
-      ast_array_ref.is_index_var_type =
-          ast_array_ref.is_index_var_type || utils::is_expr_var(**ix_expr);
-
-      ast_array_ref.is_var =
-          ast_array_ref.is_var || ast_array_ref.is_index_var_type;
-
-      ast_array_ref.indexes.push_back(*ix_expr);
-    }
-
-    return ast_array;
+    return map(array_access);
   }
   case MiniZinc::Expression::E_ITE: {
     auto* ite = MiniZinc::Expression::cast<MiniZinc::ITE>(expr);
@@ -452,6 +438,8 @@ auto is_bool_operator(MiniZinc::BinOpType const t) -> bool {
   case MiniZinc::BOT_IMPL:
   case MiniZinc::BOT_IN:
   case MiniZinc::BOT_EQUIV:
+  case MiniZinc::BOT_RIMPL:
+  case MiniZinc::BOT_XOR:
     return true;
   case MiniZinc::BOT_DOTDOT:
   case MiniZinc::BOT_PLUSPLUS:
@@ -459,10 +447,16 @@ auto is_bool_operator(MiniZinc::BinOpType const t) -> bool {
   case MiniZinc::BOT_MINUS:
   case MiniZinc::BOT_MULT:
   case MiniZinc::BOT_IDIV:
+  case MiniZinc::BOT_DIV:
+  case MiniZinc::BOT_POW:
+  case MiniZinc::BOT_SUBSET:
+  case MiniZinc::BOT_SUPERSET:
+  case MiniZinc::BOT_UNION:
+  case MiniZinc::BOT_DIFF:
+  case MiniZinc::BOT_SYMDIFF:
+  case MiniZinc::BOT_INTERSECT:
   case MiniZinc::BOT_MOD:
     return false;
-  default:
-    assert(false);
   }
 }
 } // namespace
@@ -511,18 +505,17 @@ auto Transformer::map(MiniZinc::BinOp* bin_op) -> ast::ExprHandle {
     }
   };
 
-  auto lhs = map(bin_op->lhs());
-  auto rhs = map(bin_op->rhs());
-  assert(lhs && rhs);
+  ast::ExprHandle lhs = map(bin_op->lhs());
+  ast::ExprHandle rhs = map(bin_op->rhs());
 
-  auto expr_type = is_bool_operator(bin_op->op()) ? ast::types::Bool{}
-                                                  : utils::expr_type(**lhs);
-  bool const is_var = utils::is_expr_var(**lhs) || utils::is_expr_var(**rhs);
+  ast::Type expr_type = is_bool_operator(bin_op->op()) ? ast::types::Bool{}
+                                                       : utils::expr_type(*lhs);
+  bool const is_var = utils::is_expr_var(*lhs) || utils::is_expr_var(*rhs);
 
   return std::make_shared<ast::Expr>(
       ast::BinOp{.kind = match_kind(bin_op->op()),
-                 .lhs = std::move(*lhs),
-                 .rhs = std::move(*rhs),
+                 .lhs = std::move(lhs),
+                 .rhs = std::move(rhs),
                  .expr_type = std::move(expr_type),
                  .is_var = is_var});
 }
@@ -539,43 +532,38 @@ auto Transformer::map(MiniZinc::UnOp* un_op) -> ast::ExprHandle {
     }
   };
 
-  auto expr = map(un_op->e());
-  assert(expr);
+  ast::ExprHandle expr = map(un_op->e());
 
-  auto expr_type = utils::expr_type(**expr);
-  bool const is_var = utils::is_expr_var(**expr);
+  auto expr_type = utils::expr_type(*expr);
+  bool const is_var = utils::is_expr_var(*expr);
 
   return std::make_shared<ast::Expr>(
       ast::UnaryOp{.kind = match_kind(un_op->op()),
-                   .expr = std::move(*expr),
+                   .expr = std::move(expr),
                    .expr_type = std::move(expr_type),
                    .is_var = is_var});
 }
 
 auto Transformer::map(MiniZinc::ITE* ite) -> ast::ExprHandle {
-  auto result = std::make_shared<ast::Expr>(ast::IfThenElse{});
-  auto& ite_result = std::get<ast::IfThenElse>(*result);
+  auto result = ast::IfThenElse{};
 
   for (unsigned int i : std::views::iota(0u, ite->size())) {
-    auto if_expr = map(ite->ifExpr(i));
-    auto then_expr = map(ite->thenExpr(i));
+    ast::ExprHandle if_expr = map(ite->ifExpr(i));
+    ast::ExprHandle then_expr = map(ite->thenExpr(i));
 
-    assert(if_expr && then_expr && "If or then expr is null");
+    result.is_var = result.is_var || utils::is_expr_var(*then_expr);
 
-    ite_result.is_var = ite_result.is_var || utils::is_expr_var(**then_expr);
-
-    ite_result.if_then.push_back({std::move(*if_expr), std::move(*then_expr)});
+    result.if_then.push_back({std::move(if_expr), std::move(then_expr)});
   }
 
   if (auto* else_expr = ite->elseExpr(); else_expr != nullptr) {
-    ite_result.else_expr = map(else_expr);
-    ite_result.is_var =
-        ite_result.is_var || utils::is_expr_var(**ite_result.else_expr);
+    result.else_expr = map(else_expr);
+    result.is_var = result.is_var || utils::is_expr_var(**result.else_expr);
   }
 
-  ite_result.expr_type = utils::expr_type(*ite_result.if_then.front().second);
+  result.expr_type = utils::expr_type(*result.if_then.front().second);
 
-  return result;
+  return std::make_shared<ast::Expr>(std::move(result));
 }
 
 auto Transformer::map(MiniZinc::Let* let) -> ast::ExprHandle {
@@ -586,27 +574,24 @@ auto Transformer::map(MiniZinc::Let* let) -> ast::ExprHandle {
 
   for (auto const& expr : let->let()) {
     if (MiniZinc::Expression::eid(expr) == MiniZinc::VarDecl::eid) {
-      auto ast_var = map(MiniZinc::Expression::cast<MiniZinc::VarDecl>(expr),
-                         false, false);
+      std::optional<ast::VarDecl> ast_var = map(
+          MiniZinc::Expression::cast<MiniZinc::VarDecl>(expr), false, false);
       assert(ast_var);
       args.push_back(std::move(*ast_var));
       continue;
     }
 
-    auto constraint = map(expr);
-    assert(constraint);
-    constraints.push_back(std::move(*constraint));
+    constraints.push_back(map(expr));
   }
 
-  auto const function_body = map(let->in());
-  assert(function_body);
+  ast::ExprHandle const function_body = map(let->in());
   std::string id = fmt::format("in_{}", let_in_ctr);
   functions.emplace(
       id, ast::Function{
               id, args | std::views::transform([](ast::VarDecl const& var) {
                     return ast::IdExpr::from_var(utils::var_id(var), var);
                   }) | std::ranges::to<std::vector>(),
-              *function_body});
+              function_body});
 
   for (auto const& s : args)
     variable_map[utils::var_id(s)].pop_back();
@@ -615,8 +600,8 @@ auto Transformer::map(MiniZinc::Let* let) -> ast::ExprHandle {
       ast::LetIn{.id = fmt::format("{}", let_in_ctr),
                  .declarations = std::move(args),
                  .constraints = std::move(constraints),
-                 .expr_type = utils::expr_type(**function_body),
-                 .is_var = utils::is_expr_var(**function_body)});
+                 .expr_type = utils::expr_type(*function_body),
+                 .is_var = utils::is_expr_var(*function_body)});
 }
 
 auto Transformer::map(MiniZinc::SolveI* solve_item) -> ast::SolveType {
@@ -639,10 +624,8 @@ auto Transformer::find_objective_expr() -> ast::ExprHandle {
       continue;
 
     assert(var_decl->e());
-    auto var_decl_expr = map(var_decl->e());
-    assert(var_decl_expr);
 
-    return *var_decl_expr;
+    return map(var_decl->e());
   }
 
   assert(false);

@@ -141,7 +141,7 @@ auto main(ParserOpts const& opts) -> std::expected<ast::Tree, err::Error> {
   for (auto& constraint : model.constraints()) {
     if (auto mapped_constraint = transformer.map(constraint.e());
         mapped_constraint) {
-      tree.constraints.push_back(std::move(*mapped_constraint));
+      tree.constraints.push_back(std::move(mapped_constraint));
     }
   }
 
@@ -149,8 +149,7 @@ auto main(ParserOpts const& opts) -> std::expected<ast::Tree, err::Error> {
 
   auto const output = transformer.map(model.outputItem()->e());
 
-  assert(output && "null output item"); // TODO error handling for nullopt
-  tree.output = std::move(*output);
+  tree.output = std::move(output);
 
   return tree;
 }
