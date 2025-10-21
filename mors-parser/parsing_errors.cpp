@@ -20,13 +20,15 @@ void print_message(Error const& e) {
                          if (!err.msg.empty())
                            fmt::println("{}", err.msg);
 
-                         fmt::println("Error logs:");
-                         if (auto const view = err.os.view(); !view.empty())
-                           fmt::println("{}", view);
+                         if (auto const view = err.os.view(); !view.empty()) {
+                           fmt::println("Error logs:");
+                           fmt::println("size: {}, {}", view.size(), view);
+                         }
 
-                         fmt::println("Warning logs:");
-                         if (auto const view = err.log.view(); !view.empty())
-                           fmt::println("{}", view);
+                         if (auto const view = err.log.view(); !view.empty()) {
+                           fmt::println("Warning logs:");
+                           fmt::println("size: {}, {}", view.size(), view);
+                         }
                        },
                        [](InvalidFlag const& err) {
                          fmt::println("Error encountered while reading flags");

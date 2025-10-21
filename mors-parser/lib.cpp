@@ -78,11 +78,13 @@ auto main(ParserOpts const& opts) -> std::expected<ast::Tree, err::Error> {
   try {
     flt.flatten("", "stdin");
   } catch (MiniZinc::Exception const& e) {
+    std::ostringstream mzn_output{};
+    e.print(mzn_output);
     return std::unexpected{
         err::MznParsingError{
                              .os = std::move(flattener_os),
                              .log = std::move(flattener_log),
-                             .msg = fmt::format("parsing failed:\n{}\n", e.msg())}
+                             .msg = mzn_output.str()}
     };
   }
 
