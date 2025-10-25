@@ -89,15 +89,15 @@ struct LiteralFloat {
 struct LiteralArray {
   std::vector<ExprHandle> value;
 
-  Type expr_type = types::Array{};
-  bool is_var = false;
+  Type expr_type;
+  bool is_var;
 };
 
 struct LiteralSet {
   std::vector<ExprHandle> value;
 
-  Type expr_type = types::UnspecifiedSet{};
-  bool is_var = false;
+  Type expr_type;
+  bool is_var;
 };
 
 struct DeclVariable;
@@ -177,7 +177,7 @@ struct ArrayAccess {
 
   std::vector<ExprHandle> indexes;
 
-  Type expr_type = types::Int{};
+  Type expr_type;
   bool is_var;
 
   bool is_index_var_type = false;
@@ -189,7 +189,7 @@ struct IfThenElse {
   std::optional<ExprHandle> else_expr;
 
   Type expr_type;
-  bool is_var = false;
+  bool is_var;
 };
 
 struct DeclVariable {
@@ -219,7 +219,7 @@ struct LetIn {
   std::vector<ExprHandle> constraints;
 
   Type expr_type;
-  bool is_var = false;
+  bool is_var;
 };
 
 using Filter = ExprHandle;
@@ -237,7 +237,7 @@ struct Comprehension {
 
   std::vector<Generator> generators;
 
-  Type expr_type = types::Array{};
+  Type expr_type;
   bool is_var;
 };
 

@@ -36,7 +36,8 @@ struct Transformer {
 
   size_t let_in_ctr = 0;
 
-  auto map(MiniZinc::VarDecl*, bool is_global, bool check_id) -> std::optional<ast::VarDecl>;
+  auto map(MiniZinc::VarDecl*, bool is_global, bool check_id)
+      -> std::optional<ast::VarDecl>;
   auto map(MiniZinc::Expression*) -> ast::Expr;
   auto map_ptr(MiniZinc::Expression*) -> ast::ExprHandle;
   auto map(MiniZinc::SolveI*) -> ast::SolveType;
@@ -44,7 +45,8 @@ struct Transformer {
 private:
   auto map(MiniZinc::ArrayLit*) -> ast::Expr;
   auto map(MiniZinc::SetLit*) -> ast::Expr;
-  auto map(MiniZinc::TypeInst* type_inst) -> ast::Type;
+  auto map(MiniZinc::TypeInst*) -> ast::Type;
+  auto map(MiniZinc::Type const&) -> ast::Type;
   auto map(MiniZinc::Comprehension*) -> ast::Comprehension;
   auto map(MiniZinc::Call*) -> ast::Expr;
   auto map(MiniZinc::ArrayAccess*) -> ast::Expr;

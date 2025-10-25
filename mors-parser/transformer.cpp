@@ -73,7 +73,16 @@ auto Transformer::map(MiniZinc::TypeInst* type_inst) -> ast::Type {
                 std::ranges::to<std::vector>()};
   }
 
-  auto const& type = type_inst->type();
+  MiniZinc::Type type = type_inst->type();
+  type.dim(0);
+
+  return map(type);
+}
+
+auto Transformer::map(MiniZinc::Type const& type) -> ast::Type {
+  if (type.dim() > 0)
+    return ast::types::Array{};
+
   if (type.isSet())
     return std::visit(
         utils::overloaded{[](ast::types::Int const&) -> ast::Type {
@@ -155,7 +164,9 @@ auto Transformer::map(MiniZinc::ArrayLit* arr_lit) -> ast::Expr {
       .value = arr_lit->getVec() | std::views::transform([&](auto& array_expr) {
                  return map_ptr(array_expr);
                }) |
-               std::ranges::to<std::vector>()};
+               std::ranges::to<std::vector>(),
+      .expr_type = map(arr_lit->type()),
+      .is_var = arr_lit->type().isvar()};
 }
 
 auto Transformer::map(MiniZinc::SetLit* set_lit) -> ast::Expr {
@@ -178,7 +189,9 @@ auto Transformer::map(MiniZinc::SetLit* set_lit) -> ast::Expr {
                                   std::views::transform([&](auto& set_expr) {
                                     return map_ptr(set_expr);
                                   }) |
-                                  std::ranges::to<std::vector>()};
+                                  std::ranges::to<std::vector>(),
+                         .expr_type = map(set_lit->type()),
+                         .is_var = set_lit->type().isvar()};
 }
 
 auto Transformer::map(MiniZinc::Comprehension* comp) -> ast::Comprehension {
@@ -212,14 +225,14 @@ auto Transformer::map(MiniZinc::Comprehension* comp) -> ast::Comprehension {
   }
 
   ast::Expr body = map(comp->e());
-  bool const is_body_var = utils::is_expr_var(body);
 
   for (auto const& s : decls_to_pop)
     variable_map[s].pop_back();
 
   return ast::Comprehension{.body = ast::ptr(std::move(body)),
                             .generators = std::move(generators),
-                            .is_var = is_body_var};
+                            .expr_type = map(comp->type()),
+                            .is_var = comp->type().isvar()};
 }
 
 auto Transformer::map(MiniZinc::Call* call) -> ast::Expr {
@@ -251,11 +264,10 @@ auto Transformer::map(MiniZinc::ArrayAccess* array_access) -> ast::Expr {
       std::any_of(indexes.begin(), indexes.end(),
                   [](auto const& ix) { return utils::is_expr_var(*ix); });
 
-  bool const is_var = utils::is_expr_var(arr) || is_index_var_type;
-
   return ast::ArrayAccess{.arr = ast::ptr(std::move(arr)),
                           .indexes = std::move(indexes),
-                          .is_var = is_var,
+                          .expr_type = map(array_access->type()),
+                          .is_var = array_access->type().isvar(),
                           .is_index_var_type = is_index_var_type};
 }
 
@@ -387,43 +399,6 @@ auto Transformer::map(MiniZinc::Expression* expr) -> ast::Expr {
   }
 }
 
-namespace {
-auto is_bool_operator(MiniZinc::BinOpType const t) -> bool {
-  switch (t) {
-  case MiniZinc::BOT_NQ:
-  case MiniZinc::BOT_EQ:
-  case MiniZinc::BOT_GQ:
-  case MiniZinc::BOT_GR:
-  case MiniZinc::BOT_LE:
-  case MiniZinc::BOT_LQ:
-  case MiniZinc::BOT_AND:
-  case MiniZinc::BOT_OR:
-  case MiniZinc::BOT_IMPL:
-  case MiniZinc::BOT_IN:
-  case MiniZinc::BOT_EQUIV:
-  case MiniZinc::BOT_RIMPL:
-  case MiniZinc::BOT_XOR:
-    return true;
-  case MiniZinc::BOT_DOTDOT:
-  case MiniZinc::BOT_PLUSPLUS:
-  case MiniZinc::BOT_PLUS:
-  case MiniZinc::BOT_MINUS:
-  case MiniZinc::BOT_MULT:
-  case MiniZinc::BOT_IDIV:
-  case MiniZinc::BOT_DIV:
-  case MiniZinc::BOT_POW:
-  case MiniZinc::BOT_SUBSET:
-  case MiniZinc::BOT_SUPERSET:
-  case MiniZinc::BOT_UNION:
-  case MiniZinc::BOT_DIFF:
-  case MiniZinc::BOT_SYMDIFF:
-  case MiniZinc::BOT_INTERSECT:
-  case MiniZinc::BOT_MOD:
-    return false;
-  }
-}
-} // namespace
-
 auto Transformer::map(MiniZinc::BinOp* bin_op) -> ast::Expr {
   auto match_kind = [](MiniZinc::BinOpType const t) {
     switch (t) {
@@ -471,15 +446,11 @@ auto Transformer::map(MiniZinc::BinOp* bin_op) -> ast::Expr {
   ast::Expr lhs = map(bin_op->lhs());
   ast::Expr rhs = map(bin_op->rhs());
 
-  ast::Type expr_type = is_bool_operator(bin_op->op()) ? ast::types::Bool{}
-                                                       : utils::expr_type(lhs);
-  bool const is_var = utils::is_expr_var(lhs) || utils::is_expr_var(rhs);
-
   return ast::BinOp{.kind = match_kind(bin_op->op()),
                     .lhs = ast::ptr(std::move(lhs)),
                     .rhs = ast::ptr(std::move(rhs)),
-                    .expr_type = std::move(expr_type),
-                    .is_var = is_var};
+                    .expr_type = map(bin_op->type()),
+                    .is_var = bin_op->type().isvar()};
 }
 
 auto Transformer::map_ptr(MiniZinc::Expression* e) -> ast::ExprHandle {
@@ -500,13 +471,10 @@ auto Transformer::map(MiniZinc::UnOp* un_op) -> ast::Expr {
 
   ast::Expr expr = map(un_op->e());
 
-  ast::Type expr_type = utils::expr_type(expr);
-  bool const is_var = utils::is_expr_var(expr);
-
   return ast::UnaryOp{.kind = match_kind(un_op->op()),
                       .expr = ast::ptr(std::move(expr)),
-                      .expr_type = std::move(expr_type),
-                      .is_var = is_var};
+                      .expr_type = map(un_op->type()),
+                      .is_var = un_op->type().isvar()};
 }
 
 auto Transformer::map(MiniZinc::ITE* ite) -> ast::Expr {
@@ -521,20 +489,10 @@ auto Transformer::map(MiniZinc::ITE* ite) -> ast::Expr {
   std::optional else_expr =
       ite->elseExpr() ? map_ptr(ite->elseExpr()) : nullptr;
 
-  ast::Type expr_type = utils::expr_type(*if_then.front().second);
-
-  bool const is_var =
-      std::any_of(if_then.begin(), if_then.end(),
-                  [](auto& i) { return utils::is_expr_var(*i.second); }) ||
-      else_expr
-          .transform(
-              [](auto& else_expr) { return utils::is_expr_var(*else_expr); })
-          .value_or(false);
-
   return ast::IfThenElse{.if_then = std::move(if_then),
                          .else_expr = std::move(else_expr),
-                         .expr_type = std::move(expr_type),
-                         .is_var = is_var};
+                         .expr_type = map(ite->type()),
+                         .is_var = ite->type().isvar()};
 }
 
 auto Transformer::map(MiniZinc::Let* let) -> ast::Expr {
