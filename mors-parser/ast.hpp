@@ -277,4 +277,8 @@ struct Tree {
   FunctionMap functions;
 };
 
+template <typename T> auto ptr(T&& t) -> ExprHandle;
+
+auto ptr(Expr&& t) -> ExprHandle;
+
 } // namespace parser::ast

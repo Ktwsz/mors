@@ -81,8 +81,7 @@ auto main(ParserOpts const& opts) -> std::expected<ast::Tree, err::Error> {
     std::ostringstream mzn_output{};
     e.print(mzn_output);
     return std::unexpected{
-        err::MznParsingError{
-                             .os = std::move(flattener_os),
+        err::MznParsingError{.os = std::move(flattener_os),
                              .log = std::move(flattener_log),
                              .msg = mzn_output.str()}
     };
@@ -132,24 +131,19 @@ auto main(ParserOpts const& opts) -> std::expected<ast::Tree, err::Error> {
                           .functions = tree.functions,
                           .opts = opts};
 
-  for (auto& var_decl : model.vardecls()) {
+  for (auto& var_decl : model.vardecls()) { // TODO make view compatible
     if (auto decl = transformer.map(var_decl.e(), true, true); decl) {
       tree.decls.push_back(std::move(*decl));
     }
   }
 
-  for (auto& constraint : model.constraints()) {
-    if (auto mapped_constraint = transformer.map(constraint.e());
-        mapped_constraint) {
-      tree.constraints.push_back(std::move(mapped_constraint));
-    }
+  for (auto& constraint : model.constraints()) { // TODO make view compatible
+    tree.constraints.push_back(transformer.map_ptr(constraint.e()));
   }
 
   tree.solve_type = transformer.map(model.solveItem());
 
-  auto const output = transformer.map(model.outputItem()->e());
-
-  tree.output = std::move(output);
+  tree.output = transformer.map_ptr(model.outputItem()->e());
 
   return tree;
 }

@@ -37,24 +37,26 @@ struct Transformer {
   size_t let_in_ctr = 0;
 
   auto map(MiniZinc::VarDecl*, bool is_global, bool check_id) -> std::optional<ast::VarDecl>;
-  auto map(MiniZinc::Expression*) -> ast::ExprHandle;
+  auto map(MiniZinc::Expression*) -> ast::Expr;
+  auto map_ptr(MiniZinc::Expression*) -> ast::ExprHandle;
   auto map(MiniZinc::SolveI*) -> ast::SolveType;
 
 private:
-  auto map(MiniZinc::SetLit*) -> ast::ExprHandle;
+  auto map(MiniZinc::ArrayLit*) -> ast::Expr;
+  auto map(MiniZinc::SetLit*) -> ast::Expr;
   auto map(MiniZinc::TypeInst* type_inst) -> ast::Type;
   auto map(MiniZinc::Comprehension*) -> ast::Comprehension;
-  auto map(MiniZinc::Call*) -> ast::ExprHandle;
-  auto map(MiniZinc::ArrayAccess*) -> ast::ExprHandle;
-  auto map(MiniZinc::BinOp*) -> ast::ExprHandle;
-  auto map(MiniZinc::UnOp*) -> ast::ExprHandle;
-  auto map(MiniZinc::ITE*) -> ast::ExprHandle;
-  auto map(MiniZinc::Let*) -> ast::ExprHandle;
+  auto map(MiniZinc::Call*) -> ast::Expr;
+  auto map(MiniZinc::ArrayAccess*) -> ast::Expr;
+  auto map(MiniZinc::BinOp*) -> ast::Expr;
+  auto map(MiniZinc::UnOp*) -> ast::Expr;
+  auto map(MiniZinc::ITE*) -> ast::Expr;
+  auto map(MiniZinc::Let*) -> ast::Expr;
   void save(MiniZinc::FunctionI*);
 
   auto handle_const_decl(MiniZinc::VarDecl* var_decl) -> ast::VarDecl;
   auto handle_var_decl(MiniZinc::VarDecl* var_decl) -> ast::VarDecl;
-  auto find_objective_expr() -> ast::ExprHandle;
+  auto find_objective_expr() -> ast::Expr;
 };
 
 } // namespace parser
