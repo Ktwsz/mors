@@ -15,22 +15,37 @@ struct Transformer {
   MiniZinc::EnvI& env;
 
   ast::FunctionMap& functions;
-  ast::VariableMap variable_map{
-      {"mzn_min_version_required",
-       {ast::DeclConst{
+  struct Stack {
+    struct Scope {
+      std::vector<std::string> decls;
+      ast::VariableMap& map;
 
-           .id = "mzn_min_version_required",
-           .type = ast::types::Int{},
-           .is_global = true,
-           .value = std::make_shared<ast::Expr>(ast::LiteralInt{0})}}},
-      {"mzn_max_version_required",
-       {ast::DeclConst{
+      Scope(ast::VariableMap& pMap);
+      void add(ast::VarDecl const& var);
+      ~Scope();
+    };
 
-           .id = "mzn_max_version_required",
-           .type = ast::types::Int{},
-           .is_global = true,
-           .value = std::make_shared<ast::Expr>(ast::LiteralInt{0})}}}
+    ast::VariableMap variable_map{
+        {"mzn_min_version_required",
+         {ast::DeclConst{
+
+             .id = "mzn_min_version_required",
+             .type = ast::types::Int{},
+             .is_global = true,
+             .value = std::make_shared<ast::Expr>(ast::LiteralInt{0})}}},
+        {"mzn_max_version_required",
+         {ast::DeclConst{
+
+             .id = "mzn_max_version_required",
+             .type = ast::types::Int{},
+             .is_global = true,
+             .value = std::make_shared<ast::Expr>(ast::LiteralInt{0})}}}
+    };
+
+    auto scope() -> Scope;
   };
+
+  Stack stack;
 
   ParserOpts const& opts;
 

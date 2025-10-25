@@ -154,7 +154,8 @@ auto Transformer::map(MiniZinc::VarDecl* var_decl, bool const is_global,
     }
   }
 
-  variable_map[utils::var_id(var)].push_back(var);
+  if (is_global)
+    stack.variable_map[utils::var_id(var)].push_back(var);
 
   return var;
 }
@@ -196,7 +197,8 @@ auto Transformer::map(MiniZinc::SetLit* set_lit) -> ast::Expr {
 
 auto Transformer::map(MiniZinc::Comprehension* comp) -> ast::Comprehension {
   std::vector<ast::Generator> generators;
-  std::vector<std::string> decls_to_pop;
+
+  auto scope = stack.scope();
 
   for (auto const i : std::views::iota(0u, comp->numberOfGenerators())) {
 
@@ -210,9 +212,7 @@ auto Transformer::map(MiniZinc::Comprehension* comp) -> ast::Comprehension {
         ast::VarDecl decl_expr = handle_const_decl(comp->decl(i, j));
         assert(std::holds_alternative<ast::DeclConst>(decl_expr));
 
-        std::string const& tmp_id = std::get<ast::DeclConst>(decl_expr).id;
-        decls_to_pop.push_back(tmp_id);
-        variable_map[tmp_id].push_back(decl_expr);
+        scope.add(decl_expr);
 
         generators.push_back(ast::Iterator{
             .variable = std::get<ast::DeclConst>(std::move(decl_expr)),
@@ -224,12 +224,7 @@ auto Transformer::map(MiniZinc::Comprehension* comp) -> ast::Comprehension {
       generators.push_back(map_ptr(comp->where(i)));
   }
 
-  ast::Expr body = map(comp->e());
-
-  for (auto const& s : decls_to_pop)
-    variable_map[s].pop_back();
-
-  return ast::Comprehension{.body = ast::ptr(std::move(body)),
+  return ast::Comprehension{.body = map_ptr(comp->e()),
                             .generators = std::move(generators),
                             .expr_type = map(comp->type()),
                             .is_var = comp->type().isvar()};
@@ -277,7 +272,7 @@ void Transformer::save(MiniZinc::FunctionI* function) {
   if (function->e() == nullptr)
     return;
 
-  std::vector<std::string> decls_to_pop;
+  auto scope = stack.scope();
 
   auto const id = reformat_id(std::string{function->id().c_str()});
 
@@ -286,20 +281,12 @@ void Transformer::save(MiniZinc::FunctionI* function) {
     std::optional const var = map(function->param(ix), false, false);
     assert("Parameter of a function should be a valid var decl" && var);
 
-    std::string id = utils::var_id(*var);
+    scope.add(*var);
 
-    decls_to_pop.push_back(id);
-
-    params.push_back(ast::IdExpr::from_var(id, *var));
+    params.push_back(ast::IdExpr::from_var(*var));
   }
 
-  ast::Expr function_body = map(function->e());
-
-  for (auto const& s : decls_to_pop)
-    variable_map[s].pop_back();
-
-  functions.emplace(
-      id, ast::Function{id, params, ast::ptr(std::move(function_body))});
+  functions.emplace(id, ast::Function{id, params, map_ptr(function->e())});
 }
 
 auto Transformer::map(MiniZinc::Expression* expr) -> ast::Expr {
@@ -318,9 +305,9 @@ auto Transformer::map(MiniZinc::Expression* expr) -> ast::Expr {
            "Id Expression: null id");
 
     std::string id_str{id->v().c_str()};
-    auto var = variable_map[id_str].back();
+    auto const& var = stack.variable_map[id_str].back();
 
-    return ast::IdExpr::from_var(id_str, var);
+    return ast::IdExpr::from_var(var);
   }
   case MiniZinc::Expression::E_BINOP: {
     auto* bin_op = MiniZinc::Expression::cast<MiniZinc::BinOp>(expr);
@@ -498,6 +485,8 @@ auto Transformer::map(MiniZinc::ITE* ite) -> ast::Expr {
 auto Transformer::map(MiniZinc::Let* let) -> ast::Expr {
   let_in_ctr++;
 
+  auto scope = stack.scope();
+
   auto is_var_decl = [](auto& expr) {
     return MiniZinc::Expression::eid(expr) == MiniZinc::VarDecl::eid;
   };
@@ -505,8 +494,12 @@ auto Transformer::map(MiniZinc::Let* let) -> ast::Expr {
   std::vector<ast::VarDecl> args =
       let->let() | std::views::filter(is_var_decl) |
       std::views::transform([&](auto& expr) {
-        return *map(MiniZinc::Expression::cast<MiniZinc::VarDecl>(expr), false,
-                    false);
+        auto var = map(MiniZinc::Expression::cast<MiniZinc::VarDecl>(expr),
+                       false, false);
+        assert(var);
+        scope.add(*var);
+
+        return *var;
       }) |
       std::ranges::to<std::vector>();
 
@@ -518,17 +511,14 @@ auto Transformer::map(MiniZinc::Let* let) -> ast::Expr {
   ast::ExprHandle function_body = map_ptr(let->in());
   std::string id = fmt::format("in_{}", let_in_ctr);
   functions.emplace(
-      id,
-      ast::Function{
-          .id = id,
-          .params = args | std::views::transform([](ast::VarDecl const& var) {
-                      return ast::IdExpr::from_var(utils::var_id(var), var);
-                    }) |
-                    std::ranges::to<std::vector>(),
-          .body = function_body});
-
-  for (auto const& s : args)
-    variable_map[utils::var_id(s)].pop_back();
+      id, ast::Function{.id = id,
+                        .params =
+                            args |
+                            std::views::transform([](ast::VarDecl const& var) {
+                              return ast::IdExpr::from_var(var);
+                            }) |
+                            std::ranges::to<std::vector>(),
+                        .body = function_body});
 
   return ast::LetIn{.id = fmt::format("{}", let_in_ctr),
                     .declarations = std::move(args),
@@ -566,5 +556,21 @@ auto Transformer::find_objective_expr() -> ast::Expr {
 
   assert(false);
 }
+
+Transformer::Stack::Scope::Scope(ast::VariableMap& pMap) : map{pMap} {}
+
+void Transformer::Stack::Scope::add(ast::VarDecl const& var) {
+  std::string s = utils::var_id(var);
+  map[s].push_back(var);
+  decls.push_back(s);
+}
+
+Transformer::Stack::Scope::~Scope() {
+  for (auto& decl : decls) {
+    map[decl].pop_back();
+  }
+}
+
+auto Transformer::Stack::scope() -> Stack::Scope { return Scope{variable_map}; }
 
 } // namespace parser

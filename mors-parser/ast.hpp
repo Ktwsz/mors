@@ -111,7 +111,7 @@ struct IdExpr {
 
   Type expr_type;
 
-  static auto from_var(std::string_view const id, VarDecl const& var) -> IdExpr;
+  static auto from_var(VarDecl const& var) -> IdExpr;
 };
 
 struct BinOp {
