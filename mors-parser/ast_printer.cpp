@@ -136,13 +136,6 @@ void PrintModelVisitor::print_type_inst(MiniZinc::TypeInst* type_inst,
   }
 }
 
-void PrintModelVisitor::print_function(MiniZinc::FunctionI* function,
-                                       int const indent) {
-  ind(indent + 2);
-  fmt::println("Return type: ");
-  print_type_inst(function->ti(), indent + 4);
-}
-
 void PrintModelVisitor::print_fn_call(MiniZinc::Call* call, int const indent) {
   auto const functionItem = model.matchFn(env, call, true, false);
 
@@ -152,27 +145,78 @@ void PrintModelVisitor::print_fn_call(MiniZinc::Call* call, int const indent) {
   ind(indent + 2);
   fmt::println("id: {}", functionItem->id().c_str());
 
-  ind(indent + 2);
-  fmt::println("return:");
-  print_type_inst(functionItem->ti(), indent + 4);
-
   if (functionItem->e()) {
+    ind(indent + 2);
+    fmt::println("return:");
+    print_type_inst(functionItem->ti(), indent + 4);
+
     ind(indent + 2);
     fmt::println("function params: ");
     for (auto const ix : std::views::iota(0u, functionItem->paramCount())) {
       print_var_decl(functionItem->param(ix), indent + 4);
+      functionItem->param(ix)->e(call->arg(ix));
     }
 
     ind(indent + 2);
     fmt::println("function body: ");
 
     match_expr(functionItem->e(), indent + 4);
-  }
 
-  ind(indent + 2);
-  fmt::println("args:");
-  for (auto const& arg : call->args()) {
-    match_expr(arg, indent + 4);
+    for (auto const ix : std::views::iota(0u, functionItem->paramCount()))
+      functionItem->param(ix)->e(nullptr);
+
+    ind(indent + 2);
+    fmt::println("args:");
+    for (auto const& arg : call->args()) {
+      match_expr(arg, indent + 4);
+    }
+
+  } else if (functionItem->builtins.e != nullptr) {
+    ind(indent + 2);
+    fmt::println("builtin: e");
+
+    ind(indent + 2);
+    fmt::println("result:");
+    match_expr(functionItem->builtins.e(env, call), indent + 4);
+
+  } else if (functionItem->builtins.b != nullptr) {
+
+    ind(indent + 2);
+    fmt::println("builtin: b");
+
+    ind(indent + 2);
+    fmt::println("result: {}", functionItem->builtins.b(env, call));
+
+  } else if (functionItem->builtins.f != nullptr) {
+
+    ind(indent + 2);
+    fmt::println("builtin: f");
+
+    ind(indent + 2);
+    fmt::println("result: {}", functionItem->builtins.f(env, call).toDouble());
+
+  } else if (functionItem->builtins.fs != nullptr) {
+
+    ind(indent + 2);
+    fmt::println("builtin: fs");
+
+  } else if (functionItem->builtins.i != nullptr) {
+
+    ind(indent + 2);
+    fmt::println("builtin: i");
+
+    ind(indent + 2);
+    fmt::println("result: {}", functionItem->builtins.i(env, call).toInt());
+
+  } else if (functionItem->builtins.s != nullptr) {
+
+    ind(indent + 2);
+    fmt::println("builtin: s");
+
+  } else if (functionItem->builtins.str != nullptr) {
+
+    ind(indent + 2);
+    fmt::println("builtin: str");
   }
 }
 

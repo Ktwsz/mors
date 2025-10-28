@@ -94,6 +94,7 @@ auto main(ParserOpts const& opts) -> std::expected<ast::Tree, err::Error> {
 
   // TODO: separate ast printing from this function
   if (opts.print_ast) {
+    MiniZinc::register_builtins(*flt.getEnv());
     PrintModelVisitor vis{model, flt.getEnv()->envi(), opts.model_path};
 
     fmt::println("--- VAR DECLS ---");
@@ -103,7 +104,7 @@ auto main(ParserOpts const& opts) -> std::expected<ast::Tree, err::Error> {
 
     fmt::println("--- CONSTRAINTS ---");
     for (auto& constraint : model.constraints()) {
-      vis.match_expr(constraint.e(), 0);
+      vis.match_expr(constraint.e());
     }
 
     fmt::println("--- SOLVE ---");

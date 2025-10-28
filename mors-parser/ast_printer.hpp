@@ -16,8 +16,6 @@ struct PrintModelVisitor {
 
   void print_type_inst(MiniZinc::TypeInst* var_decl, int indent);
 
-  void print_function(MiniZinc::FunctionI* function, int indent);
-
   void print_fn_call(MiniZinc::Call* call, int indent);
 
   void print_ite(MiniZinc::ITE* ite, int indent);
