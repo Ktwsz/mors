@@ -56,6 +56,21 @@ auto reformat_id(std::string_view const id) -> std::string {
   return std::string{id.substr(ix + 1)} + "_" +
          std::string{id.substr(1, ix - 1)};
 }
+
+void make_reif_call(MiniZinc::Call* call) {
+  std::string id{call->id().c_str()};
+  std::vector args(call->args().begin(), call->args().end());
+
+  MiniZinc::Location loc{};
+  auto bool_arg =
+      new MiniZinc::Id(loc, "b", nullptr); // TODO: think of better id
+  bool_arg->type(MiniZinc::Type::varbool());
+  args.push_back(bool_arg);
+
+  call->id(MiniZinc::ASTString(id + "_reif"));
+  call->args(args);
+}
+
 } // namespace
 
 auto Transformer::map(MiniZinc::TypeInst* type_inst) -> ast::Type {
@@ -232,19 +247,31 @@ auto Transformer::map(MiniZinc::Comprehension* comp) -> ast::Comprehension {
 
 auto Transformer::map(MiniZinc::Call* call) -> ast::Expr {
   assert(call->id().c_str() != nullptr && "Function call: null function id");
-  auto const id = reformat_id(std::string{call->id().c_str()});
+  auto const old_id = std::string{call->id().c_str()};
+  std::vector old_args(call->args().begin(), call->args().end());
+  auto const id = reformat_id(old_id);
   assert(!id.empty() && "Function call: empty function id");
 
   auto const function_item = model.matchFn(env, call, true, false);
   save(function_item);
 
-  return ast::Call{.id = id,
-                   .args = call->args() | std::views::transform([&](auto& arg) {
-                             return map_ptr(arg);
-                           }) |
-                           std::ranges::to<std::vector>(),
-                   .expr_type = map(function_item->ti()),
-                   .is_var = function_item->ti()->type().isvar()};
+  auto const result = ast::Call{
+      .id = id,
+      .args = call->args() |
+              std::views::transform([&](auto& arg) { return map_ptr(arg); }) |
+              std::ranges::to<std::vector>(),
+      .expr_type = map(function_item->ti()),
+      .is_var = function_item->ti()->type().isvar()};
+
+  make_reif_call(call);
+  auto const function_item_reif = model.matchFn(env, call, true, false);
+  if (function_item_reif != nullptr)
+    save(function_item_reif);
+
+  call->id(MiniZinc::ASTString(old_id));
+  call->args(old_args);
+
+  return result;
 }
 
 auto Transformer::map(MiniZinc::ArrayAccess* array_access) -> ast::Expr {
@@ -291,7 +318,7 @@ void Transformer::save(MiniZinc::FunctionI* function) {
 
 auto Transformer::map(MiniZinc::Expression* expr) -> ast::Expr {
   switch (MiniZinc::Expression::eid(expr)) {
-  case MiniZinc::Expression::E_INTLIT: {
+  case MiniZinc::IntLit::eid: {
     auto const* int_lit = MiniZinc::Expression::cast<MiniZinc::IntLit>(expr);
     auto const value = MiniZinc::IntLit::v(int_lit);
 
@@ -299,7 +326,7 @@ auto Transformer::map(MiniZinc::Expression* expr) -> ast::Expr {
 
     return ast::LiteralInt{value.toInt()};
   }
-  case MiniZinc::Expression::E_ID: {
+  case MiniZinc::Id::eid: {
     auto* id = MiniZinc::Expression::cast<MiniZinc::Id>(expr);
     assert(id->v().c_str() != nullptr && id->v() != "" &&
            "Id Expression: null id");
@@ -309,19 +336,19 @@ auto Transformer::map(MiniZinc::Expression* expr) -> ast::Expr {
 
     return ast::IdExpr::from_var(var);
   }
-  case MiniZinc::Expression::E_BINOP: {
+  case MiniZinc::BinOp::eid: {
     auto* bin_op = MiniZinc::Expression::cast<MiniZinc::BinOp>(expr);
     return map(bin_op);
   }
-  case MiniZinc::Expression::E_UNOP: {
+  case MiniZinc::UnOp::eid: {
     auto* un_op = MiniZinc::Expression::cast<MiniZinc::UnOp>(expr);
     return map(un_op);
   }
-  case MiniZinc::Expression::E_CALL: {
+  case MiniZinc::Call::eid: {
     auto* call = MiniZinc::Expression::cast<MiniZinc::Call>(expr);
     return map(call);
   }
-  case MiniZinc::Expression::E_FLOATLIT: {
+  case MiniZinc::FloatLit::eid: {
     auto const* float_lit =
         MiniZinc::Expression::cast<MiniZinc::FloatLit>(expr);
     auto const value = MiniZinc::FloatLit::v(float_lit);
@@ -330,55 +357,54 @@ auto Transformer::map(MiniZinc::Expression* expr) -> ast::Expr {
 
     return ast::LiteralFloat{value.toDouble()};
   }
-  case MiniZinc::Expression::E_SETLIT: {
+  case MiniZinc::SetLit::eid: {
     auto* set_lit = MiniZinc::Expression::cast<MiniZinc::SetLit>(expr);
     return map(set_lit);
   }
-  case MiniZinc::Expression::E_BOOLLIT: {
+  case MiniZinc::BoolLit::eid: {
     auto* bool_lit = MiniZinc::Expression::cast<MiniZinc::BoolLit>(expr);
     return ast::LiteralBool{bool_lit->v()};
   }
-  case MiniZinc::Expression::E_STRINGLIT: {
+  case MiniZinc::StringLit::eid: {
     auto* string_lit = MiniZinc::Expression::cast<MiniZinc::StringLit>(expr);
     return ast::LiteralString{string_lit->v().c_str() != nullptr
                                   ? std::string{string_lit->v().c_str()}
                                   : std::string{}};
   }
-  case MiniZinc::Expression::E_ARRAYLIT: {
+  case MiniZinc::ArrayLit::eid: {
     auto* array_lit = MiniZinc::Expression::cast<MiniZinc::ArrayLit>(expr);
     return map(array_lit);
   }
-  case MiniZinc::Expression::E_COMP: {
+  case MiniZinc::Comprehension::eid: {
     auto* comp = MiniZinc::Expression::cast<MiniZinc::Comprehension>(expr);
     return map(comp);
   }
-  case MiniZinc::Expression::E_ARRAYACCESS: {
+  case MiniZinc::ArrayAccess::eid: {
     auto* array_access =
         MiniZinc::Expression::cast<MiniZinc::ArrayAccess>(expr);
 
     return map(array_access);
   }
-  case MiniZinc::Expression::E_ITE: {
+  case MiniZinc::ITE::eid: {
     auto* ite = MiniZinc::Expression::cast<MiniZinc::ITE>(expr);
     return map(ite);
   }
-  case MiniZinc::Expression::E_VARDECL: {
-    assert(false && "Should not reach var decl through this function");
-  }
-  case MiniZinc::Expression::E_ANON:
-    fmt::println("E_ANON");
-    assert(false);
-  case MiniZinc::Expression::E_FIELDACCESS:
-    fmt::println("E_FIELDACCESS");
-    assert(false);
-  case MiniZinc::Expression::E_LET: {
+  case MiniZinc::Let::eid: {
     auto* let = MiniZinc::Expression::cast<MiniZinc::Let>(expr);
     return map(let);
   }
-  case MiniZinc::Expression::E_TI:
+  case MiniZinc::VarDecl::eid:
+    assert(false && "Should not reach var decl through this function");
+  case MiniZinc::AnonVar::eid:
+    fmt::println("E_ANON");
+    assert(false);
+  case MiniZinc::FieldAccess::eid:
+    fmt::println("E_FIELDACCESS");
+    assert(false);
+  case MiniZinc::TypeInst::eid:
     fmt::println("E_TI");
     assert(false);
-  case MiniZinc::Expression::E_TIID:
+  case MiniZinc::TIId::eid:
     fmt::println("E_TIID");
     assert(false);
   default:

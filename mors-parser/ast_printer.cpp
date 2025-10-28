@@ -143,6 +143,9 @@ void PrintModelVisitor::print_fn_call(MiniZinc::Call* call, int const indent) {
   fmt::println("function call");
 
   ind(indent + 2);
+  fmt::println("is_bool: {}", MiniZinc::Expression::type(call).isbool());
+
+  ind(indent + 2);
   fmt::println("id: {}", functionItem->id().c_str());
 
   if (functionItem->e()) {
