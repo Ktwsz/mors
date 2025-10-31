@@ -13,11 +13,6 @@ auto IdExpr::from_var(VarDecl const& var) -> IdExpr {
                 .expr_type = utils::var_type(var)};
 }
 
-template <typename T>
-auto ptr(T && t) -> ExprHandle {
-    return std::make_shared<Expr>(std::forward<T>(t));
-}
-
 auto ptr(Expr && t) -> ExprHandle {
     return std::make_shared<Expr>(std::forward<Expr>(t));
 }

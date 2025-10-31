@@ -15,6 +15,7 @@ namespace flags {
 using namespace std::string_view_literals;
 
 constexpr std::string_view instance_check_only = "--instance-check-only"sv;
+constexpr std::string_view model_check_only = "--model-check-only"sv;
 constexpr std::string_view include = "-I"sv;
 } // namespace flags
 
@@ -33,8 +34,10 @@ void log_flags(ParserOpts const& opts) {
 }
 
 auto create_flags(ParserOpts const& opts) -> std::vector<std::string> {
-  return {opts.model_path, std::string{flags::instance_check_only},
-          std::string{flags::include}, opts.ortools_include_dir};
+  std::string_view check = opts.runtime_parameters ? flags::model_check_only
+                                                   : flags::instance_check_only;
+  return {opts.model_path, std::string{check}, std::string{flags::include},
+          opts.ortools_include_dir};
 }
 
 auto feed_flags(MiniZinc::Flattener& flt, ParserOpts const& opts,

@@ -277,7 +277,11 @@ struct Tree {
   FunctionMap functions;
 };
 
-template <typename T> auto ptr(T&& t) -> ExprHandle;
+template <typename T>
+auto ptr(T && t) -> ExprHandle {
+    return std::make_shared<Expr>(std::forward<T>(t));
+}
+
 
 auto ptr(Expr&& t) -> ExprHandle;
 

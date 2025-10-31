@@ -20,6 +20,7 @@ auto defineCli(ParserOpts& opts) -> clipp::group {
           clipp::value("model.mzn", opts.model_path),
           clipp::opt_values("data.dzn", opts.infiles),
           (clipp::option("-o") & clipp::value("output file", opts.output_file)),
+          (clipp::option("--runtime-parameters").set(opts.runtime_parameters)),
           (clipp::option("--stdlib-dir") & clipp::value("dir", opts.stdlib_dir))
               .doc(fmt::format("Default: {}", opts.stdlib_dir)),
           (clipp::option("-I", "--search-dir") &
@@ -44,30 +45,6 @@ auto ParserOpts::create(int argc, char** argv)
   return opts;
 }
 
-void ParserOpts::checkForJsonInput() {
-  for (std::string const& in : infiles) {
-    if (!in.ends_with(".json"))
-      continue;
-
-    std::fstream in_stream{in};
-
-    nlohmann::json data = nlohmann::json::parse(in_stream);
-    for (auto const& item : data.items())
-      json_variables[item.key()] = in;
-  }
-}
-
-auto ParserOpts::hasJsonInput() const -> bool {
-  return !json_variables.empty();
-}
-
-auto ParserOpts::isInputInJson(std::string const& id) const
-    -> std::optional<std::string> {
-  if (auto it = json_variables.find(id); it != json_variables.end())
-    return it->second;
-  return std::nullopt;
-}
-
 std::string ParserOpts::get_output_file() const {
   if (!output_file.empty())
     return output_file;
@@ -80,7 +57,6 @@ std::string ParserOpts::get_output_file() const {
 
 auto ParserOpts::finalize() -> bool {
   // TODO - try catch ...
-  checkForJsonInput();
 
   auto solver_configs = MiniZinc::SolverConfigs(logs);
 

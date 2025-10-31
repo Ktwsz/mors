@@ -18,14 +18,12 @@ struct ParserOpts {
   std::string ortools_include_dir;
   bool verbose;
   bool print_ast;
+  bool runtime_parameters;
   bool help;
 
   std::ostringstream logs;
 
   static auto create(int, char**) -> std::expected<ParserOpts, clipp::man_page>;
-
-  auto hasJsonInput() const -> bool;
-  auto isInputInJson(std::string const& id) const -> std::optional<std::string>;
 
   void dump_warnings() const;
 
@@ -36,10 +34,7 @@ struct ParserOpts {
 private:
   auto finalize() -> bool;
 
-  void checkForJsonInput();
-
   std::string output_file;
-  std::map<std::string, std::string> json_variables;
 };
 
 } // namespace parser

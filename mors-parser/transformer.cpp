@@ -57,13 +57,18 @@ auto reformat_id(std::string_view const id) -> std::string {
          std::string{id.substr(1, ix - 1)};
 }
 
-void make_reif_call(MiniZinc::Call* call) {
+void make_reif_call(MiniZinc::Call* call, Transformer::Stack::Scope& scope) {
   std::string id{call->id().c_str()};
   std::vector args(call->args().begin(), call->args().end());
 
   MiniZinc::Location loc{};
-  auto bool_arg =
-      new MiniZinc::Id(loc, "b", nullptr); // TODO: think of better id
+  auto bool_arg = new MiniZinc::Id(loc, "\x1\x1\x1\x0", nullptr);
+  scope.add(ast::DeclVariable{
+      .id = std::string{"\x1\x1\x1\x0"},
+      .var_type = ast::types::Bool{},
+      .domain = std::nullopt,
+      .value = std::nullopt,
+  });
   bool_arg->type(MiniZinc::Type::varbool());
   args.push_back(bool_arg);
 
@@ -154,15 +159,12 @@ auto Transformer::map(MiniZinc::VarDecl* var_decl, bool const is_global,
              },
              var);
 
-  if (auto const json_path = opts.isInputInJson(utils::var_id(var));
-      json_path && is_global) {
-    auto var_value = utils::var_value(var);
-    if (std::holds_alternative<ast::Call>(*var_value)) {
-      auto& call = std::get<ast::Call>(*var_value);
-      call.args.back() = std::make_shared<ast::Expr>(ast::Call{
+  if (is_global && std::holds_alternative<ast::DeclConst>(var)) {
+    auto& const_decl = std::get<ast::DeclConst>(var);
+    if (!const_decl.value) {
+      const_decl.value = ast::ptr(ast::Call{
           .id = "load_from_json",
-          .args = {std::make_shared<ast::Expr>(
-              ast::LiteralString{.value = *json_path})},
+          .args = {ast::ptr(ast::LiteralString{const_decl.id})},
           .expr_type = utils::var_type(var),
           .is_var = false,
       });
@@ -193,12 +195,11 @@ auto Transformer::map(MiniZinc::SetLit* set_lit) -> ast::Expr {
     assert(min.isFinite());
     assert(max.isFinite());
 
-    return ast::BinOp{
-        .kind = ast::BinOp::OpKind::DOTDOT,
-        .lhs = std::make_shared<ast::Expr>(ast::LiteralInt{min.toInt()}),
-        .rhs = std::make_shared<ast::Expr>(ast::LiteralInt{max.toInt()}),
-        .expr_type = ast::types::IntSet{},
-        .is_var = false};
+    return ast::BinOp{.kind = ast::BinOp::OpKind::DOTDOT,
+                      .lhs = ast::ptr(ast::LiteralInt{min.toInt()}),
+                      .rhs = ast::ptr(ast::LiteralInt{max.toInt()}),
+                      .expr_type = ast::types::IntSet{},
+                      .is_var = false};
   }
 
   return ast::LiteralSet{.value = set_lit->v() |
@@ -263,7 +264,8 @@ auto Transformer::map(MiniZinc::Call* call) -> ast::Expr {
       .expr_type = map(function_item->ti()),
       .is_var = function_item->ti()->type().isvar()};
 
-  make_reif_call(call);
+  auto scope = stack.scope();
+  make_reif_call(call, scope);
   auto const function_item_reif = model.matchFn(env, call, true, false);
   if (function_item_reif != nullptr)
     save(function_item_reif);
@@ -299,9 +301,14 @@ void Transformer::save(MiniZinc::FunctionI* function) {
   if (function->e() == nullptr)
     return;
 
-  auto scope = stack.scope();
-
   auto const id = reformat_id(std::string{function->id().c_str()});
+
+  if (functions.find(id) != functions.end())
+    return;
+
+  functions.emplace(id, ast::Function{});
+
+  auto scope = stack.scope();
 
   std::vector<ast::IdExpr> params;
   for (auto const ix : std::views::iota(0u, function->paramCount())) {
@@ -313,7 +320,10 @@ void Transformer::save(MiniZinc::FunctionI* function) {
     params.push_back(ast::IdExpr::from_var(*var));
   }
 
-  functions.emplace(id, ast::Function{id, params, map_ptr(function->e())});
+  auto& fn = functions[id];
+  fn.id = id;
+  fn.params = params;
+  fn.body = map_ptr(function->e());
 }
 
 auto Transformer::map(MiniZinc::Expression* expr) -> ast::Expr {
