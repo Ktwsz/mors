@@ -296,8 +296,6 @@ auto Transformer::map(MiniZinc::ArrayAccess* array_access) -> ast::Expr {
 }
 
 void Transformer::save(MiniZinc::FunctionI* function) {
-  if (function->id().endsWith("abs")) // TODO - identify BIFs
-    return;
   if (function->e() == nullptr)
     return;
 
@@ -461,6 +459,8 @@ auto Transformer::map(MiniZinc::BinOp* bin_op) -> ast::Expr {
       return ast::BinOp::OpKind::IN;
     case MiniZinc::BOT_EQUIV:
       return ast::BinOp::OpKind::EQUIV;
+    case MiniZinc::BOT_DIFF:
+      return ast::BinOp::OpKind::DIFF;
     default:
       assert(false);
     }
@@ -548,12 +548,9 @@ auto Transformer::map(MiniZinc::Let* let) -> ast::Expr {
   std::string id = fmt::format("in_{}", let_in_ctr);
   functions.emplace(
       id, ast::Function{.id = id,
-                        .params =
-                            args |
-                            std::views::transform([](ast::VarDecl const& var) {
-                              return ast::IdExpr::from_var(var);
-                            }) |
-                            std::ranges::to<std::vector>(),
+                        .params = args |
+                                  std::views::transform(ast::IdExpr::from_var) |
+                                  std::ranges::to<std::vector>(),
                         .body = function_body});
 
   return ast::LetIn{.id = fmt::format("{}", let_in_ctr),
