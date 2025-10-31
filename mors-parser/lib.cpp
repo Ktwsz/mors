@@ -92,9 +92,9 @@ auto main(ParserOpts const& opts) -> std::expected<ast::Tree, err::Error> {
 
   auto& model = *flt.getEnv()->model();
 
+  MiniZinc::register_builtins(*flt.getEnv());
   // TODO: separate ast printing from this function
   if (opts.print_ast) {
-    MiniZinc::register_builtins(*flt.getEnv());
     PrintModelVisitor vis{model, flt.getEnv()->envi(), opts.model_path};
 
     fmt::println("--- VAR DECLS ---");

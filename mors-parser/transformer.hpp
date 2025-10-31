@@ -63,6 +63,8 @@ private:
   auto map(MiniZinc::TypeInst*) -> ast::Type;
   auto map(MiniZinc::Type const&) -> ast::Type;
   auto map(MiniZinc::Comprehension*) -> ast::Comprehension;
+  auto call_builtin(MiniZinc::Call* call, MiniZinc::FunctionI* fn,
+                    MiniZinc::EnvI& env) -> std::optional<ast::Expr>;
   auto map(MiniZinc::Call*) -> ast::Expr;
   auto map(MiniZinc::ArrayAccess*) -> ast::Expr;
   auto map(MiniZinc::BinOp*) -> ast::Expr;

@@ -1,8 +1,10 @@
+// TODO - only evaluate nuiltins when no json decls inside
 #include "transformer.hpp"
 #include "utils.hpp"
 
 #include <fmt/base.h>
 #include <fmt/format.h>
+#include <minizinc/astexception.hh>
 #include <minizinc/type.hh>
 
 #include <algorithm>
@@ -57,13 +59,18 @@ auto reformat_id(std::string_view const id) -> std::string {
          std::string{id.substr(1, ix - 1)};
 }
 
-void make_reif_call(MiniZinc::Call* call) {
+void make_reif_call(MiniZinc::Call* call, Transformer::Stack::Scope& scope) {
   std::string id{call->id().c_str()};
   std::vector args(call->args().begin(), call->args().end());
 
   MiniZinc::Location loc{};
-  auto bool_arg =
-      new MiniZinc::Id(loc, "b", nullptr); // TODO: think of better id
+  auto bool_arg = new MiniZinc::Id(loc, "\x1\x1\x1\x0", nullptr);
+  scope.add(ast::DeclVariable{
+      .id = std::string{"\x1\x1\x1\x0"},
+      .var_type = ast::types::Bool{},
+      .domain = std::nullopt,
+      .value = std::nullopt,
+  });
   bool_arg->type(MiniZinc::Type::varbool());
   args.push_back(bool_arg);
 
@@ -245,6 +252,49 @@ auto Transformer::map(MiniZinc::Comprehension* comp) -> ast::Comprehension {
                             .is_var = comp->type().isvar()};
 }
 
+auto Transformer::call_builtin(MiniZinc::Call* call, MiniZinc::FunctionI* fn,
+                               MiniZinc::EnvI& env)
+    -> std::optional<ast::Expr> {
+
+  fmt::println("aaa! {}", std::string{call->id().c_str()});
+
+  try {
+    if (fn->builtins.e != nullptr) {
+      return map(fn->builtins.e(env, call));
+    } else if (fn->builtins.b != nullptr) {
+      return ast::LiteralBool{fn->builtins.b(env, call)};
+    } else if (fn->builtins.f != nullptr) {
+      MiniZinc::FloatVal value = fn->builtins.f(env, call);
+      assert(value.isFinite());
+      return ast::LiteralFloat{value.toDouble()};
+    } else if (fn->builtins.i != nullptr) {
+      MiniZinc::IntVal value = fn->builtins.i(env, call);
+      assert(value.isFinite());
+      return ast::LiteralInt{value.toInt()};
+    }
+  } catch (MiniZinc::AssertionError e) {
+    return ast::Call{
+        .id = "assert",
+        .args = {std::make_shared<ast::Expr>(ast::LiteralBool{false}), std::make_shared<ast::Expr>(ast::LiteralString{"unsupported"})},
+        .expr_type = ast::types::Bool{},
+        .is_var = false
+    };
+  }
+
+  return std::nullopt;
+}
+
+void link_function_args(MiniZinc::Call* call, MiniZinc::FunctionI* fn) {
+  for (auto const ix : std::views::iota(0u, fn->paramCount())) {
+    fn->param(ix)->e(call->arg(ix));
+  }
+}
+
+void reset_function_args(MiniZinc::FunctionI* fn) {
+  for (auto const ix : std::views::iota(0u, fn->paramCount()))
+    fn->param(ix)->e(nullptr);
+}
+
 auto Transformer::map(MiniZinc::Call* call) -> ast::Expr {
   assert(call->id().c_str() != nullptr && "Function call: null function id");
   auto const old_id = std::string{call->id().c_str()};
@@ -253,7 +303,16 @@ auto Transformer::map(MiniZinc::Call* call) -> ast::Expr {
   assert(!id.empty() && "Function call: empty function id");
 
   auto const function_item = model.matchFn(env, call, true, false);
-  save(function_item);
+
+  link_function_args(call, function_item);
+
+  if (function_item->e() != nullptr) {
+    save(function_item);
+  } else if (std::optional builtin_res =
+                 call_builtin(call, function_item, env)) {
+    fmt::println("bbb");
+    return *builtin_res;
+  }
 
   auto const result = ast::Call{
       .id = id,
@@ -263,10 +322,18 @@ auto Transformer::map(MiniZinc::Call* call) -> ast::Expr {
       .expr_type = map(function_item->ti()),
       .is_var = function_item->ti()->type().isvar()};
 
-  make_reif_call(call);
+  reset_function_args(function_item);
+
+  auto scope = stack.scope();
+  make_reif_call(call, scope);
+
   auto const function_item_reif = model.matchFn(env, call, true, false);
-  if (function_item_reif != nullptr)
+
+  if (function_item_reif != nullptr) {
+    link_function_args(call, function_item_reif);
     save(function_item_reif);
+    reset_function_args(function_item_reif);
+  }
 
   call->id(MiniZinc::ASTString(old_id));
   call->args(old_args);
@@ -294,8 +361,6 @@ auto Transformer::map(MiniZinc::ArrayAccess* array_access) -> ast::Expr {
 }
 
 void Transformer::save(MiniZinc::FunctionI* function) {
-  if (function->id().endsWith("abs")) // TODO - identify BIFs
-    return;
   if (function->e() == nullptr)
     return;
 
