@@ -1,8 +1,10 @@
 #include "transformer.hpp"
+#include "minizinc/ast.hh"
 #include "utils.hpp"
 
 #include <fmt/base.h>
 #include <fmt/format.h>
+#include <minizinc/flatten_internal.hh>
 #include <minizinc/type.hh>
 
 #include <algorithm>
@@ -22,7 +24,6 @@ auto resolve_base_type(MiniZinc::Type::BaseType base_type) -> ast::Type {
   //   BT_TUPLE,
   //   BT_RECORD,
   //   BT_TOP,
-  //   BT_BOT,
   //   BT_UNKNOWN
   // };
   switch (base_type) {
@@ -40,6 +41,9 @@ auto resolve_base_type(MiniZinc::Type::BaseType base_type) -> ast::Type {
   }
   case MiniZinc::Type::BT_TOP: {
     return ast::types::Int{}; // TODO?
+  }
+  case MiniZinc::Type::BT_BOT: {
+    return ast::types::Unspecified{};
   }
   default:
     assert(false);
@@ -61,8 +65,8 @@ void make_reif_call(MiniZinc::Call* call, Transformer::Stack::Scope& scope) {
   std::string id{call->id().c_str()};
   std::vector args(call->args().begin(), call->args().end());
 
-  MiniZinc::Location loc{};
-  auto bool_arg = new MiniZinc::Id(loc, "\x1\x1\x1\x0", nullptr);
+  auto bool_arg =
+      new MiniZinc::Id(MiniZinc::Location(), "\x1\x1\x1\x0", nullptr);
   scope.add(ast::DeclVariable{
       .id = std::string{"\x1\x1\x1\x0"},
       .var_type = ast::types::Bool{},
@@ -74,6 +78,59 @@ void make_reif_call(MiniZinc::Call* call, Transformer::Stack::Scope& scope) {
 
   call->id(MiniZinc::ASTString(id + "_reif"));
   call->args(args);
+}
+
+auto make_ite_call(MiniZinc::ITE& ite, MiniZinc::EnvI& env,
+                   Transformer::Stack::Scope& scope) -> MiniZinc::Call* {
+  std::vector conditions =
+      std::views::iota(0u, ite.size()) |
+      std::views::transform([&](auto i) { return ite.ifExpr(i); }) |
+      std::ranges::to<std::vector>();
+
+  std::vector branches =
+      std::views::iota(0u, ite.size()) |
+      std::views::transform([&](auto i) { return ite.thenExpr(i); }) |
+      std::ranges::to<std::vector>();
+
+  if (conditions.back() != env.constants.literalTrue) {
+    conditions.emplace_back(env.constants.literalTrue);
+    branches.push_back(ite.elseExpr());
+  }
+
+  auto* conditions_literal =
+      new MiniZinc::ArrayLit(MiniZinc::Location().introduce(), conditions);
+  MiniZinc::Type conditions_t = MiniZinc::Type::arrType(
+      env, MiniZinc::Type::bot(1), MiniZinc::Type::varbool(1));
+
+  conditions_t.ti(MiniZinc::Type::TI_VAR);
+  conditions_literal->type(conditions_t);
+
+  auto* branches_literal =
+      new MiniZinc::ArrayLit(MiniZinc::Location().introduce(), branches);
+  MiniZinc::Type branches_t = MiniZinc::Type::arrType(
+      env, MiniZinc::Type::bot(1), MiniZinc::Expression::type(branches[0]));
+
+  branches_t.ti(MiniZinc::Type::TI_VAR);
+  branches_literal->type(branches_t);
+
+  auto id_arg = new MiniZinc::Id(MiniZinc::Location(), "ite_result_2137", nullptr);
+  id_arg->type(MiniZinc::Expression::type(branches[0]));
+
+  scope.add(ast::DeclVariable{
+      .id = std::string{"ite_result_2137"},
+      .var_type = resolve_base_type(id_arg->type().bt()),
+      .domain = std::nullopt,
+      .value = std::nullopt,
+  });
+
+  auto ite_pred =
+      MiniZinc::Call::a(MiniZinc::Expression::loc(&ite).introduce(),
+                        MiniZinc::ASTString("if_then_else"),
+                        {conditions_literal, branches_literal, id_arg});
+
+  MiniZinc::Expression::cast<MiniZinc::Call>(ite_pred)->decl(env.model->matchFn(
+      env, MiniZinc::Expression::cast<MiniZinc::Call>(ite_pred), false, true));
+  return ite_pred;
 }
 
 } // namespace
@@ -113,6 +170,9 @@ auto Transformer::map(MiniZinc::Type const& type) -> ast::Type {
                           },
                           [](ast::types::Bool const&) -> ast::Type {
                             return ast::types::BoolSet{};
+                          },
+                          [](ast::types::Unspecified const&) -> ast::Type {
+                            return ast::types::UnspecifiedSet{};
                           },
                           [](auto const& t) -> ast::Type { return t; }},
         resolve_base_type(type.bt()));
@@ -437,6 +497,10 @@ auto Transformer::map(MiniZinc::BinOp* bin_op) -> ast::Expr {
       return ast::BinOp::OpKind::MULT;
     case MiniZinc::BOT_IDIV:
       return ast::BinOp::OpKind::IDIV;
+    case MiniZinc::BOT_DIV:
+      return ast::BinOp::OpKind::DIV;
+    case MiniZinc::BOT_POW:
+      return ast::BinOp::OpKind::POW;
     case MiniZinc::BOT_MOD:
       return ast::BinOp::OpKind::MOD;
     case MiniZinc::BOT_EQ:
@@ -453,14 +517,28 @@ auto Transformer::map(MiniZinc::BinOp* bin_op) -> ast::Expr {
       return ast::BinOp::OpKind::AND;
     case MiniZinc::BOT_OR:
       return ast::BinOp::OpKind::OR;
+    case MiniZinc::BOT_XOR:
+      return ast::BinOp::OpKind::XOR;
     case MiniZinc::BOT_IMPL:
       return ast::BinOp::OpKind::IMPL;
+    case MiniZinc::BOT_RIMPL:
+      return ast::BinOp::OpKind::RIMPL;
     case MiniZinc::BOT_IN:
       return ast::BinOp::OpKind::IN;
     case MiniZinc::BOT_EQUIV:
       return ast::BinOp::OpKind::EQUIV;
     case MiniZinc::BOT_DIFF:
       return ast::BinOp::OpKind::DIFF;
+    case MiniZinc::BOT_INTERSECT:
+      return ast::BinOp::OpKind::INTERSECT;
+    case MiniZinc::BOT_UNION:
+      return ast::BinOp::OpKind::UNION;
+    case MiniZinc::BOT_SYMDIFF:
+      return ast::BinOp::OpKind::SYMDIFF;
+    case MiniZinc::BOT_SUBSET:
+      return ast::BinOp::OpKind::SUBSET;
+    case MiniZinc::BOT_SUPERSET:
+      return ast::BinOp::OpKind::SUPERSET;
     default:
       assert(false);
     }
@@ -501,6 +579,15 @@ auto Transformer::map(MiniZinc::UnOp* un_op) -> ast::Expr {
 }
 
 auto Transformer::map(MiniZinc::ITE* ite) -> ast::Expr {
+  auto r =
+      std::views::iota(0u, ite->size()) | std::views::transform([&](auto i) {
+        return MiniZinc::Expression::type(ite->ifExpr(i)).isvar();
+      });
+  if (std::any_of(r.begin(), r.end(), std::identity{})) {
+    auto scope = stack.scope();
+    return map(make_ite_call(*ite, env, scope));
+  }
+
   std::vector if_then =
       std::views::iota(0u, ite->size()) |
       std::views::transform(
@@ -520,6 +607,7 @@ auto Transformer::map(MiniZinc::ITE* ite) -> ast::Expr {
 
 auto Transformer::map(MiniZinc::Let* let) -> ast::Expr {
   let_in_ctr++;
+  std::string id = fmt::format("let_in_{}", let_in_ctr);
 
   auto scope = stack.scope();
 
@@ -545,7 +633,6 @@ auto Transformer::map(MiniZinc::Let* let) -> ast::Expr {
       std::ranges::to<std::vector>();
 
   ast::ExprHandle function_body = map_ptr(let->in());
-  std::string id = fmt::format("in_{}", let_in_ctr);
   functions.emplace(
       id, ast::Function{.id = id,
                         .params = args |
@@ -553,7 +640,7 @@ auto Transformer::map(MiniZinc::Let* let) -> ast::Expr {
                                   std::ranges::to<std::vector>(),
                         .body = function_body});
 
-  return ast::LetIn{.id = fmt::format("{}", let_in_ctr),
+  return ast::LetIn{.id = id,
                     .declarations = std::move(args),
                     .constraints = std::move(constraints),
                     .expr_type = utils::expr_type(*function_body),

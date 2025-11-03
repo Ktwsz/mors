@@ -12,7 +12,7 @@ namespace parser::ast {
 namespace types {
 struct Unspecified {};
 struct Int {};
-struct Float {}; // TODO: floats not supported for now
+struct Float {};
 struct Bool {};
 struct String {};
 
@@ -29,8 +29,8 @@ struct Array;
 } // namespace types
 
 using Type = std::variant<types::Int, types::Float, types::Bool, types::String,
-                          types::IntSet, types::FloatSet, types::BoolSet,
-                          types::UnspecifiedSet, types::Array>;
+                          types::Unspecified, types::IntSet, types::FloatSet,
+                          types::BoolSet, types::UnspecifiedSet, types::Array>;
 
 struct LiteralBool;
 struct LiteralInt;
@@ -78,7 +78,6 @@ struct LiteralString {
   bool is_var = false;
 };
 
-// TODO: floats not supported for now
 struct LiteralFloat {
   double value;
 
@@ -120,6 +119,8 @@ struct BinOp {
     MINUS,
     MULT,
     IDIV,
+    DIV,
+    POW,
     MOD,
     DOTDOT,
     EQ,
@@ -131,19 +132,17 @@ struct BinOp {
     PLUSPLUS,
     AND,
     OR,
+    XOR,
     IMPL,
+    RIMPL,
     IN,
     EQUIV,
     DIFF,
-    // BOT_DIV,
-    // BOT_POW,
-    // BOT_SUBSET,
-    // BOT_SUPERSET,
-    // BOT_UNION,
-    // BOT_SYMDIFF,
-    // BOT_INTERSECT,
-    // BOT_RIMPL,
-    // BOT_XOR,
+    INTERSECT,
+    UNION,
+    SYMDIFF,
+    SUBSET,
+    SUPERSET,
   };
   OpKind kind;
 
@@ -277,11 +276,9 @@ struct Tree {
   FunctionMap functions;
 };
 
-template <typename T>
-auto ptr(T && t) -> ExprHandle {
-    return std::make_shared<Expr>(std::forward<T>(t));
+template <typename T> auto ptr(T&& t) -> ExprHandle {
+  return std::make_shared<Expr>(std::forward<T>(t));
 }
-
 
 auto ptr(Expr&& t) -> ExprHandle;
 

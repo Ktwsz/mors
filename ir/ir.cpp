@@ -25,6 +25,10 @@ PYBIND11_MODULE(ir_python, m) {
   py::class_<ast::types::Bool>(m, "TypeBool")
       .def("type", [](ast::types::Bool const&) { return "bool"; });
 
+  py::class_<ast::types::Unspecified>(m, "TypeUnspecified")
+      .def("type",
+           [](ast::types::Unspecified const&) { return "unspecified"; });
+
   py::class_<ast::types::String>(m, "TypeString")
       .def("type", [](ast::types::String const&) { return "string"; });
 
@@ -119,6 +123,8 @@ PYBIND11_MODULE(ir_python, m) {
       .value("MINUS", ast::BinOp::OpKind::MINUS)
       .value("MULT", ast::BinOp::OpKind::MULT)
       .value("IDIV", ast::BinOp::OpKind::IDIV)
+      .value("DIV", ast::BinOp::OpKind::DIV)
+      .value("POW", ast::BinOp::OpKind::POW)
       .value("MOD", ast::BinOp::OpKind::MOD)
       .value("DOTDOT", ast::BinOp::OpKind::DOTDOT)
       .value("EQ", ast::BinOp::OpKind::EQ)
@@ -130,9 +136,17 @@ PYBIND11_MODULE(ir_python, m) {
       .value("PLUSPLUS", ast::BinOp::OpKind::PLUSPLUS)
       .value("AND", ast::BinOp::OpKind::AND)
       .value("OR", ast::BinOp::OpKind::OR)
+      .value("XOR", ast::BinOp::OpKind::XOR)
       .value("IMPL", ast::BinOp::OpKind::IMPL)
+      .value("RIMPL", ast::BinOp::OpKind::RIMPL)
       .value("IN", ast::BinOp::OpKind::IN)
       .value("EQUIV", ast::BinOp::OpKind::EQUIV)
+      .value("DIFF", ast::BinOp::OpKind::DIFF)
+      .value("INTERSECT", ast::BinOp::OpKind::INTERSECT)
+      .value("UNION", ast::BinOp::OpKind::UNION)
+      .value("SYMDIFF", ast::BinOp::OpKind::SYMDIFF)
+      .value("SUBSET", ast::BinOp::OpKind::SUBSET)
+      .value("SUPERSET", ast::BinOp::OpKind::SUPERSET)
       .export_values();
 
   py::class_<ast::UnaryOp> un_op(m, "UnaryOp");
@@ -163,7 +177,8 @@ PYBIND11_MODULE(ir_python, m) {
   py::class_<ast::DeclVariable>(m, "DeclVariable")
       .def_readonly("id", &ast::DeclVariable::id)
       .def_readonly("type", &ast::DeclVariable::var_type)
-      .def_readonly("domain", &ast::DeclVariable::domain);
+      .def_readonly("domain", &ast::DeclVariable::domain)
+      .def_readonly("value", &ast::DeclVariable::value);
 
   py::class_<ast::DeclConst>(m, "DeclConst")
       .def_readonly("id", &ast::DeclConst::id)
