@@ -171,6 +171,7 @@ PYBIND11_MODULE(ir_python, m) {
       .def_readonly("id", &ast::LetIn::id)
       .def_readonly("declarations", &ast::LetIn::declarations)
       .def_readonly("constraints", &ast::LetIn::constraints)
+      .def_readonly("in_expr", &ast::LetIn::in_expr)
       .def_readonly("expr_type", &ast::LetIn::expr_type)
       .def_readonly("is_var", &ast::LetIn::is_var);
 

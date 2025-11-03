@@ -632,19 +632,16 @@ auto Transformer::map(MiniZinc::Let* let) -> ast::Expr {
       std::views::transform([&](auto& expr) { return map_ptr(expr); }) |
       std::ranges::to<std::vector>();
 
-  ast::ExprHandle function_body = map_ptr(let->in());
-  functions.emplace(
-      id, ast::Function{.id = id,
-                        .params = args |
-                                  std::views::transform(ast::IdExpr::from_var) |
-                                  std::ranges::to<std::vector>(),
-                        .body = function_body});
+  ast::Expr function_body = map(let->in());
+  ast::Type expr_type = utils::expr_type(function_body);
+  bool const is_var = utils::is_expr_var(function_body);
 
   return ast::LetIn{.id = id,
                     .declarations = std::move(args),
                     .constraints = std::move(constraints),
-                    .expr_type = utils::expr_type(*function_body),
-                    .is_var = utils::is_expr_var(*function_body)};
+                    .in_expr = ast::ptr(std::move(function_body)),
+                    .expr_type = std::move(expr_type),
+                    .is_var = is_var};
 }
 
 auto Transformer::map(MiniZinc::SolveI* solve_item) -> ast::SolveType {

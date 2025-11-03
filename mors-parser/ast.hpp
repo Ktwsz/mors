@@ -216,6 +216,7 @@ struct LetIn {
 
   std::vector<VarDecl> declarations;
   std::vector<ExprHandle> constraints;
+  ExprHandle in_expr;
 
   Type expr_type;
   bool is_var;
