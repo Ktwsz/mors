@@ -1,9 +1,10 @@
 #include "transformer.hpp"
-#include "minizinc/ast.hh"
+#include "parsing_errors.hpp"
 #include "utils.hpp"
 
 #include <fmt/base.h>
 #include <fmt/format.h>
+#include <minizinc/ast.hh>
 #include <minizinc/flatten_internal.hh>
 #include <minizinc/type.hh>
 
@@ -19,13 +20,6 @@ namespace parser {
 namespace {
 
 auto resolve_base_type(MiniZinc::Type::BaseType base_type) -> ast::Type {
-  // enum BaseType {
-  //   BT_ANN,
-  //   BT_TUPLE,
-  //   BT_RECORD,
-  //   BT_TOP,
-  //   BT_UNKNOWN
-  // };
   switch (base_type) {
   case MiniZinc::Type::BT_INT: {
     return ast::types::Int{};
@@ -40,13 +34,27 @@ auto resolve_base_type(MiniZinc::Type::BaseType base_type) -> ast::Type {
     return ast::types::String{};
   }
   case MiniZinc::Type::BT_TOP: {
-    return ast::types::Int{}; // TODO?
+    return ast::types::Int{};
   }
   case MiniZinc::Type::BT_BOT: {
     return ast::types::Unspecified{};
   }
   default:
-    assert(false);
+    throw err::Unsupported{.message = "Unsupported type: " +
+                                      [](auto const base_type) -> std::string {
+      switch (base_type) {
+      case MiniZinc::Type::BT_ANN:
+        return "Annotation";
+      case MiniZinc::Type::BT_TUPLE:
+        return "Tuple";
+      case MiniZinc::Type::BT_RECORD:
+        return "Record";
+      case MiniZinc::Type::BT_UNKNOWN:
+        return "Unknown";
+      default:
+        assert(false);
+      }
+    }(base_type)};
   }
 }
 
@@ -113,7 +121,8 @@ auto make_ite_call(MiniZinc::ITE& ite, MiniZinc::EnvI& env,
   branches_t.ti(MiniZinc::Type::TI_VAR);
   branches_literal->type(branches_t);
 
-  auto id_arg = new MiniZinc::Id(MiniZinc::Location(), "ite_result_2137", nullptr);
+  auto id_arg =
+      new MiniZinc::Id(MiniZinc::Location(), "ite_result_2137", nullptr);
   id_arg->type(MiniZinc::Expression::type(branches[0]));
 
   scope.add(ast::DeclVariable{
@@ -133,35 +142,47 @@ auto make_ite_call(MiniZinc::ITE& ite, MiniZinc::EnvI& env,
   return ite_pred;
 }
 
+auto make_location(MiniZinc::Location const& loc)
+    -> err::Unsupported::Location {
+  return err::Unsupported::Location{.filename =
+                                        std::string{loc.filename().c_str()},
+                                    .first_line = loc.firstLine(),
+                                    .first_column = loc.firstColumn(),
+                                    .last_line = loc.lastLine(),
+                                    .last_column = loc.lastColumn()};
+}
+
 } // namespace
 
 auto Transformer::map(MiniZinc::TypeInst* type_inst) -> ast::Type {
-  if (type_inst->isarray()) {
-    return ast::types::Array{
-        .dims = type_inst->ranges() |
-                std::views::transform(
-                    [&](auto& inner) -> std::optional<ast::ExprHandle> {
-                      if (inner->domain() &&
-                          MiniZinc::Expression::eid(inner->domain()) !=
-                              MiniZinc::TIId::eid)
-                        return map_ptr(inner->domain());
-                      return std::nullopt;
-                    }) |
-                std::ranges::to<std::vector>()};
-  }
-
   MiniZinc::Type type = type_inst->type();
-  type.dim(0);
+  auto inner_type = map(type);
 
-  return map(type);
+  if (!type_inst->isarray())
+    return inner_type;
+
+  return ast::types::Array{
+      .dims = type_inst->ranges() |
+              std::views::transform(
+                  [&](auto& inner) -> std::optional<ast::ExprHandle> {
+                    if (inner->domain() &&
+                        MiniZinc::Expression::eid(inner->domain()) !=
+                            MiniZinc::TIId::eid)
+                      return map_ptr(inner->domain());
+                    return std::nullopt;
+                  }) |
+              std::ranges::to<std::vector>(),
+      .inner_type =
+          type_inst->type().dim() > 0
+              ? std::move(std::get<ast::types::Array>(inner_type).inner_type)
+              : std::make_shared<ast::Type>(std::move(inner_type))};
 }
 
 auto Transformer::map(MiniZinc::Type const& type) -> ast::Type {
-  if (type.dim() > 0)
-    return ast::types::Array{};
+  ast::Type base_type;
 
-  if (type.isSet())
-    return std::visit(
+  if (type.st() == MiniZinc::Type::ST_SET)
+    base_type = std::visit(
         utils::overloaded{[](ast::types::Int const&) -> ast::Type {
                             return ast::types::IntSet{};
                           },
@@ -176,38 +197,52 @@ auto Transformer::map(MiniZinc::Type const& type) -> ast::Type {
                           },
                           [](auto const& t) -> ast::Type { return t; }},
         resolve_base_type(type.bt()));
+  else
+    base_type = resolve_base_type(type.bt());
 
-  return resolve_base_type(type.bt());
+  if (type.dim() > 0)
+    return ast::types::Array{
+        .dims = {}, .inner_type = std::make_shared<ast::Type>(base_type)};
+  return base_type;
 }
 
 auto Transformer::handle_const_decl(MiniZinc::VarDecl* var_decl)
     -> ast::VarDecl {
   return ast::DeclConst{.id = std::string{var_decl->id()->v().c_str()},
                         .type = map(var_decl->ti()),
-                        .value = var_decl->e()
-                                   ? std::optional{map_ptr(var_decl->e())}
-                                   : std::nullopt};
+                        .value = map_opt_ptr(var_decl->e())};
 }
 
 auto Transformer::handle_var_decl(MiniZinc::VarDecl* var_decl) -> ast::VarDecl {
+  ast::Type type = map(var_decl->ti());
+
+  if (utils::is_unsupported_var_type(type))
+    throw err::Unsupported{
+        .location = {make_location(MiniZinc::Expression::loc(var_decl))},
+        .message = "Variable of type " + utils::type_to_string(type)};
+
   return ast::DeclVariable{
       .id = std::string{var_decl->id()->v().c_str()},
-      .var_type = map(var_decl->ti()),
-      .domain = var_decl->ti()->domain() != nullptr &&
+      .var_type = std::move(type),
+      .domain = var_decl->ti()->domain() &&
                         MiniZinc::Expression::eid(var_decl->ti()->domain()) !=
                             MiniZinc::TIId::eid
-                  ? std::optional{map_ptr(var_decl->ti()->domain())}
+                  ? map_opt_ptr(var_decl->ti()->domain())
                   : std::nullopt,
-      .value =
-          var_decl->e() ? std::optional{map_ptr(var_decl->e())} : std::nullopt};
+      .value = map_opt_ptr(var_decl->e())};
 }
 
+// TODO use epxlicit bools
 auto Transformer::map(MiniZinc::VarDecl* var_decl, bool const is_global,
-                      bool const check_id) -> std::optional<ast::VarDecl> {
+                      bool const check_id, bool const ignore_optional)
+    -> ast::VarDecl {
   if (check_id &&
       (!var_decl->item()->loc().filename().endsWith(opts.model_path) ||
        var_decl->id()->str() == "_objective"))
-    return std::nullopt;
+    throw Ignore{};
+
+  if (!ignore_optional && var_decl->type().isOpt())
+    throw err::Unsupported{.message = "Optional type"};
 
   auto var = MiniZinc::Expression::type(var_decl->ti()).isPar()
                ? handle_const_decl(var_decl)
@@ -252,8 +287,8 @@ auto Transformer::map(MiniZinc::SetLit* set_lit) -> ast::Expr {
     auto const& min = isv->min();
     auto const& max = isv->max();
 
-    assert(min.isFinite());
-    assert(max.isFinite());
+    if (!min.isFinite() || !max.isFinite())
+      throw err::Unsupported{.message = "Set literal with infinite bound."};
 
     return ast::BinOp{.kind = ast::BinOp::OpKind::DOTDOT,
                       .lhs = ast::ptr(ast::LiteralInt{min.toInt()}),
@@ -278,15 +313,17 @@ auto Transformer::map(MiniZinc::Comprehension* comp) -> ast::Comprehension {
 
   for (auto const i : std::views::iota(0u, comp->numberOfGenerators())) {
 
-    assert((comp->in(i) != nullptr || comp->where(i) != nullptr) &&
-           "Null generator");
+    if (!comp->in(i) && !comp->where(i))
+      throw err::Unsupported{.message = "Comprehension has null generator."};
 
     if (comp->in(i) != nullptr) {
       ast::ExprHandle const in_expr = map_ptr(comp->in(i));
 
       for (auto const j : std::views::iota(0u, comp->numberOfDecls(i))) {
         ast::VarDecl decl_expr = handle_const_decl(comp->decl(i, j));
-        assert(std::holds_alternative<ast::DeclConst>(decl_expr));
+        if (!std::holds_alternative<ast::DeclConst>(decl_expr))
+          throw err::Unsupported{.message =
+                                     "Comprehension containts variable."};
 
         scope.add(decl_expr);
 
@@ -307,11 +344,17 @@ auto Transformer::map(MiniZinc::Comprehension* comp) -> ast::Comprehension {
 }
 
 auto Transformer::map(MiniZinc::Call* call) -> ast::Expr {
-  assert(call->id().c_str() != nullptr && "Function call: null function id");
+  if (!call->id().c_str() || call->id() == "")
+    throw err::Unsupported{.message = "Function call with null function id"};
+
+  if (call->id() == "assert" &&
+      MiniZinc::Expression::loc(call).filename().endsWith(
+          "stdlib_language.mzn"))
+    throw Ignore{};
+
   auto const old_id = std::string{call->id().c_str()};
   std::vector old_args(call->args().begin(), call->args().end());
   auto const id = reformat_id(old_id);
-  assert(!id.empty() && "Function call: empty function id");
 
   auto const function_item = model.matchFn(env, call, true, false);
   save(function_item);
@@ -370,8 +413,10 @@ void Transformer::save(MiniZinc::FunctionI* function) {
 
   std::vector<ast::IdExpr> params;
   for (auto const ix : std::views::iota(0u, function->paramCount())) {
-    std::optional const var = map(function->param(ix), false, false);
-    assert("Parameter of a function should be a valid var decl" && var);
+    std::optional const var = map(function->param(ix), false, false, true);
+    if (!var)
+      throw err::Unsupported{
+          .message = "Parameter of a function should be a valid var decl"};
 
     scope.add(*var);
 
@@ -384,20 +429,21 @@ void Transformer::save(MiniZinc::FunctionI* function) {
   fn.body = map_ptr(function->e());
 }
 
-auto Transformer::map(MiniZinc::Expression* expr) -> ast::Expr {
+auto Transformer::map(MiniZinc::Expression* expr) -> ast::Expr try {
   switch (MiniZinc::Expression::eid(expr)) {
   case MiniZinc::IntLit::eid: {
     auto const* int_lit = MiniZinc::Expression::cast<MiniZinc::IntLit>(expr);
     auto const value = MiniZinc::IntLit::v(int_lit);
 
-    assert(value.isFinite());
+    if (!value.isFinite())
+      throw err::Unsupported{.message = "Infinite integer"};
 
     return ast::LiteralInt{value.toInt()};
   }
   case MiniZinc::Id::eid: {
     auto* id = MiniZinc::Expression::cast<MiniZinc::Id>(expr);
-    assert(id->v().c_str() != nullptr && id->v() != "" &&
-           "Id Expression: null id");
+    if (!id->v().c_str() || id->v() == "")
+      throw err::Unsupported{.message = "Id with null string"};
 
     std::string id_str{id->v().c_str()};
     auto const& var = stack.variable_map[id_str].back();
@@ -421,7 +467,8 @@ auto Transformer::map(MiniZinc::Expression* expr) -> ast::Expr {
         MiniZinc::Expression::cast<MiniZinc::FloatLit>(expr);
     auto const value = MiniZinc::FloatLit::v(float_lit);
 
-    assert(value.isFinite());
+    if (!value.isFinite())
+      throw err::Unsupported{.message = "Infinite float"};
 
     return ast::LiteralFloat{value.toDouble()};
   }
@@ -475,9 +522,10 @@ auto Transformer::map(MiniZinc::Expression* expr) -> ast::Expr {
   case MiniZinc::TIId::eid:
     fmt::println("E_TIID");
     assert(false);
-  default:
-    assert(false);
   }
+} catch (err::Unsupported& e) {
+  e.add_location(make_location(MiniZinc::Expression::loc(expr)));
+  throw;
 }
 
 auto Transformer::map(MiniZinc::BinOp* bin_op) -> ast::Expr {
@@ -558,6 +606,13 @@ auto Transformer::map_ptr(MiniZinc::Expression* e) -> ast::ExprHandle {
   return ast::ptr(map(e));
 }
 
+auto Transformer::map_opt_ptr(MiniZinc::Expression* e)
+    -> std::optional<ast::ExprHandle> {
+  if (!e)
+    return std::nullopt;
+  return map_ptr(e);
+}
+
 auto Transformer::map(MiniZinc::UnOp* un_op) -> ast::Expr {
   auto match_kind = [](MiniZinc::UnOpType const t) {
     switch (t) {
@@ -619,11 +674,10 @@ auto Transformer::map(MiniZinc::Let* let) -> ast::Expr {
       let->let() | std::views::filter(is_var_decl) |
       std::views::transform([&](auto& expr) {
         auto var = map(MiniZinc::Expression::cast<MiniZinc::VarDecl>(expr),
-                       false, false);
-        assert(var);
-        scope.add(*var);
+                       false, false, false);
+        scope.add(var);
 
-        return *var;
+        return var;
       }) |
       std::ranges::to<std::vector>();
 
@@ -666,7 +720,8 @@ auto Transformer::find_objective_expr() -> ast::Expr {
     if (var_decl->id()->str() != "_objective")
       continue;
 
-    assert(var_decl->e());
+    if (!var_decl->e())
+      throw err::Unsupported{.message = "Objective expression is null"};
 
     return map(var_decl->e());
   }

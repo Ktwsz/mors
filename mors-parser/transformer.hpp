@@ -6,9 +6,8 @@
 #include <minizinc/ast.hh>
 #include <minizinc/model.hh>
 
-#include <optional>
-
 namespace parser {
+struct Ignore {};
 
 struct Transformer {
   MiniZinc::Model& model;
@@ -25,22 +24,7 @@ struct Transformer {
       ~Scope();
     };
 
-    ast::VariableMap variable_map{
-        {"mzn_min_version_required",
-         {ast::DeclConst{
-
-             .id = "mzn_min_version_required",
-             .type = ast::types::Int{},
-             .is_global = true,
-             .value = std::make_shared<ast::Expr>(ast::LiteralInt{0})}}},
-        {"mzn_max_version_required",
-         {ast::DeclConst{
-
-             .id = "mzn_max_version_required",
-             .type = ast::types::Int{},
-             .is_global = true,
-             .value = std::make_shared<ast::Expr>(ast::LiteralInt{0})}}}
-    };
+    ast::VariableMap variable_map{};
 
     auto scope() -> Scope;
   };
@@ -51,10 +35,11 @@ struct Transformer {
 
   size_t let_in_ctr = 0;
 
-  auto map(MiniZinc::VarDecl*, bool is_global, bool check_id)
-      -> std::optional<ast::VarDecl>;
+  auto map(MiniZinc::VarDecl*, bool is_global, bool check_id,
+           bool ignore_optional) -> ast::VarDecl;
   auto map(MiniZinc::Expression*) -> ast::Expr;
   auto map_ptr(MiniZinc::Expression*) -> ast::ExprHandle;
+  auto map_opt_ptr(MiniZinc::Expression*) -> std::optional<ast::ExprHandle>;
   auto map(MiniZinc::SolveI*) -> ast::SolveType;
 
 private:

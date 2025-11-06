@@ -50,10 +50,12 @@ using Expr = std::variant<LiteralBool, LiteralInt, LiteralFloat, LiteralString,
                           LiteralArray, LiteralSet, IdExpr, BinOp, UnaryOp,
                           Call, Comprehension, ArrayAccess, IfThenElse, LetIn>;
 using ExprHandle = std::shared_ptr<Expr>;
+using OptExprHandle = std::optional<ExprHandle>;
 
 namespace types {
 struct Array {
-  std::vector<std::optional<ExprHandle>> dims;
+  std::vector<OptExprHandle> dims;
+  std::shared_ptr<Type> inner_type;
 };
 } // namespace types
 
@@ -185,7 +187,7 @@ struct ArrayAccess {
 struct IfThenElse {
   std::vector<std::pair<ExprHandle, ExprHandle>> if_then;
 
-  std::optional<ExprHandle> else_expr;
+  OptExprHandle else_expr;
 
   Type expr_type;
   bool is_var;
@@ -198,8 +200,8 @@ struct DeclVariable {
 
   bool is_global = false;
 
-  std::optional<ExprHandle> domain;
-  std::optional<ExprHandle> value;
+  OptExprHandle domain;
+  OptExprHandle value;
 };
 
 struct DeclConst {
@@ -208,7 +210,7 @@ struct DeclConst {
 
   bool is_global = false;
 
-  std::optional<ExprHandle> value;
+  OptExprHandle value;
 };
 
 struct LetIn {

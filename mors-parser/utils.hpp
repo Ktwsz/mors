@@ -17,4 +17,7 @@ auto is_var_global(ast::VarDecl const&) -> bool;
 auto var_type(ast::VarDecl const&) -> ast::Type;
 auto is_var_var(ast::VarDecl const&) -> bool;
 
+auto is_unsupported_var_type(ast::Type const&) -> bool;
+auto type_to_string(ast::Type const&) -> std::string;
+
 } // namespace parser::utils

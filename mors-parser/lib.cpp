@@ -1,6 +1,6 @@
 #include "lib.hpp"
 #include "ast_printer.hpp"
-#include "minizinc/ast.hh"
+#include "parsing_errors.hpp"
 #include "transformer.hpp"
 
 #include <sstream>
@@ -8,6 +8,8 @@
 
 #include <fmt/base.h>
 #include <fmt/format.h>
+
+#include <minizinc/ast.hh>
 #include <minizinc/flattener.hh>
 
 namespace parser {
@@ -133,21 +135,38 @@ auto main(ParserOpts const& opts) -> std::expected<ast::Tree, err::Error> {
   Transformer transformer{.model = model,
                           .env = flt.getEnv()->envi(),
                           .functions = tree.functions,
+                          .stack = {},
                           .opts = opts};
 
-  for (auto& var_decl : model.vardecls()) { // TODO make view compatible
-    if (auto decl = transformer.map(var_decl.e(), true, true); decl) {
-      tree.decls.push_back(std::move(*decl));
+  for (auto& var_decl : model.vardecls())
+    try { // TODO make view compatible
+      tree.decls.push_back(transformer.map(var_decl.e(), true, true, false));
+    } catch (Ignore const& e) {
+    } catch (err::Unsupported const& e) {
+      return std::unexpected{e};
     }
+
+  for (auto& constraint : model.constraints())
+    try { // TODO make view compatible
+      tree.constraints.push_back(transformer.map_ptr(constraint.e()));
+    } catch (Ignore const& e) {
+    } catch (err::Unsupported const& e) {
+      return std::unexpected{e};
+    }
+
+  try {
+    tree.solve_type = transformer.map(model.solveItem());
+  } catch (Ignore const& e) {
+  } catch (err::Unsupported const& e) {
+    return std::unexpected{e};
   }
 
-  for (auto& constraint : model.constraints()) { // TODO make view compatible
-    tree.constraints.push_back(transformer.map_ptr(constraint.e()));
+  try {
+    tree.output = transformer.map_ptr(model.outputItem()->e());
+  } catch (Ignore const& e) {
+  } catch (err::Unsupported const& e) {
+    return std::unexpected{e};
   }
-
-  tree.solve_type = transformer.map(model.solveItem());
-
-  tree.output = transformer.map_ptr(model.outputItem()->e());
 
   return tree;
 }
