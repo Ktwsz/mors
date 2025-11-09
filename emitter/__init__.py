@@ -40,6 +40,7 @@ class Emitter:
         self.ast_tree = ast.Module()
         self.tree = tree
         self.to_generate = []
+        self.let_in_scope = [[]]
         self.let_map = {}
 
     def init_file(self):    
@@ -68,12 +69,6 @@ class Emitter:
         self.ast_tree.body.append(ast.parse("solver = cp_model.CpSolver()"))
         self.ast_tree.body.append(ast.parse(f"solution_printer = VarArraySolutionPrinter({", ".join(self.solution_printer_params)})"))
         self.ast_tree.body.append(ast.parse("status = solver.solve(model, solution_printer)\n"))
-    #     TO BE DECIDED IN WHAT FORM WE FINALIZE MAIN 
-    #     self.ast_tree.body.append( ast.parse("""
-    #     if __name__ == "__main__":
-    #         main()
-    #     """)
-    #     )
 
     def ast_const(self, decl: DeclConst):
         match(decl.type.type()):
@@ -366,10 +361,6 @@ class Emitter:
                     return f"abs_(model, {self.ast_expr(call.args[0], state)})"
 
                 return f"abs({self.ast_expr(call.args[0], STATE_DEFAULT)})" 
-            # case "array1d":
-            #     return self.ast_expr(call.args[0], STATE_DEFAULT)
-            # case "arrayXd":
-            #     return f"arrayXd({self.ast_expr(call.args[0],state)}, {self.ast_expr(call.args[1],state)})"
             case "forall":
                 if is_constraint(state):
                     if is_stmt(state):
@@ -389,45 +380,48 @@ class Emitter:
                     self.to_generate.append((call.id, state))
                 return f"{call.id}({", ".join([self.ast_expr(arg, STATE_DEFAULT) for arg in call.args])})"
 
+    def generate_LetIn(self, let_in, state):
+        let_fn = ast.FunctionDef(let_in.id, args = ast.arguments(args=[]))
+
+        for decl in let_in.declarations:
+            if type(decl) == DeclConst:
+                let_fn.body.append(self.ast_const(decl))
+
+            elif type(decl) == DeclVariable:
+                let_fn.body.append(self.ast_var(decl))
+
+        for constraint in let_in.constraints:
+            let_fn.body.append(ast.parse(self.ast_expr(constraint, STATE_CONSTRAINT)))
+        
+        in_expr = ast.Return(ast.parse(self.ast_expr(let_in.in_expr, state)).body[-1].value)
+        let_fn.body.append(in_expr)
+
+        return let_fn
+
     def ast_Function(self, function_id: str, state):
         if function_id not in self.tree.functions:
             return
-
-        if function_id.startswith("in_"):
-            let_id = "let_" + function_id[len("in_"):]
-            let_function = ast.FunctionDef(let_id, args = ast.arguments(args=[ast.arg(arg="model")]))
-            let_expr = self.let_map[let_id]
-
-            for decl in let_expr.declarations:
-                if type(decl) == DeclConst:
-                    let_function.body.append(self.ast_const(decl))
-
-                elif type(decl) == DeclVariable:
-                    let_function.body.append(self.ast_var(decl))
-
-            for constraints in let_expr.constraints:
-                let_function.body.append(ast.parse(self.ast_expr(decl, STATE_CONSTRAINT)))
-            
-            return_str = "[" + ", ".join([decl.id for decl in let_expr.declarations]) + "]"
-            let_function.body.append(ast.Return(ast.parse(return_str).body[0].value))
-        
-            self.ast_tree.body.insert(self.function_place, ast.fix_missing_locations(let_function))
 
         function = self.tree.functions[function_id]
         fn = ast.FunctionDef(function.id)
         fn.args = ast.arguments(args = [ast.arg(arg=fn_arg.id) for fn_arg in function.params])
 
+        self.let_in_scope.append([])
         fn.body = ast.parse(self.ast_expr(function.body, state)).body
         if is_expr(state):
             fn.body = [ ast.Return(fn.body[-1].value) ]
 
+        for (let_in, let_state) in self.let_in_scope[-1]:
+            let_fn = self.generate_LetIn(let_in, let_state)
+            fn.body.insert(0, ast.fix_missing_locations(let_fn))
+
         self.ast_tree.body.insert(self.function_place, ast.fix_missing_locations(fn))
+        self.let_in_scope.pop()
 
 
     def ast_Comprehension(self, compr: Comprehension, state):
         if is_stmt(state):
             if_py, current = self.ast_generator(compr.generators, state)
-            print(self.ast_expr(compr.body, state))
             if is_output(state):
                 current.body.append(ast.parse(f"print({self.ast_expr(compr.body, state)}, end=\"\")"))
             else:
@@ -496,8 +490,6 @@ class Emitter:
                 return ast.parse(f"{decl.id} = model.new_bool_var(\"{decl.id}\")")
             case "array":
                 return ast.parse(f"{decl.id} = {self.ast_var_Array(decl, STATE_DEFAULT)}")
-            case "int_set":
-                print("aaaaaa")
             case _:
                 return ""
         #switch case which variable
@@ -533,12 +525,12 @@ class Emitter:
         ]) + "}"
 
     def ast_LetIn(self, let_in: LetIn, state):
-        id = f"in_{let_in.id}"
-        if (id, state) not in self.to_generate:
-            self.to_generate.append((id, state))
+        if is_stmt(state) and is_constraint(state):
+            state = STATE_CONSTRAINT_EXPR
 
-        self.let_map[f"let_{let_in.id}"] = let_in
-        return f"{id}(*let_{let_in.id}(model))"
+        self.let_in_scope[-1].append((let_in, state))
+
+        return f"{let_in.id}()"
 
     def ast_model_solve_type(self, solve_type):
         if (type(solve_type)==SolveTypeMax):
@@ -563,14 +555,19 @@ def hello_world(tree: Tree, file_path: str):
     for constraints in tree.constraints:
         emitter.ast_constraint(constraints)
 
+    emitter.ast_model_solve_type(tree.solve_type)
+    emitter.ast_output(tree.output)
+
     i = 0
+
+    for let_fn, let_state in emitter.let_in_scope[0]:
+        result_fn = emitter.generate_LetIn(let_fn, let_state)
+        emitter.ast_tree.body.insert(emitter.function_place, ast.fix_missing_locations(result_fn))
+
     while i < len(emitter.to_generate):
         emitter.ast_Function(emitter.to_generate[i][0], emitter.to_generate[i][1])
         i += 1
     
-    emitter.ast_model_solve_type(tree.solve_type)
-    emitter.ast_output(tree.output)
     emitter.finalize_file()
     emitter.unparse_ast_tree(file_to_write)
-    print(tree.solve_type)
     file_to_write.close()

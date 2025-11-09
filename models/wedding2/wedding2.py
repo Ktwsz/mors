@@ -33,6 +33,12 @@ def all_different_42(x):
 
 def alldifferent_41(x):
     all_different_42(array1d(x))
+
+def let_in_2():
+    p1 = model.new_int_var_from_domain(cp_model.Domain.FromValues(Seats), 'p1')
+    p2 = model.new_int_var_from_domain(cp_model.Domain.FromValues(Seats), 'p2')
+    same = model.new_int_var_from_domain(cp_model.Domain.FromValues(range(0, 1 + 1)), 'same')
+    return mult(model, same, abs(p1 - p2)) + mult(model, 1 - same, abs(13 - p1 - p2) + 1)
 Guests = set(range(1, 12 + 1))
 Seats = set(range(1, 12 + 1))
 Hatreds = set(range(1, 5 + 1))
@@ -53,10 +59,6 @@ bridesmaid = 4
 rona = 10
 Females = set({bride, bridesmaid, carol, alice, rona, clara})
 pos = {key: model.new_int_var_from_domain(cp_model.Domain.FromValues(Seats), 'pos' + str(key)) for key in Guests}
-p1 = {key: model.new_int_var_from_domain(cp_model.Domain.FromValues(Seats), 'p1' + str(key)) for key in Hatreds}
-p2 = {key: model.new_int_var_from_domain(cp_model.Domain.FromValues(Seats), 'p2' + str(key)) for key in Hatreds}
-sameside = {key: model.new_int_var_from_domain(cp_model.Domain.FromValues(range(0, 1 + 1)), 'sameside' + str(key)) for key in Hatreds}
-cost = {key: model.new_int_var_from_domain(cp_model.Domain.FromValues(Seats), 'cost' + str(key)) for key in Hatreds}
 alldifferent_41(pos)
 for g in Males:
     model.Add(mod_(model, pos[g], 2) == 1)
@@ -65,12 +67,7 @@ for g in Females:
 model.Add(~in_(model, pos[ed], {1, 6, 7, 12}) == True)
 model.Add(abs_(model, pos[bride] - pos[groom]) <= 1)
 model.Add(equiv_(model, mors_lib_bool(model, model.Add(pos[bride] <= 6), model.Add(pos[bride] > 6)), mors_lib_bool(model, model.Add(pos[groom] <= 6), model.Add(pos[groom] > 6))) == True)
-for h in Hatreds:
-    model.Add(p1[h] == pos[h1[h]])
-    model.Add(p2[h] == pos[h2[h]])
-    model.Add(sameside[h] == bool2int(model, equiv_(model, mors_lib_bool(model, model.Add(p1[h] <= 6), model.Add(p1[h] > 6)), mors_lib_bool(model, model.Add(p2[h] <= 6), model.Add(p2[h] > 6)))))
-    model.Add(cost[h] == mult(model, sameside[h], abs_(model, p1[h] - p2[h])) + mult(model, 1 - sameside[h], abs_(model, 13 - p1[h] - p2[h]) + 1))
-model.maximize(sum([cost[h] for h in Hatreds]))
+model.maximize(sum([let_in_2() for h in Hatreds]))
 solver = cp_model.CpSolver()
 solution_printer = VarArraySolutionPrinter(Seats, Guests)
 status = solver.solve(model, solution_printer)

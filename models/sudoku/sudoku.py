@@ -1,6 +1,6 @@
 import math
 from ortools.sat.python import cp_model
-import mors_lib
+from mors_lib import *
 from itertools import product
 model = cp_model.CpModel()
 
@@ -17,7 +17,7 @@ class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
         self.__solution_count += 1
         for i in self.PuzzleRange:
             for j in self.PuzzleRange:
-                print(mors_lib.show_int(self.digs, self.value(self.puzzle[i, j])) + ' ' + (' ' if j % S == 0 else '') + ((('\n\n' if i % S == 0 else '\n') if i != N else '') if j == N else ''), end='')
+                print(show_int(self.digs, self.value(self.puzzle[i, j])) + ' ' + (' ' if j % S == 0 else '') + ((('\n\n' if i % S == 0 else '\n') if i != N else '') if j == N else ''), end='')
         print('\n', end='')
 
     @property
@@ -25,13 +25,14 @@ class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
         return self.__solution_count
 
 def analyse_all_different_42(x):
-    return True
+    model.Add(True)
 
 def all_different_41(x):
-    return analyse_all_different_42(x) and model.add_all_different(x)
+    analyse_all_different_42(array1d(x))
+    all_different(model, array1d(x))
 
 def alldifferent_40(x):
-    return all_different_41(x)
+    all_different_41(array1d(x))
 S = 3
 N = S * S
 digs = math.ceil(math.log(float(N)))
@@ -44,7 +45,7 @@ for i in PuzzleRange:
         if start[i, j] > 0:
             model.Add(puzzle[i, j] == start[i, j])
         else:
-            True
+            model.Add(True)
 for i in PuzzleRange:
     alldifferent_40([puzzle[i, j] for j in PuzzleRange])
 for j in PuzzleRange:

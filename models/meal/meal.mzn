@@ -8,7 +8,8 @@ set of FOOD: desserts;
 set of FOOD: mains;
 set of FOOD: sides;
 enum FEATURE = { name, energy, protein, salt, fat, cost}; 
-enum FOOD; 
+enum FOOD = { icecream, banana, chocolatecake, lasagna, 
+          steak, rice, chips, brocolli, beans} ;
 array[FOOD,FEATURE] of int: dd; % food database
 
 array[FEATURE] of var int: main;

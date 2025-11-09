@@ -1,6 +1,6 @@
 import math
 from ortools.sat.python import cp_model
-import mors_lib
+from mors_lib import *
 from itertools import product
 model = cp_model.CpModel()
 
@@ -32,6 +32,7 @@ consumption = dict(zip(product(Products, Resources), [250, 2, 75, 100, 0, 200, 0
 mproducts = max([min([capacity[r] // consumption[p, r] for r in Resources if consumption[p, r] > 0]) for p in Products])
 produce = {key: model.new_int_var_from_domain(cp_model.Domain.FromValues(range(0, mproducts + 1)), 'produce' + str(key)) for key in Products}
 used = {key: model.new_int_var_from_domain(cp_model.Domain.FromValues(range(0, max(capacity.values()) + 1)), 'used' + str(key)) for key in Resources}
+...
 for r in Resources:
     model.Add(used[r] == sum([consumption[p, r] * produce[p] for p in Products]))
 for r in Resources:

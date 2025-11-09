@@ -1,4 +1,4 @@
-int: n;
+int: n = 5;
 set of int: NUM = 1..n;
 
 array[NUM] of var NUM: x;

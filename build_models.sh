@@ -2,15 +2,6 @@
 
 set -ex
 
-DATA=""
-
-if [[ $(uname -m) == "arm64" ]]; then
-    MINIZINC_PATH="/Applications/MiniZincIDE.app/Contents/Resources/share/minizinc"
-    SOLVER_PATH="/Applications/MiniZincIDE.app/Contents/Resources/share/minizinc/solvers/cp-sat"
-else
-    MINIZINC_PATH="" #TODO on linux
-    SOLVER_PATH=""
-fi 
 
 
 if [ $1 == "all" ]; then
@@ -21,11 +12,12 @@ fi
 
 for MODEL in $MODELS;
 do 
+    DATA=""
     if [[ $(find ./models/$MODEL -name '*.dzn') ]]; then
         DATA=models/$MODEL/$MODEL.dzn
     fi 
     
-    eval "./build/Debug/mors models/${MODEL}/${MODEL}.mzn $DATA --stdlib-dir $MINIZINC_PATH -I $SOLVER_PATH" || true
+    eval "./build/Debug/mors models/${MODEL}/${MODEL}.mzn $DATA "|| true
     # eval "python3.11 models/${MODEL}/${MODEL}.py"
 done
 

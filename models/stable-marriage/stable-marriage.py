@@ -1,6 +1,6 @@
 import math
 from ortools.sat.python import cp_model
-import mors_lib
+from mors_lib import *
 from itertools import product
 model = cp_model.CpModel()
 
@@ -14,7 +14,7 @@ class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
 
     def on_solution_callback(self) -> None:
         self.__solution_count += 1
-        print('wives= ' + (str(self.wife) + ('\nhusbands= ' + (str(self.husband) + '\n'))), end='')
+        print('wives= ' + (str([self.value(v) for v in self.wife]) + ('\nhusbands= ' + (str([self.value(v) for v in self.husband]) + '\n'))), end='')
 
     @property
     def solution_count(self) -> int:
@@ -27,15 +27,15 @@ rankMen = dict(zip(product(Men, Women), [5, 1, 2, 4, 3, 4, 1, 3, 2, 5, 5, 3, 2, 
 wife = {key: model.new_int_var_from_domain(cp_model.Domain.FromValues(Women), 'wife' + str(key)) for key in Men}
 husband = {key: model.new_int_var_from_domain(cp_model.Domain.FromValues(Men), 'husband' + str(key)) for key in Women}
 for m in Men:
-    model.Add(mors_lib.access(model, husband, wife[m]) == m)
+    model.Add(access(model, husband, wife[m]) == m)
 for w in Women:
-    model.Add(mors_lib.access(model, wife, husband[w]) == w)
+    model.Add(access(model, wife, husband[w]) == w)
 for m in Men:
     for o in Women:
-        model.Add(mors_lib.impl_(model, mors_lib.b(model, model.Add(rankMen[m, o] < mors_lib.access(model, rankMen, (m, wife[m]))), model.Add(rankMen[m, o] >= mors_lib.access(model, rankMen, (m, wife[m])))), mors_lib.b(model, model.Add(mors_lib.access(model, rankWomen, (o, husband[o])) < rankWomen[o, m]), model.Add(mors_lib.access(model, rankWomen, (o, husband[o])) >= rankWomen[o, m]))) == True)
+        model.Add(impl_(model, mors_lib_bool(model, model.Add(rankMen[m, o] < access(model, rankMen, (m, wife[m]))), model.Add(rankMen[m, o] >= access(model, rankMen, (m, wife[m])))), mors_lib_bool(model, model.Add(access(model, rankWomen, (o, husband[o])) < rankWomen[o, m]), model.Add(access(model, rankWomen, (o, husband[o])) >= rankWomen[o, m]))) == True)
 for w in Women:
     for o in Men:
-        model.Add(mors_lib.impl_(model, mors_lib.b(model, model.Add(rankWomen[w, o] < mors_lib.access(model, rankWomen, (w, husband[w]))), model.Add(rankWomen[w, o] >= mors_lib.access(model, rankWomen, (w, husband[w])))), mors_lib.b(model, model.Add(mors_lib.access(model, rankMen, (o, wife[o])) < rankMen[o, w]), model.Add(mors_lib.access(model, rankMen, (o, wife[o])) >= rankMen[o, w]))) == True)
+        model.Add(impl_(model, mors_lib_bool(model, model.Add(rankWomen[w, o] < access(model, rankWomen, (w, husband[w]))), model.Add(rankWomen[w, o] >= access(model, rankWomen, (w, husband[w])))), mors_lib_bool(model, model.Add(access(model, rankMen, (o, wife[o])) < rankMen[o, w]), model.Add(access(model, rankMen, (o, wife[o])) >= rankMen[o, w]))) == True)
 solver = cp_model.CpSolver()
 solution_printer = VarArraySolutionPrinter(wife, husband)
 status = solver.solve(model, solution_printer)

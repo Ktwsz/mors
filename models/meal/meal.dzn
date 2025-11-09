@@ -1,6 +1,3 @@
-FOOD = { icecream, banana, chocolatecake, lasagna, 
-          steak, rice, chips, brocolli, beans} ;
-
 dd = [| icecream,      1200,  50,  10, 120,  400     % icecream
       | banana,         800, 120,   5,  20,  120     % banana
       | chocolatecake, 2500, 400,  20, 100,  600     % chocolate cake

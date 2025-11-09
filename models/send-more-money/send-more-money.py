@@ -1,6 +1,6 @@
 import math
 from ortools.sat.python import cp_model
-import mors_lib
+from mors_lib import *
 from itertools import product
 model = cp_model.CpModel()
 
@@ -29,13 +29,14 @@ class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
         return self.__solution_count
 
 def analyse_all_different_43(x):
-    return True
+    model.Add(True)
 
 def all_different_42(x):
-    return analyse_all_different_43(x) and model.add_all_different(x)
+    analyse_all_different_43(array1d(x))
+    all_different(model, array1d(x))
 
 def alldifferent_41(x):
-    return all_different_42(x)
+    all_different_42(array1d(x))
 S = model.new_int_var_from_domain(cp_model.Domain.FromValues(range(1, 9 + 1)), 'S')
 E = model.new_int_var_from_domain(cp_model.Domain.FromValues(range(0, 9 + 1)), 'E')
 N = model.new_int_var_from_domain(cp_model.Domain.FromValues(range(0, 9 + 1)), 'N')

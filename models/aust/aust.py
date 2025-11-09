@@ -1,6 +1,6 @@
 import math
 from ortools.sat.python import cp_model
-import mors_lib
+from mors_lib import *
 from itertools import product
 model = cp_model.CpModel()
 
