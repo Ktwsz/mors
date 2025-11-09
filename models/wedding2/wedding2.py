@@ -6,17 +6,18 @@ model = cp_model.CpModel()
 
 class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
 
-    def __init__(self, Seats, Guests):
+    def __init__(self, Seats, Guests, pos):
         cp_model.CpSolverSolutionCallback.__init__(self)
         self.__solution_count = 0
         self.Seats = Seats
         self.Guests = Guests
+        self.pos = pos
 
     def on_solution_callback(self) -> None:
         self.__solution_count += 1
         for s in self.Seats:
             for g in self.Guests:
-                if pos[g] == s:
+                if self.value(self.pos[g]) == s:
                     print(str(g) + ' ', end='')
         print('\n', end='')
 
@@ -29,16 +30,16 @@ def analyse_all_different_43(x):
 
 def all_different_42(x):
     analyse_all_different_43(array1d(x))
-    all_different(model, array1d(x))
+    ortools_all_different(model, array1d(x))
 
 def alldifferent_41(x):
     all_different_42(array1d(x))
 
 def let_in_2():
-    p1 = model.new_int_var_from_domain(cp_model.Domain.FromValues(Seats), 'p1')
-    p2 = model.new_int_var_from_domain(cp_model.Domain.FromValues(Seats), 'p2')
-    same = model.new_int_var_from_domain(cp_model.Domain.FromValues(range(0, 1 + 1)), 'same')
-    return mult(model, same, abs(p1 - p2)) + mult(model, 1 - same, abs(13 - p1 - p2) + 1)
+    p1 = pos[h1[h]]
+    p2 = pos[h2[h]]
+    same = bool2int(model, equiv_(model, mors_lib_bool(model, model.Add(p1 <= 6), model.Add(p1 > 6)), mors_lib_bool(model, model.Add(p2 <= 6), model.Add(p2 > 6))))
+    return mult(model, same, abs_(model, p1 - p2)) + mult(model, 1 - same, abs_(model, 13 - p1 - p2) + 1)
 Guests = set(range(1, 12 + 1))
 Seats = set(range(1, 12 + 1))
 Hatreds = set(range(1, 5 + 1))
@@ -69,5 +70,5 @@ model.Add(abs_(model, pos[bride] - pos[groom]) <= 1)
 model.Add(equiv_(model, mors_lib_bool(model, model.Add(pos[bride] <= 6), model.Add(pos[bride] > 6)), mors_lib_bool(model, model.Add(pos[groom] <= 6), model.Add(pos[groom] > 6))) == True)
 model.maximize(sum([let_in_2() for h in Hatreds]))
 solver = cp_model.CpSolver()
-solution_printer = VarArraySolutionPrinter(Seats, Guests)
+solution_printer = VarArraySolutionPrinter(Seats, Guests, pos)
 status = solver.solve(model, solution_printer)

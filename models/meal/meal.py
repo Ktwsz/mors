@@ -32,10 +32,10 @@ class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
         return self.__solution_count
 
 def fzn_table_int(x, t):
-    allowed_assignments(model, x, array1d(t))
+    ortools_allowed_assignments(model, x, array1d(t))
 
 def table_32(x, t):
-    ...
+    assert_(index_set_2of2(t) == index_set(x), 'The second dimension of the table must equal the number of variables ' + 'in the first argument')
     fzn_table_int(x, t)
 min_energy = 3300
 min_protein = 500

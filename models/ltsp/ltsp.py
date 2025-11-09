@@ -14,14 +14,14 @@ class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
 
     def on_solution_callback(self) -> None:
         self.__solution_count += 1
-        print('order=' + (str([self.value(v) for v in self.order]) + ('\ncity=' + (str([self.value(v) for v in self.city]) + '\n'))), end='')
+        print('order=' + (str([self.value(v) for v in self.order.values()]) + ('\ncity=' + (str([self.value(v) for v in self.city.values()]) + '\n'))), end='')
 
     @property
     def solution_count(self) -> int:
         return self.__solution_count
 
 def fzn_inverse(f, invf):
-    ortools_inverse(f, invf, min(f.keys()), min(invf.keys()))
+    ortools_inverse(model, f, invf, min(index_set(f)), min(index_set(invf)))
 
 def analyse_all_different_16(x):
     model.Add(True)
@@ -43,7 +43,7 @@ city = {key: model.new_int_var_from_domain(cp_model.Domain.FromValues(CITY), 'ci
 inverse_43(order, city)
 for i in PREC:
     model.Add(order[left[i]] < order[right[i]])
-model.minimize(sum([abs(coord[city[i]] - coord[city[i + 1]]) for i in range(1, n - 1 + 1)]))
+model.minimize(sum([abs_(model, access(model, coord, city[i]) - access(model, coord, city[i + 1])) for i in range(1, n - 1 + 1)]))
 solver = cp_model.CpSolver()
 solution_printer = VarArraySolutionPrinter(order, city)
 status = solver.solve(model, solution_printer)

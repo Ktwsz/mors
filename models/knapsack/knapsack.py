@@ -14,7 +14,7 @@ class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
     def on_solution_callback(self) -> None:
         self.__solution_count += 1
         print('x = ', end='')
-        print(str([self.value(v) for v in self.x]), end='')
+        print(str([self.value(v) for v in self.x.values()]), end='')
         print('\n', end='')
 
     @property

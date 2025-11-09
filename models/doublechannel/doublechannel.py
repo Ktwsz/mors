@@ -17,13 +17,13 @@ class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
     def on_solution_callback(self) -> None:
         self.__solution_count += 1
         print('start = ', end='')
-        print(str([self.value(v) for v in self.start]), end='')
+        print(str([self.value(v) for v in self.start.values()]), end='')
         print(';\nend = ', end='')
-        print(str([self.value(v) for v in self.end]), end='')
+        print(str([self.value(v) for v in self.end.values()]), end='')
         print(';\nchannel = ', end='')
-        print(str([self.value(v) for v in self.channel]), end='')
+        print(str([self.value(v) for v in self.channel.values()]), end='')
         print(';\nnext = ', end='')
-        print(str([self.value(v) for v in self.next]), end='')
+        print(str([self.value(v) for v in self.next.values()]), end='')
         print(';\n', end='')
 
     @property
@@ -36,13 +36,13 @@ def analyse_all_different_42(x):
 def fzn_if_then_else_var_bool(c, x, y):
 
     def let_in_1():
-        d = {key: model.new_int_var(-4611686018427387, 4611686018427387, 'd' + str(key)) for key in c.keys()}
-        return and_(model, forall_(model, [model.Add(d[i] == and_(model, ~c[i - 1], d[i - 1])) if i > min(c.keys()) else model.Add(d[i] == mors_lib_bool(model, True, False)) for i in c.keys()]), forall_(model, [impl_(model, and_(model, c[i], d[i]), model.Add(y == x[i])) for i in c.keys()]))
+        d = {key: model.new_int_var(-4611686018427387, 4611686018427387, 'd' + str(key)) for key in index_set(c)}
+        return and_(model, forall_(model, [model.Add(d[i] == and_(model, ~c[i - 1], d[i - 1])) if mors_lib_bool(model, model.Add(i > min(index_set(c))), model.Add(i <= min(index_set(c)))) else model.Add(d[i] == mors_lib_bool(model, model.Add(True), model.Add(False))) for i in index_set(c)]), forall_(model, [impl_(model, and_(model, c[i], d[i]), model.Add(y == x[i])) for i in index_set(c)]))
     let_in_1()
 
 def all_different_41(x):
     analyse_all_different_42(array1d(x))
-    all_different(model, array1d(x))
+    ortools_all_different(model, array1d(x))
 
 def if_then_else(c, x, y):
     fzn_if_then_else_var_bool(c, x, y)
@@ -65,7 +65,7 @@ dirn = dict(zip(SHIP, [1, 2, 2, 1, 2, 2, 1, 1]))
 leeway = 2
 maxt = 100
 TIME = set(range(0, maxt + 1))
-kind = {key: model.new_int_var_from_domain(cp_model.Domain.FromValues(TYPE), 'kind' + str(key)) for key in SHIPE}
+kind = dirn + [dummy for i in range(1, nC + 1)]
 start = {key: model.new_int_var_from_domain(cp_model.Domain.FromValues(TIME), 'start' + str(key)) for key in SHIPE}
 end = {key: model.new_int_var_from_domain(cp_model.Domain.FromValues(TIME), 'end' + str(key)) for key in SHIPE}
 channel = {key: model.new_int_var_from_domain(cp_model.Domain.FromValues(CHANNEL), 'channel' + str(key)) for key in SHIPE}
@@ -79,10 +79,10 @@ for s in SHIP:
     model.Add(end[s] == start[s] + access(model, len, channel[s]) * speed[s])
 alldifferent_40(next)
 for s in SHIP:
-    if_then_else([kind[s] + kind[next[s]] == entering + leaving, True], [end[s] <= start[next[s]], start[s] + speed[s] * leeway <= start[next[s]] and end[s] + speed[s] * leeway <= end[next[s]]], ite_result_2137)
+    if_then_else([mors_lib_bool(model, model.Add(kind[s] + access(model, kind, next[s]) == entering + leaving), model.Add(kind[s] + access(model, kind, next[s]) != entering + leaving)), mors_lib_bool(model, model.Add(True), model.Add(False))], [mors_lib_bool(model, model.Add(end[s] <= access(model, start, next[s])), model.Add(end[s] > access(model, start, next[s]))), and_(model, mors_lib_bool(model, model.Add(start[s] + speed[s] * leeway <= access(model, start, next[s])), model.Add(start[s] + speed[s] * leeway > access(model, start, next[s]))), mors_lib_bool(model, model.Add(end[s] + speed[s] * leeway <= access(model, end, next[s])), model.Add(end[s] + speed[s] * leeway > access(model, end, next[s]))))], ite_result_2137)
 for s in SHIP:
     model.Add(access(model, channel, next[s]) == channel[s])
-model.minimize(sum([abs(start[s] - desired[s]) for s in SHIP]))
+model.minimize(sum([abs_(model, start[s] - desired[s]) for s in SHIP]))
 solver = cp_model.CpSolver()
 solution_printer = VarArraySolutionPrinter(start, end, channel, next)
 status = solver.solve(model, solution_printer)

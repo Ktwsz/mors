@@ -6,7 +6,7 @@ model = cp_model.CpModel()
 
 class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
 
-    def __init__(self, end, JOB, TASK, digs, s):
+    def __init__(self, end, JOB, TASK, digs, s, tasks):
         cp_model.CpSolverSolutionCallback.__init__(self)
         self.__solution_count = 0
         self.end = end
@@ -14,13 +14,14 @@ class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
         self.TASK = TASK
         self.digs = digs
         self.s = s
+        self.tasks = tasks
 
     def on_solution_callback(self) -> None:
         self.__solution_count += 1
         print('end = ' + (str(self.value(self.end)) + '\n'), end='')
         for i in self.JOB:
             for j in self.TASK:
-                print(show_int(self.digs, self.value(self.s[i, j])) + ' ' + ('\n' if j == tasks else ''), end='')
+                print(show_int(self.digs, self.value(self.s[i, j])) + ' ' + ('\n' if j == self.tasks else ''), end='')
 
     @property
     def solution_count(self) -> int:
@@ -48,5 +49,5 @@ for j in TASK:
                 no_overlap(s[i, j], d[i, j], s[k, j], d[k, j])
 model.minimize(end)
 solver = cp_model.CpSolver()
-solution_printer = VarArraySolutionPrinter(end, JOB, TASK, digs, s)
+solution_printer = VarArraySolutionPrinter(end, JOB, TASK, digs, s, tasks)
 status = solver.solve(model, solution_printer)

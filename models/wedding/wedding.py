@@ -6,17 +6,18 @@ model = cp_model.CpModel()
 
 class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
 
-    def __init__(self, Seats, Guests):
+    def __init__(self, Seats, Guests, pos):
         cp_model.CpSolverSolutionCallback.__init__(self)
         self.__solution_count = 0
         self.Seats = Seats
         self.Guests = Guests
+        self.pos = pos
 
     def on_solution_callback(self) -> None:
         self.__solution_count += 1
         for s in self.Seats:
             for g in self.Guests:
-                if pos[g] == s:
+                if self.value(self.pos[g]) == s:
                     print(str(g) + ' ', end='')
         print('\n', end='')
 
@@ -29,7 +30,7 @@ def analyse_all_different_43(x):
 
 def all_different_42(x):
     analyse_all_different_43(array1d(x))
-    all_different(model, array1d(x))
+    ortools_all_different(model, array1d(x))
 
 def alldifferent_41(x):
     all_different_42(array1d(x))
@@ -72,5 +73,5 @@ for h in Hatreds:
     model.Add(cost[h] == mult(model, sameside[h], abs_(model, p1[h] - p2[h])) + mult(model, 1 - sameside[h], abs_(model, 13 - p1[h] - p2[h]) + 1))
 model.maximize(sum([cost[h] for h in Hatreds]))
 solver = cp_model.CpSolver()
-solution_printer = VarArraySolutionPrinter(Seats, Guests)
+solution_printer = VarArraySolutionPrinter(Seats, Guests, pos)
 status = solver.solve(model, solution_printer)

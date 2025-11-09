@@ -33,7 +33,7 @@ def analyse_all_different_43(x):
 
 def all_different_42(x):
     analyse_all_different_43(array1d(x))
-    all_different(model, array1d(x))
+    ortools_all_different(model, array1d(x))
 
 def alldifferent_41(x):
     all_different_42(array1d(x))

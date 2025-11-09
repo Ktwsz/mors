@@ -13,7 +13,7 @@ class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
 
     def on_solution_callback(self) -> None:
         self.__solution_count += 1
-        print(str([self.value(v) for v in self.task]), end='')
+        print(str([self.value(v) for v in self.task.values()]), end='')
 
     @property
     def solution_count(self) -> int:
@@ -24,7 +24,7 @@ def analyse_all_different_42(x):
 
 def all_different_41(x):
     analyse_all_different_42(array1d(x))
-    all_different(model, array1d(x))
+    ortools_all_different(model, array1d(x))
 
 def alldifferent_40(x):
     all_different_41(array1d(x))
@@ -35,7 +35,7 @@ COD = set(range(1, m + 1))
 profit = dict(zip(product(DOM, COD), [7, 1, 3, 4, 6, 8, 2, 5, 1, 4, 4, 3, 7, 2, 5, 3, 1, 6, 3, 6]))
 task = {key: model.new_int_var_from_domain(cp_model.Domain.FromValues(COD), 'task' + str(key)) for key in DOM}
 alldifferent_40(task)
-model.maximize(sum([profit[w, task[w]] for w in DOM]))
+model.maximize(sum([access(model, profit, (w, task[w])) for w in DOM]))
 solver = cp_model.CpSolver()
 solution_printer = VarArraySolutionPrinter(task)
 status = solver.solve(model, solution_printer)

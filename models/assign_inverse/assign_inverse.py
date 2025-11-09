@@ -13,14 +13,14 @@ class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
 
     def on_solution_callback(self) -> None:
         self.__solution_count += 1
-        print(str([self.value(v) for v in self.task]), end='')
+        print(str([self.value(v) for v in self.task.values()]), end='')
 
     @property
     def solution_count(self) -> int:
         return self.__solution_count
 
 def fzn_inverse(f, invf):
-    ortools_inverse(f, invf, min(f.keys()), min(invf.keys()))
+    ortools_inverse(model, f, invf, min(index_set(f)), min(index_set(invf)))
 
 def analyse_all_different_16(x):
     model.Add(True)
@@ -37,7 +37,7 @@ profit = dict(zip(product(DOM, COD), [7, 1, 3, 4, 8, 2, 5, 1, 4, 3, 7, 2, 3, 1, 
 task = {key: model.new_int_var_from_domain(cp_model.Domain.FromValues(COD), 'task' + str(key)) for key in DOM}
 worker = {key: model.new_int_var_from_domain(cp_model.Domain.FromValues(DOM), 'worker' + str(key)) for key in COD}
 inverse_42(task, worker)
-model.maximize(sum([profit[w, task[w]] for w in COD]))
+model.maximize(sum([access(model, profit, (w, task[w])) for w in COD]))
 solver = cp_model.CpSolver()
 solution_printer = VarArraySolutionPrinter(task)
 status = solver.solve(model, solution_printer)

@@ -16,12 +16,12 @@ class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
 
     def on_solution_callback(self) -> None:
         self.__solution_count += 1
-        print(str([self.value(v) for v in self.x]), end='')
+        print(str([self.value(v) for v in self.x.values()]), end='')
         print('\n', end='')
         for p in self.POS:
             for d in self.DIG:
                 for c in self.COPY:
-                    print(str(d) + ' ' if x[d, c] == p else '', end='')
+                    print(str(d) + ' ' if self.value(self.x[d, c]) == p else '', end='')
 
     @property
     def solution_count(self) -> int:
@@ -32,7 +32,7 @@ def analyse_all_different_42(x):
 
 def all_different_41(x):
     analyse_all_different_42(array1d(x))
-    all_different(model, array1d(x))
+    ortools_all_different(model, array1d(x))
 
 def alldifferent_40(x):
     all_different_41(array1d(x))

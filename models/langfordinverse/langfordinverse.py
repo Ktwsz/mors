@@ -16,7 +16,7 @@ class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
 
     def on_solution_callback(self) -> None:
         self.__solution_count += 1
-        print(str([self.value(v) for v in self.x]), end='')
+        print(str([self.value(v) for v in self.x.values()]), end='')
         print('\n', end='')
         for p in self.POS:
             print(str((self.value(self.y[p]) - 1) // self.m + 1) + ' ', end='')
@@ -26,7 +26,7 @@ class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
         return self.__solution_count
 
 def fzn_inverse(f, invf):
-    ortools_inverse(f, invf, min(f.keys()), min(invf.keys()))
+    ortools_inverse(model, f, invf, min(index_set(f)), min(index_set(invf)))
 
 def analyse_all_different_16(x):
     model.Add(True)

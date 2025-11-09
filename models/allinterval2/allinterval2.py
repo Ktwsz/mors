@@ -24,22 +24,22 @@ def analyse_all_different_43(x):
 
 def all_different_42(x):
     analyse_all_different_43(array1d(x))
-    all_different(model, array1d(x))
+    ortools_all_different(model, array1d(x))
 
 def min_14(x, y):
 
     def let_in_2():
-        m = model.new_int_var_from_domain(cp_model.Domain.FromValues(range(min(lb(x)), min(ub(x)) + 1)), 'm')
-        int_min(x, y, m)
+        m = model.new_int_var_from_domain(cp_model.Domain.FromValues(range(min(lb(x), lb(y)), min(ub(x), ub(y)) + 1)), 'm')
+        int_min(model, x, y, m)
         return m
-    let_in_2()
+    return let_in_2()
 
 def alldifferent_41(x):
     all_different_42(array1d(x))
 n = 10
 y = {key: model.new_int_var_from_domain(cp_model.Domain.FromValues(range(1, n + 1)), 'y' + str(key)) for key in range(1, n + 1)}
 v = {key: model.new_int_var_from_domain(cp_model.Domain.FromValues(range(1, n - 1 + 1)), 'v' + str(key)) for key in range(1, n - 1 + 1)}
-x = [sum([i * bool2int(model, y[j] == i) for i in range(1, n + 1)]) for j in range(1, n + 1)]
+x = [sum([i * bool2int(model, mors_lib_bool(model, model.Add(y[j] == i), model.Add(y[j] != i))) for i in range(1, n + 1)]) for j in range(1, n + 1)]
 alldifferent_41(y)
 alldifferent_41(v)
 for i in range(1, n + 1):

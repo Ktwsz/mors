@@ -6,18 +6,20 @@ model = cp_model.CpModel()
 
 class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
 
-    def __init__(self, PuzzleRange, digs, puzzle):
+    def __init__(self, PuzzleRange, digs, puzzle, S, N):
         cp_model.CpSolverSolutionCallback.__init__(self)
         self.__solution_count = 0
         self.PuzzleRange = PuzzleRange
         self.digs = digs
         self.puzzle = puzzle
+        self.S = S
+        self.N = N
 
     def on_solution_callback(self) -> None:
         self.__solution_count += 1
         for i in self.PuzzleRange:
             for j in self.PuzzleRange:
-                print(show_int(self.digs, self.value(self.puzzle[i, j])) + ' ' + (' ' if j % S == 0 else '') + ((('\n\n' if i % S == 0 else '\n') if i != N else '') if j == N else ''), end='')
+                print(show_int(self.digs, self.value(self.puzzle[i, j])) + ' ' + (' ' if j % self.S == 0 else '') + ((('\n\n' if i % self.S == 0 else '\n') if i != self.N else '') if j == self.N else ''), end='')
         print('\n', end='')
 
     @property
@@ -29,7 +31,7 @@ def analyse_all_different_42(x):
 
 def all_different_41(x):
     analyse_all_different_42(array1d(x))
-    all_different(model, array1d(x))
+    ortools_all_different(model, array1d(x))
 
 def alldifferent_40(x):
     all_different_41(array1d(x))
@@ -54,5 +56,5 @@ for a in SubSquareRange:
     for o in SubSquareRange:
         alldifferent_40([puzzle[(a - 1) * S + a1, (o - 1) * S + o1] for a1 in SubSquareRange for o1 in SubSquareRange])
 solver = cp_model.CpSolver()
-solution_printer = VarArraySolutionPrinter(PuzzleRange, digs, puzzle)
+solution_printer = VarArraySolutionPrinter(PuzzleRange, digs, puzzle, S, N)
 status = solver.solve(model, solution_printer)

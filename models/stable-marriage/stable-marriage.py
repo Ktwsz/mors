@@ -14,7 +14,7 @@ class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
 
     def on_solution_callback(self) -> None:
         self.__solution_count += 1
-        print('wives= ' + (str([self.value(v) for v in self.wife]) + ('\nhusbands= ' + (str([self.value(v) for v in self.husband]) + '\n'))), end='')
+        print('wives= ' + (str([self.value(v) for v in self.wife.values()]) + ('\nhusbands= ' + (str([self.value(v) for v in self.husband.values()]) + '\n'))), end='')
 
     @property
     def solution_count(self) -> int:
