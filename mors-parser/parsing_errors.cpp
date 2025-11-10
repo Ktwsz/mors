@@ -43,6 +43,9 @@ void print_message(Error const& e) {
 
                           fmt::println("Message: {}", err.message);
 
+                          if (err.location.empty())
+                              return;
+
                           fmt::println("Stack trace:");
                           for (auto const& stack_frame : err.location)
                             fmt::println("{}", stack_frame);

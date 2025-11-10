@@ -242,7 +242,7 @@ auto Transformer::map(MiniZinc::VarDecl* var_decl, bool const is_global,
     throw Ignore{};
 
   if (!ignore_optional && var_decl->type().isOpt())
-    throw err::Unsupported{.message = "Optional type"};
+    throw err::Unsupported{.location = {make_location(MiniZinc::Expression::loc(var_decl))}, .message = "Optional type"};
 
   auto var = MiniZinc::Expression::type(var_decl->ti()).isPar()
                ? handle_const_decl(var_decl)
