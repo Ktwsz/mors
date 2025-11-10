@@ -40,21 +40,23 @@ auto resolve_base_type(MiniZinc::Type::BaseType base_type) -> ast::Type {
     return ast::types::Unspecified{};
   }
   default:
-    throw err::Unsupported{.message = "Unsupported type: " +
-                                      [](auto const base_type) -> std::string {
-      switch (base_type) {
-      case MiniZinc::Type::BT_ANN:
-        return "Annotation";
-      case MiniZinc::Type::BT_TUPLE:
-        return "Tuple";
-      case MiniZinc::Type::BT_RECORD:
-        return "Record";
-      case MiniZinc::Type::BT_UNKNOWN:
-        return "Unknown";
-      default:
-        assert(false);
-      }
-    }(base_type)};
+    throw err::Unsupported{
+        .message =
+            "Unsupported type: " + [](auto const base_type) -> std::string {
+          switch (base_type) {
+          case MiniZinc::Type::BT_ANN:
+            return "Annotation";
+          case MiniZinc::Type::BT_TUPLE:
+            return "Tuple";
+          case MiniZinc::Type::BT_RECORD:
+            return "Record";
+          case MiniZinc::Type::BT_UNKNOWN:
+            return "Unknown";
+          default:
+            assert(false);
+          }
+        }(base_type),
+    };
   }
 }
 
@@ -144,12 +146,13 @@ auto make_ite_call(MiniZinc::ITE& ite, MiniZinc::EnvI& env,
 
 auto make_location(MiniZinc::Location const& loc)
     -> err::Unsupported::Location {
-  return err::Unsupported::Location{.filename =
-                                        std::string{loc.filename().c_str()},
-                                    .first_line = loc.firstLine(),
-                                    .first_column = loc.firstColumn(),
-                                    .last_line = loc.lastLine(),
-                                    .last_column = loc.lastColumn()};
+  return err::Unsupported::Location{
+      .filename = std::string{loc.filename().c_str()},
+      .first_line = loc.firstLine(),
+      .first_column = loc.firstColumn(),
+      .last_line = loc.lastLine(),
+      .last_column = loc.lastColumn(),
+  };
 }
 
 } // namespace
@@ -182,35 +185,40 @@ auto Transformer::map(MiniZinc::Type const& type) -> ast::Type {
   ast::Type base_type;
 
   if (type.st() == MiniZinc::Type::ST_SET)
-    base_type = std::visit(
-        utils::overloaded{[](ast::types::Int const&) -> ast::Type {
-                            return ast::types::IntSet{};
-                          },
-                          [](ast::types::Float const&) -> ast::Type {
-                            return ast::types::FloatSet{};
-                          },
-                          [](ast::types::Bool const&) -> ast::Type {
-                            return ast::types::BoolSet{};
-                          },
-                          [](ast::types::Unspecified const&) -> ast::Type {
-                            return ast::types::UnspecifiedSet{};
-                          },
-                          [](auto const& t) -> ast::Type { return t; }},
-        resolve_base_type(type.bt()));
+    base_type = std::visit(utils::overloaded{
+                               [](ast::types::Int const&) -> ast::Type {
+                                 return ast::types::IntSet{};
+                               },
+                               [](ast::types::Float const&) -> ast::Type {
+                                 return ast::types::FloatSet{};
+                               },
+                               [](ast::types::Bool const&) -> ast::Type {
+                                 return ast::types::BoolSet{};
+                               },
+                               [](ast::types::Unspecified const&) -> ast::Type {
+                                 return ast::types::UnspecifiedSet{};
+                               },
+                               [](auto const& t) -> ast::Type { return t; },
+                           },
+                           resolve_base_type(type.bt()));
   else
     base_type = resolve_base_type(type.bt());
 
   if (type.dim() > 0)
     return ast::types::Array{
-        .dims = {}, .inner_type = std::make_shared<ast::Type>(base_type)};
+        .dims = {},
+        .inner_type = std::make_shared<ast::Type>(base_type),
+    };
   return base_type;
 }
 
 auto Transformer::handle_const_decl(MiniZinc::VarDecl* var_decl)
     -> ast::VarDecl {
-  return ast::DeclConst{.id = std::string{var_decl->id()->v().c_str()},
-                        .type = map(var_decl->ti()),
-                        .value = map_opt_ptr(var_decl->e())};
+  return ast::DeclConst{
+      .id = std::string{var_decl->id()->v().c_str()},
+      .type = map(var_decl->ti()),
+      .value = map_opt_ptr(var_decl->e()),
+  };
 }
 
 auto Transformer::handle_var_decl(MiniZinc::VarDecl* var_decl) -> ast::VarDecl {
@@ -219,7 +227,8 @@ auto Transformer::handle_var_decl(MiniZinc::VarDecl* var_decl) -> ast::VarDecl {
   if (utils::is_unsupported_var_type(type))
     throw err::Unsupported{
         .location = {make_location(MiniZinc::Expression::loc(var_decl))},
-        .message = "Variable of type " + utils::type_to_string(type)};
+        .message = "Variable of type " + utils::type_to_string(type),
+    };
 
   return ast::DeclVariable{
       .id = std::string{var_decl->id()->v().c_str()},
@@ -229,7 +238,8 @@ auto Transformer::handle_var_decl(MiniZinc::VarDecl* var_decl) -> ast::VarDecl {
                             MiniZinc::TIId::eid
                   ? map_opt_ptr(var_decl->ti()->domain())
                   : std::nullopt,
-      .value = map_opt_ptr(var_decl->e())};
+      .value = map_opt_ptr(var_decl->e()),
+  };
 }
 
 // TODO use epxlicit bools
@@ -242,7 +252,10 @@ auto Transformer::map(MiniZinc::VarDecl* var_decl, bool const is_global,
     throw Ignore{};
 
   if (!ignore_optional && var_decl->type().isOpt())
-    throw err::Unsupported{.location = {make_location(MiniZinc::Expression::loc(var_decl))}, .message = "Optional type"};
+    throw err::Unsupported{
+        .location = {make_location(MiniZinc::Expression::loc(var_decl))},
+        .message = "Optional type",
+    };
 
   auto var = MiniZinc::Expression::type(var_decl->ti()).isPar()
                ? handle_const_decl(var_decl)
@@ -290,20 +303,23 @@ auto Transformer::map(MiniZinc::SetLit* set_lit) -> ast::Expr {
     if (!min.isFinite() || !max.isFinite())
       throw err::Unsupported{.message = "Set literal with infinite bound."};
 
-    return ast::BinOp{.kind = ast::BinOp::OpKind::DOTDOT,
-                      .lhs = ast::ptr(ast::LiteralInt{min.toInt()}),
-                      .rhs = ast::ptr(ast::LiteralInt{max.toInt()}),
-                      .expr_type = ast::types::IntSet{},
-                      .is_var = false};
+    return ast::BinOp{
+        .kind = ast::BinOp::OpKind::DOTDOT,
+        .lhs = ast::ptr(ast::LiteralInt{min.toInt()}),
+        .rhs = ast::ptr(ast::LiteralInt{max.toInt()}),
+        .expr_type = ast::types::IntSet{},
+        .is_var = false,
+    };
   }
 
-  return ast::LiteralSet{.value = set_lit->v() |
-                                  std::views::transform([&](auto& set_expr) {
-                                    return map_ptr(set_expr);
-                                  }) |
-                                  std::ranges::to<std::vector>(),
-                         .expr_type = map(set_lit->type()),
-                         .is_var = set_lit->type().isvar()};
+  return ast::LiteralSet{
+      .value = set_lit->v() | std::views::transform([&](auto& set_expr) {
+                 return map_ptr(set_expr);
+               }) |
+               std::ranges::to<std::vector>(),
+      .expr_type = map(set_lit->type()),
+      .is_var = set_lit->type().isvar(),
+  };
 }
 
 auto Transformer::map(MiniZinc::Comprehension* comp) -> ast::Comprehension {
@@ -329,7 +345,8 @@ auto Transformer::map(MiniZinc::Comprehension* comp) -> ast::Comprehension {
 
         generators.push_back(ast::Iterator{
             .variable = std::get<ast::DeclConst>(std::move(decl_expr)),
-            .in = in_expr});
+            .in = in_expr,
+        });
       }
     }
 
@@ -337,10 +354,12 @@ auto Transformer::map(MiniZinc::Comprehension* comp) -> ast::Comprehension {
       generators.push_back(map_ptr(comp->where(i)));
   }
 
-  return ast::Comprehension{.body = map_ptr(comp->e()),
-                            .generators = std::move(generators),
-                            .expr_type = map(comp->type()),
-                            .is_var = comp->type().isvar()};
+  return ast::Comprehension{
+      .body = map_ptr(comp->e()),
+      .generators = std::move(generators),
+      .expr_type = map(comp->type()),
+      .is_var = comp->type().isvar(),
+  };
 }
 
 auto Transformer::map(MiniZinc::Call* call) -> ast::Expr {
@@ -391,11 +410,13 @@ auto Transformer::map(MiniZinc::ArrayAccess* array_access) -> ast::Expr {
       std::any_of(indexes.begin(), indexes.end(),
                   [](auto const& ix) { return utils::is_expr_var(*ix); });
 
-  return ast::ArrayAccess{.arr = ast::ptr(std::move(arr)),
-                          .indexes = std::move(indexes),
-                          .expr_type = map(array_access->type()),
-                          .is_var = array_access->type().isvar(),
-                          .is_index_var_type = is_index_var_type};
+  return ast::ArrayAccess{
+      .arr = ast::ptr(std::move(arr)),
+      .indexes = std::move(indexes),
+      .expr_type = map(array_access->type()),
+      .is_var = array_access->type().isvar(),
+      .is_index_var_type = is_index_var_type,
+  };
 }
 
 void Transformer::save(MiniZinc::FunctionI* function) {
@@ -587,19 +608,19 @@ auto Transformer::map(MiniZinc::BinOp* bin_op) -> ast::Expr {
       return ast::BinOp::OpKind::SUBSET;
     case MiniZinc::BOT_SUPERSET:
       return ast::BinOp::OpKind::SUPERSET;
-    default:
-      assert(false);
     }
   };
 
   ast::Expr lhs = map(bin_op->lhs());
   ast::Expr rhs = map(bin_op->rhs());
 
-  return ast::BinOp{.kind = match_kind(bin_op->op()),
-                    .lhs = ast::ptr(std::move(lhs)),
-                    .rhs = ast::ptr(std::move(rhs)),
-                    .expr_type = map(bin_op->type()),
-                    .is_var = bin_op->type().isvar()};
+  return ast::BinOp{
+      .kind = match_kind(bin_op->op()),
+      .lhs = ast::ptr(std::move(lhs)),
+      .rhs = ast::ptr(std::move(rhs)),
+      .expr_type = map(bin_op->type()),
+      .is_var = bin_op->type().isvar(),
+  };
 }
 
 auto Transformer::map_ptr(MiniZinc::Expression* e) -> ast::ExprHandle {
@@ -627,10 +648,12 @@ auto Transformer::map(MiniZinc::UnOp* un_op) -> ast::Expr {
 
   ast::Expr expr = map(un_op->e());
 
-  return ast::UnaryOp{.kind = match_kind(un_op->op()),
-                      .expr = ast::ptr(std::move(expr)),
-                      .expr_type = map(un_op->type()),
-                      .is_var = un_op->type().isvar()};
+  return ast::UnaryOp{
+      .kind = match_kind(un_op->op()),
+      .expr = ast::ptr(std::move(expr)),
+      .expr_type = map(un_op->type()),
+      .is_var = un_op->type().isvar(),
+  };
 }
 
 auto Transformer::map(MiniZinc::ITE* ite) -> ast::Expr {
@@ -654,10 +677,12 @@ auto Transformer::map(MiniZinc::ITE* ite) -> ast::Expr {
   std::optional else_expr =
       ite->elseExpr() ? map_ptr(ite->elseExpr()) : nullptr;
 
-  return ast::IfThenElse{.if_then = std::move(if_then),
-                         .else_expr = std::move(else_expr),
-                         .expr_type = map(ite->type()),
-                         .is_var = ite->type().isvar()};
+  return ast::IfThenElse{
+      .if_then = std::move(if_then),
+      .else_expr = std::move(else_expr),
+      .expr_type = map(ite->type()),
+      .is_var = ite->type().isvar(),
+  };
 }
 
 auto Transformer::map(MiniZinc::Let* let) -> ast::Expr {
@@ -690,12 +715,14 @@ auto Transformer::map(MiniZinc::Let* let) -> ast::Expr {
   ast::Type expr_type = utils::expr_type(function_body);
   bool const is_var = utils::is_expr_var(function_body);
 
-  return ast::LetIn{.id = id,
-                    .declarations = std::move(args),
-                    .constraints = std::move(constraints),
-                    .in_expr = ast::ptr(std::move(function_body)),
-                    .expr_type = std::move(expr_type),
-                    .is_var = is_var};
+  return ast::LetIn{
+      .id = id,
+      .declarations = std::move(args),
+      .constraints = std::move(constraints),
+      .in_expr = ast::ptr(std::move(function_body)),
+      .expr_type = std::move(expr_type),
+      .is_var = is_var,
+  };
 }
 
 auto Transformer::map(MiniZinc::SolveI* solve_item) -> ast::SolveType {
@@ -710,7 +737,6 @@ auto Transformer::map(MiniZinc::SolveI* solve_item) -> ast::SolveType {
   case MiniZinc::SolveI::SolveType::ST_SAT:
     return ast::solve_type::Sat{};
   }
-  assert(false);
 }
 
 auto Transformer::find_objective_expr() -> ast::Expr {

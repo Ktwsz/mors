@@ -277,12 +277,12 @@ struct Tree {
   ExprHandle output;
 
   FunctionMap functions;
+
+  void make_output();
 };
 
 template <typename T> auto ptr(T&& t) -> ExprHandle {
   return std::make_shared<Expr>(std::forward<T>(t));
 }
-
-auto ptr(Expr&& t) -> ExprHandle;
 
 } // namespace parser::ast

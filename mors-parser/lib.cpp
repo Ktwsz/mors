@@ -162,7 +162,10 @@ auto main(ParserOpts const& opts) -> std::expected<ast::Tree, err::Error> {
   }
 
   try {
-    tree.output = transformer.map_ptr(model.outputItem()->e());
+    if (!model.outputItem())
+      tree.make_output();
+    else
+      tree.output = transformer.map_ptr(model.outputItem()->e());
   } catch (Ignore const& e) {
   } catch (err::Unsupported const& e) {
     return std::unexpected{e};
