@@ -71,25 +71,6 @@ auto reformat_id(std::string_view const id) -> std::string {
          std::string{id.substr(1, ix - 1)};
 }
 
-void make_reif_call(MiniZinc::Call* call, Transformer::Stack::Scope& scope) {
-  std::string id{call->id().c_str()};
-  std::vector args(call->args().begin(), call->args().end());
-
-  auto bool_arg =
-      new MiniZinc::Id(MiniZinc::Location(), "\x1\x1\x1\x0", nullptr);
-  scope.add(ast::DeclVariable{
-      .id = std::string{"\x1\x1\x1\x0"},
-      .var_type = ast::types::Bool{},
-      .domain = std::nullopt,
-      .value = std::nullopt,
-  });
-  bool_arg->type(MiniZinc::Type::varbool());
-  args.push_back(bool_arg);
-
-  call->id(MiniZinc::ASTString(id + "_reif"));
-  call->args(args);
-}
-
 auto make_ite_call(MiniZinc::ITE& ite, MiniZinc::EnvI& env,
                    Transformer::Stack::Scope& scope) -> MiniZinc::Call* {
   std::vector conditions =
@@ -147,12 +128,27 @@ auto make_ite_call(MiniZinc::ITE& ite, MiniZinc::EnvI& env,
 auto make_location(MiniZinc::Location const& loc)
     -> err::Unsupported::Location {
   return err::Unsupported::Location{
-      .filename = std::string{loc.filename().c_str()},
+      .filename = loc.filename().substr(),
       .first_line = loc.firstLine(),
       .first_column = loc.firstColumn(),
       .last_line = loc.lastLine(),
       .last_column = loc.lastColumn(),
   };
+}
+
+auto is_any_type_opt(std::vector<MiniZinc::Type> const& types) {
+  return std::any_of(types.begin(), types.end(),
+                     [](auto const& t) { return t.ot(); });
+}
+
+auto deopt_types(std::vector<MiniZinc::Type> const& types)
+    -> std::vector<MiniZinc::Type> {
+  std::vector new_types(types);
+  for (auto& t : new_types) {
+    t.ot(MiniZinc::Type::OptType::OT_PRESENT);
+  }
+
+  return new_types;
 }
 
 } // namespace
@@ -215,7 +211,7 @@ auto Transformer::map(MiniZinc::Type const& type) -> ast::Type {
 auto Transformer::handle_const_decl(MiniZinc::VarDecl* var_decl)
     -> ast::VarDecl {
   return ast::DeclConst{
-      .id = std::string{var_decl->id()->v().c_str()},
+      .id = var_decl->id()->v().substr(),
       .type = map(var_decl->ti()),
       .value = map_opt_ptr(var_decl->e()),
   };
@@ -231,7 +227,7 @@ auto Transformer::handle_var_decl(MiniZinc::VarDecl* var_decl) -> ast::VarDecl {
     };
 
   return ast::DeclVariable{
-      .id = std::string{var_decl->id()->v().c_str()},
+      .id = var_decl->id()->v().substr(),
       .var_type = std::move(type),
       .domain = var_decl->ti()->domain() &&
                         MiniZinc::Expression::eid(var_decl->ti()->domain()) !=
@@ -371,12 +367,28 @@ auto Transformer::map(MiniZinc::Call* call) -> ast::Expr {
           "stdlib_language.mzn"))
     throw Ignore{};
 
-  auto const old_id = std::string{call->id().c_str()};
+  auto const old_id = call->id().substr();
   std::vector old_args(call->args().begin(), call->args().end());
   auto const id = reformat_id(old_id);
 
-  auto const function_item = model.matchFn(env, call, true, false);
-  save(function_item);
+  auto types = call->args() | std::views::transform([](auto& expr) {
+                 return MiniZinc::Expression::type(expr);
+               }) |
+               std::ranges::to<std::vector<MiniZinc::Type>>();
+
+  MiniZinc::FunctionI* function_item = nullptr;
+  if (is_any_type_opt(types)) {
+    std::vector new_types = deopt_types(types);
+    function_item = model.matchFn(env, call->id(), new_types, true);
+
+    if (function_item)
+      save(function_item);
+  }
+
+  if (!function_item) {
+    function_item = model.matchFn(env, call->id(), types, true);
+    save(function_item);
+  }
 
   auto const result = ast::Call{
       .id = id,
@@ -384,11 +396,14 @@ auto Transformer::map(MiniZinc::Call* call) -> ast::Expr {
               std::views::transform([&](auto& arg) { return map_ptr(arg); }) |
               std::ranges::to<std::vector>(),
       .expr_type = map(function_item->ti()),
-      .is_var = function_item->ti()->type().isvar()};
+      .is_var = function_item->ti()->type().isvar(),
+  };
 
-  auto scope = stack.scope();
-  make_reif_call(call, scope);
-  auto const function_item_reif = model.matchFn(env, call, true, false);
+  types.push_back(MiniZinc::Type::varbool());
+
+  MiniZinc::GCLock _;
+  auto const function_item_reif =
+      model.matchReification(env, call->id(), types, true, true);
   if (function_item_reif != nullptr)
     save(function_item_reif);
 
@@ -423,7 +438,7 @@ void Transformer::save(MiniZinc::FunctionI* function) {
   if (function->e() == nullptr)
     return;
 
-  auto const id = reformat_id(std::string{function->id().c_str()});
+  auto const id = reformat_id(function->id().substr());
 
   if (functions.find(id) != functions.end())
     return;
@@ -466,7 +481,7 @@ auto Transformer::map(MiniZinc::Expression* expr) -> ast::Expr try {
     if (!id->v().c_str() || id->v() == "")
       throw err::Unsupported{.message = "Id with null string"};
 
-    std::string id_str{id->v().c_str()};
+    std::string id_str = id->v().substr();
     auto const& var = stack.variable_map[id_str].back();
 
     return ast::IdExpr::from_var(var);
@@ -504,7 +519,7 @@ auto Transformer::map(MiniZinc::Expression* expr) -> ast::Expr try {
   case MiniZinc::StringLit::eid: {
     auto* string_lit = MiniZinc::Expression::cast<MiniZinc::StringLit>(expr);
     return ast::LiteralString{string_lit->v().c_str() != nullptr
-                                  ? std::string{string_lit->v().c_str()}
+                                  ? string_lit->v().substr()
                                   : std::string{}};
   }
   case MiniZinc::ArrayLit::eid: {

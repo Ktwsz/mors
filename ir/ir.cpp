@@ -4,6 +4,7 @@
 #include <pybind11/stl.h>
 
 PYBIND11_MAKE_OPAQUE(parser::ast::ExprHandle);
+PYBIND11_MAKE_OPAQUE(std::shared_ptr<parser::ast::Type>);
 
 namespace IR {
 
@@ -15,10 +16,12 @@ PYBIND11_MODULE(ir_python, m) {
   py::class_<ast::ExprHandle>(m, "ExprHandle")
       .def("get", [](ast::ExprHandle& expr) { return *expr; });
 
+  py::class_<std::shared_ptr<parser::ast::Type>>(m, "TypeHandle")
+      .def("get", [](std::shared_ptr<parser::ast::Type>& type) { return *type; });
+
   py::class_<ast::types::Int>(m, "TypeInt")
       .def("type", [](ast::types::Int const&) { return "int"; });
 
-  // TODO: floats not supported for now
   py::class_<ast::types::Float>(m, "TypeFloat")
       .def("type", [](ast::types::Float const&) { return "float"; });
 
@@ -47,7 +50,8 @@ PYBIND11_MODULE(ir_python, m) {
 
   py::class_<ast::types::Array>(m, "Array")
       .def("type", [](ast::types::Array const&) { return "array"; })
-      .def_readonly("dims", &ast::types::Array::dims);
+      .def_readonly("dims", &ast::types::Array::dims)
+      .def_readonly("inner_type", &ast::types::Array::inner_type);
 
   py::class_<ast::LiteralBool>(m, "LiteralBool")
       .def_readonly("value", &ast::LiteralBool::value)
@@ -59,7 +63,6 @@ PYBIND11_MODULE(ir_python, m) {
       .def_readonly("expr_type", &ast::LiteralInt::expr_type)
       .def_readonly("is_var", &ast::LiteralInt::is_var);
 
-  // TODO: floats not supported for now
   py::class_<ast::LiteralFloat>(m, "LiteralFloat")
       .def_readonly("value", &ast::LiteralFloat::value)
       .def_readonly("expr_type", &ast::LiteralFloat::expr_type)

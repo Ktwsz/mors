@@ -11,6 +11,8 @@
 
 #include <minizinc/ast.hh>
 #include <minizinc/flattener.hh>
+#include <minizinc/gc.hh>
+#include <minizinc/optimize_constraints.hh>
 
 namespace parser {
 namespace flags {
@@ -68,109 +70,113 @@ auto feed_flags(MiniZinc::Flattener& flt, ParserOpts const& opts,
 } // namespace
 
 auto main(ParserOpts const& opts) -> std::expected<ast::Tree, err::Error> {
-  log_flags(opts);
-
-  std::ostringstream flattener_os, flattener_log;
-  MiniZinc::Flattener flt{flattener_os, flattener_log, opts.stdlib_dir};
-  flt.setFlagVerbose(opts.verbose);
-
-  if (auto err = feed_flags(flt, opts, flattener_os, flattener_log); err)
-    return std::unexpected{std::move(*err)};
-
-  if (auto const warnings_view = flattener_log.view(); !warnings_view.empty())
-    fmt::println("MiniZinc Parser returned warnings:\n{}", warnings_view);
-
-  try {
-    flt.flatten("", "stdin");
-  } catch (MiniZinc::Exception const& e) {
-    std::ostringstream mzn_output{};
-    e.print(mzn_output);
-    return std::unexpected{
-        err::MznParsingError{.os = std::move(flattener_os),
-                             .log = std::move(flattener_log),
-                             .msg = mzn_output.str()}
-    };
-  }
-
-  if (auto const warnings_view = flattener_log.view(); !warnings_view.empty())
-    fmt::println("MiniZinc Parser returned warnings:\n{}", warnings_view);
-
-  auto& model = *flt.getEnv()->model();
-
-  // TODO: separate ast printing from this function
-  if (opts.print_ast) {
-    MiniZinc::register_builtins(*flt.getEnv());
-    PrintModelVisitor vis{model, flt.getEnv()->envi(), opts.model_path};
-
-    fmt::println("--- VAR DECLS ---");
-    for (auto& var_decl : model.vardecls()) {
-      vis.print_var_decl(var_decl.e(), 0);
-    }
-
-    fmt::println("--- CONSTRAINTS ---");
-    for (auto& constraint : model.constraints()) {
-      vis.match_expr(constraint.e());
-    }
-
-    fmt::println("--- SOLVE ---");
-    vis.print_solve_type(model.solveItem());
-    if (model.solveItem()->st() != MiniZinc::SolveI::ST_SAT) {
-      for (auto& var_decl : model.vardecls()) {
-        if (MiniZinc::Expression::cast<MiniZinc::VarDecl>(var_decl.e())
-                ->id()
-                ->str() != "_objective")
-          continue;
-
-        vis.print_var_decl(var_decl.e(), 4);
-      }
-    }
-
-    fmt::println("--- OUTPUT ---");
-    vis.match_expr(model.outputItem()->e());
-
-    return ast::Tree{};
-  }
-
   ast::Tree tree;
-  Transformer transformer{.model = model,
-                          .env = flt.getEnv()->envi(),
-                          .functions = tree.functions,
-                          .stack = {},
-                          .opts = opts};
+  {
+    log_flags(opts);
 
-  for (auto& var_decl : model.vardecls())
-    try { // TODO make view compatible
-      tree.decls.push_back(transformer.map(var_decl.e(), true, true, false));
+    std::ostringstream flattener_os, flattener_log;
+    MiniZinc::Flattener flt{flattener_os, flattener_log, opts.stdlib_dir};
+    flt.setFlagVerbose(opts.verbose);
+
+    if (auto err = feed_flags(flt, opts, flattener_os, flattener_log); err)
+      return std::unexpected{std::move(*err)};
+
+    if (auto const warnings_view = flattener_log.view(); !warnings_view.empty())
+      fmt::println("MiniZinc Parser returned warnings:\n{}", warnings_view);
+
+    try {
+      flt.flatten("", "stdin");
+    } catch (MiniZinc::Exception const& e) {
+      std::ostringstream mzn_output{};
+      e.print(mzn_output);
+      return std::unexpected{
+          err::MznParsingError{.os = std::move(flattener_os),
+                               .log = std::move(flattener_log),
+                               .msg = mzn_output.str()}
+      };
+    }
+
+    if (auto const warnings_view = flattener_log.view(); !warnings_view.empty())
+      fmt::println("MiniZinc Parser returned warnings:\n{}", warnings_view);
+
+    auto& model = *flt.getEnv()->model();
+
+    // TODO: separate ast printing from this function
+    if (opts.print_ast) {
+      MiniZinc::register_builtins(*flt.getEnv());
+      PrintModelVisitor vis{model, flt.getEnv()->envi(), opts.model_path};
+
+      fmt::println("--- VAR DECLS ---");
+      for (auto& var_decl : model.vardecls()) {
+        vis.print_var_decl(var_decl.e(), 0);
+      }
+
+      fmt::println("--- CONSTRAINTS ---");
+      for (auto& constraint : model.constraints()) {
+        vis.match_expr(constraint.e());
+      }
+
+      fmt::println("--- SOLVE ---");
+      vis.print_solve_type(model.solveItem());
+      if (model.solveItem()->st() != MiniZinc::SolveI::ST_SAT) {
+        for (auto& var_decl : model.vardecls()) {
+          if (MiniZinc::Expression::cast<MiniZinc::VarDecl>(var_decl.e())
+                  ->id()
+                  ->str() != "_objective")
+            continue;
+
+          vis.print_var_decl(var_decl.e(), 4);
+        }
+      }
+
+      fmt::println("--- OUTPUT ---");
+      vis.match_expr(model.outputItem()->e());
+
+      return std::unexpected{err::Unsupported{}};
+    }
+
+    Transformer transformer{.model = model,
+                            .env = flt.getEnv()->envi(),
+                            .functions = tree.functions,
+                            .stack = {},
+                            .opts = opts};
+
+    for (auto& var_decl : model.vardecls())
+      try { // TODO make view compatible
+        tree.decls.push_back(transformer.map(var_decl.e(), true, true, false));
+      } catch (Ignore const& e) {
+      } catch (err::Unsupported const& e) {
+        return std::unexpected{e};
+      }
+
+    for (auto& constraint : model.constraints())
+      try { // TODO make view compatible
+        tree.constraints.push_back(transformer.map_ptr(constraint.e()));
+      } catch (Ignore const& e) {
+      } catch (err::Unsupported const& e) {
+        return std::unexpected{e};
+      }
+
+    try {
+      tree.solve_type = transformer.map(model.solveItem());
     } catch (Ignore const& e) {
     } catch (err::Unsupported const& e) {
       return std::unexpected{e};
     }
 
-  for (auto& constraint : model.constraints())
-    try { // TODO make view compatible
-      tree.constraints.push_back(transformer.map_ptr(constraint.e()));
+    try {
+      if (!model.outputItem())
+        tree.make_output();
+      else
+        tree.output = transformer.map_ptr(model.outputItem()->e());
     } catch (Ignore const& e) {
     } catch (err::Unsupported const& e) {
       return std::unexpected{e};
     }
-
-  try {
-    tree.solve_type = transformer.map(model.solveItem());
-  } catch (Ignore const& e) {
-  } catch (err::Unsupported const& e) {
-    return std::unexpected{e};
   }
 
-  try {
-    if (!model.outputItem())
-      tree.make_output();
-    else
-      tree.output = transformer.map_ptr(model.outputItem()->e());
-  } catch (Ignore const& e) {
-  } catch (err::Unsupported const& e) {
-    return std::unexpected{e};
-  }
-
+  MiniZinc::GC::trigger();
+  MiniZinc::GC::resetHeap();
   return tree;
 }
 
