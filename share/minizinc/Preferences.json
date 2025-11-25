@@ -1,0 +1,7 @@
+{
+  "tagDefaults": [
+    ["", "org.gecode.gecode"]
+  ],
+  "solverDefaults" : [
+  ]
+}
