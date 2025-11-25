@@ -19,6 +19,11 @@ int main(int argc, char** argv) {
     return 0;
   }
 
+  if (opts->installation_check) {
+      parser::ParserOpts::run_installation_check();
+      return 0;
+  }
+
   opts->dump_warnings();
   auto const result = parser::main(*opts);
 

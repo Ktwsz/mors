@@ -17,11 +17,13 @@ struct ParserOpts {
   bool verbose;
   bool print_ast;
   bool runtime_parameters;
+  bool installation_check;
   bool help;
 
   std::ostringstream logs;
 
   static auto create(int, char**) -> std::expected<ParserOpts, clipp::man_page>;
+  static void run_installation_check();
 
   void dump_warnings() const;
 
