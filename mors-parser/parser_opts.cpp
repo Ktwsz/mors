@@ -41,12 +41,12 @@ std::vector<std::string> get_string_list(MiniZinc::AssignI* ai) {
 } // namespace
 
 auto defineCli(ParserOpts& opts) -> clipp::group {
-  return (clipp::opt_value("model.mzn", opts.model_path),
+  return (clipp::value("model.mzn", opts.model_path),
           clipp::opt_values("data.dzn", opts.infiles),
           (clipp::option("-o") & clipp::value("output file", opts.output_file)),
           (clipp::option("--runtime-parameters").set(opts.runtime_parameters)),
           (clipp::option("--stdlib-dir") & clipp::value("dir", opts.stdlib_dir))
-              .doc(std::format("Default: {}", opts.stdlib_dir)),
+              .doc("Path to MiniZinc standard library directory"),
           (clipp::option("-I", "--search-dir") &
            clipp::value("dir", opts.ortools_include_dir))
               .doc("Additionally search for included files in <dir>."),
@@ -57,7 +57,7 @@ auto defineCli(ParserOpts& opts) -> clipp::group {
               .doc("Print this help message."),
           clipp::option("--installation-check")
               .set(opts.installation_check)
-              .doc("Print this help message."));
+              .doc("Prints locations where MiniZinc looks for configuration files"));
 }
 
 auto ParserOpts::create(int argc, char** argv)

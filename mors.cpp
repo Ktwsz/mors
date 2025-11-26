@@ -40,11 +40,11 @@ int main(int argc, char** argv) {
   using namespace py::literals;
 
   try {
-    py::function hello_world =
-        py::module_::import("emitter").attr("hello_world");
+    py::function emitter_main =
+        py::module_::import("emitter").attr("main");
     auto parser_python = py::module::import("ir_python");
 
-    hello_world(*result, opts->get_output_file());
+    emitter_main(*result, opts->get_output_file());
 
   } catch (py::error_already_set const& e) {
     std::println("python binding err:");
