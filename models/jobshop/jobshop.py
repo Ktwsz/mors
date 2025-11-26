@@ -1,10 +1,13 @@
+import uuid
 import math
 from ortools.sat.python import cp_model
 from mors_lib import *
 from itertools import product
 model = cp_model.CpModel()
+import mors_lib
+mors_lib.model = model
 
-class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
+class SolutionPrinter(cp_model.CpSolverSolutionCallback):
 
     def __init__(self, end, JOB, TASK, digs, s, last):
         cp_model.CpSolverSolutionCallback.__init__(self)
@@ -29,10 +32,10 @@ class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
 JOB = set(range(1, max(range(1, 5 + 1)) + 1))
 TASK = set(range(1, max(range(1, 5 + 1)) + 1))
 last = max(TASK)
-d = dict(zip(product(JOB, TASK), [1, 4, 5, 3, 6, 3, 2, 7, 1, 2, 4, 4, 4, 4, 4, 1, 1, 1, 6, 8, 7, 3, 2, 2, 1]))
-total = sum([d[i, j] for i in JOB for j in TASK])
+d = Array([JOB, TASK], Array([1, 4, 5, 3, 6, 3, 2, 7, 1, 2, 4, 4, 4, 4, 4, 1, 1, 1, 6, 8, 7, 3, 2, 2, 1]))
+total = sum(Array([d[i, j] for i in JOB for j in TASK]))
 digs = math.ceil(math.log(float(total)))
-s = {key: model.new_int_var_from_domain(cp_model.Domain.FromValues(range(0, total + 1)), 's' + str(key)) for key in product(JOB, TASK)}
+s = IntVarArray('s', [JOB, TASK], range(0, total + 1))
 end = model.new_int_var_from_domain(cp_model.Domain.FromValues(range(0, total + 1)), 'end')
 for i in JOB:
     for j in TASK:
@@ -43,8 +46,8 @@ for j in TASK:
     for i in JOB:
         for k in JOB:
             if i < k:
-                model.Add(or_(model, mors_lib_bool(model, model.Add(s[i, j] + d[i, j] <= s[k, j]), model.Add(s[i, j] + d[i, j] > s[k, j])), mors_lib_bool(model, model.Add(s[k, j] + d[k, j] <= s[i, j]), model.Add(s[k, j] + d[k, j] > s[i, j]))) == True)
+                model.add_bool_or(mors_lib_bool(s[i, j] + d[i, j] <= s[k, j], s[i, j] + d[i, j] > s[k, j]), mors_lib_bool(s[k, j] + d[k, j] <= s[i, j], s[k, j] + d[k, j] > s[i, j]))
 model.minimize(end)
 solver = cp_model.CpSolver()
-solution_printer = VarArraySolutionPrinter(end, JOB, TASK, digs, s, last)
+solution_printer = SolutionPrinter(end, JOB, TASK, digs, s, last)
 status = solver.solve(model, solution_printer)

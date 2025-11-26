@@ -1,10 +1,13 @@
+import uuid
 import math
 from ortools.sat.python import cp_model
 from mors_lib import *
 from itertools import product
 model = cp_model.CpModel()
+import mors_lib
+mors_lib.model = model
 
-class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
+class SolutionPrinter(cp_model.CpSolverSolutionCallback):
 
     def __init__(self, worker):
         cp_model.CpSolverSolutionCallback.__init__(self)
@@ -13,7 +16,7 @@ class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
 
     def on_solution_callback(self) -> None:
         self.__solution_count += 1
-        print(str([self.value(v) for v in self.worker.values()]), end='')
+        print(str([self.value(v) for v in self.worker]), end='')
 
     @property
     def solution_count(self) -> int:
@@ -24,7 +27,7 @@ def analyse_all_different_42(x):
 
 def all_different_41(x):
     analyse_all_different_42(array1d(x))
-    ortools_all_different(model, array1d(x))
+    ortools_all_different(array1d(x))
 
 def alldifferent_40(x):
     all_different_41(array1d(x))
@@ -32,10 +35,10 @@ n = 4
 DOM = set(range(1, n + 1))
 m = 4
 COD = set(range(1, m + 1))
-profit = dict(zip(product(DOM, COD), [7, 1, 3, 4, 8, 2, 5, 1, 4, 3, 7, 2, 3, 1, 6, 3]))
-worker = {key: model.new_int_var_from_domain(cp_model.Domain.FromValues(DOM), 'worker' + str(key)) for key in COD}
+profit = Array([DOM, COD], Array([7, 1, 3, 4, 8, 2, 5, 1, 4, 3, 7, 2, 3, 1, 6, 3]))
+worker = IntVarArray('worker', COD, DOM)
 alldifferent_40(worker)
-model.maximize(sum([access(model, profit, (worker[t], t)) for t in COD]))
+model.maximize(sum(Array([profit[worker[t], t] for t in COD])))
 solver = cp_model.CpSolver()
-solution_printer = VarArraySolutionPrinter(worker)
+solution_printer = SolutionPrinter(worker)
 status = solver.solve(model, solution_printer)

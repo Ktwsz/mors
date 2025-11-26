@@ -4,3 +4,4 @@ build/
 *.so
 CMakeUserPresets.json
 .clangd
+**/.DS_Store

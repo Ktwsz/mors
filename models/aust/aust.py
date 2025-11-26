@@ -1,10 +1,13 @@
+import uuid
 import math
 from ortools.sat.python import cp_model
 from mors_lib import *
 from itertools import product
 model = cp_model.CpModel()
+import mors_lib
+mors_lib.model = model
 
-class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
+class SolutionPrinter(cp_model.CpSolverSolutionCallback):
 
     def __init__(self, wa, nt, sa, q, nsw, v, t):
         cp_model.CpSolverSolutionCallback.__init__(self)
@@ -48,5 +51,5 @@ model.Add(sa != v)
 model.Add(q != nsw)
 model.Add(nsw != v)
 solver = cp_model.CpSolver()
-solution_printer = VarArraySolutionPrinter(wa, nt, sa, q, nsw, v, t)
+solution_printer = SolutionPrinter(wa, nt, sa, q, nsw, v, t)
 status = solver.solve(model, solution_printer)

@@ -9,22 +9,15 @@ mors_lib.model = model
 
 class SolutionPrinter(cp_model.CpSolverSolutionCallback):
 
-    def __init__(self, x, POS, DIG, COPY):
+    def __init__(self, y):
         cp_model.CpSolverSolutionCallback.__init__(self)
         self.__solution_count = 0
-        self.x = x
-        self.POS = POS
-        self.DIG = DIG
-        self.COPY = COPY
+        self.y = y
 
     def on_solution_callback(self) -> None:
         self.__solution_count += 1
-        print(str([self.value(v) for v in self.x]), end='')
+        print('y=' + str([self.value(v) for v in self.y]), end='')
         print('\n', end='')
-        for p in self.POS:
-            for d in self.DIG:
-                for c in self.COPY:
-                    print(str(d) + ' ' if self.value(self.x[d, c]) == p else '', end='')
 
     @property
     def solution_count(self) -> int:
@@ -39,17 +32,13 @@ def all_different_41(x):
 
 def alldifferent_40(x):
     all_different_41(array1d(x))
-n = 10
-DIG = set(range(1, n + 1))
-m = 3
-COPY = set(range(1, m + 1))
-l = m * n
-POS = set(range(1, l + 1))
-x = IntVarArray('x', [DIG, COPY], POS)
-alldifferent_40(Array([x[d, c] for d in DIG for c in COPY]))
-for d in DIG:
-    for c in range(1, m - 1 + 1):
-        model.Add(x[d, c + 1] == x[d, c] + d + 1)
+n = 5
+PERSON = set(range(1, n + 1))
+POS = set(range(1, n + 1))
+friend = Array([PERSON, PERSON], Array([0, 4, 5, 8, -2, 4, 0, -1, 6, 0, 5, -1, 0, 9, -4, 8, 6, 9, 7, 6, -2, 0, -4, 6, 0]))
+y = IntVarArray('y', POS, PERSON)
+alldifferent_40(y)
+model.maximize(sum(Array([friend[y[i], y[i + 1]] for i in range(1, n - 1 + 1)])))
 solver = cp_model.CpSolver()
-solution_printer = SolutionPrinter(x, POS, DIG, COPY)
+solution_printer = SolutionPrinter(y)
 status = solver.solve(model, solution_printer)

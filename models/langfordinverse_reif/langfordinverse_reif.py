@@ -28,16 +28,16 @@ class SolutionPrinter(cp_model.CpSolverSolutionCallback):
     def solution_count(self) -> int:
         return self.__solution_count
 
-def fzn_inverse(f, invf):
-    ortools_inverse(f, invf, min(index_set(f)), min(index_set(invf)))
+def fzn_inverse_reif(f, invf):
+    b = model.new_bool_var(str(uuid.uuid4()))
+    model.Add(b == and_(forall_(Array([and_(in_(f[i], index_set(invf)), mors_lib_bool(invf[f[i]] == i, invf[f[i]] != i)) for i in index_set(f)])), forall_(Array([and_(in_(invf[j], index_set(f)), mors_lib_bool(f[invf[j]] == j, f[invf[j]] != j)) for j in index_set(invf)]))))
+    return b
 
 def analyse_all_different_16(x):
-    model.Add(True)
+    return mors_lib_bool(True, False)
 
 def inverse_42(f, invf):
-    analyse_all_different_16(f)
-    analyse_all_different_16(invf)
-    fzn_inverse(f, invf)
+    return and_(and_(analyse_all_different_16(f), analyse_all_different_16(invf)), fzn_inverse_reif(f, invf))
 n = 10
 DIG = set(range(1, n + 1))
 m = 3
@@ -47,7 +47,7 @@ POS = set(range(1, l + 1))
 x = IntVarArray('x', [DIG, COPY], POS)
 DIGCOPY = set(range(1, l + 1))
 y = IntVarArray('y', POS, DIGCOPY)
-inverse_42(Array([x[d, c] for d in DIG for c in COPY]), y)
+model.Add(mors_lib_bool(True, False) == inverse_42(Array([x[d, c] for d in DIG for c in COPY]), y))
 for d in DIG:
     for c in range(1, m - 1 + 1):
         model.Add(x[d, c + 1] == x[d, c] + d + 1)

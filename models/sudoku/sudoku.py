@@ -1,10 +1,13 @@
+import uuid
 import math
 from ortools.sat.python import cp_model
 from mors_lib import *
 from itertools import product
 model = cp_model.CpModel()
+import mors_lib
+mors_lib.model = model
 
-class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
+class SolutionPrinter(cp_model.CpSolverSolutionCallback):
 
     def __init__(self, PuzzleRange, digs, puzzle, S, N):
         cp_model.CpSolverSolutionCallback.__init__(self)
@@ -31,7 +34,7 @@ def analyse_all_different_42(x):
 
 def all_different_41(x):
     analyse_all_different_42(array1d(x))
-    ortools_all_different(model, array1d(x))
+    ortools_all_different(array1d(x))
 
 def alldifferent_40(x):
     all_different_41(array1d(x))
@@ -40,8 +43,8 @@ N = S * S
 digs = math.ceil(math.log(float(N)))
 PuzzleRange = set(range(1, N + 1))
 SubSquareRange = set(range(1, S + 1))
-start = dict(zip(product(range(1, N + 1), range(1, N + 1)), [0, 6, 8, 4, 0, 1, 0, 7, 0, 0, 0, 0, 0, 8, 5, 0, 3, 0, 0, 2, 6, 8, 0, 9, 0, 4, 0, 0, 0, 7, 0, 0, 0, 9, 0, 0, 0, 5, 0, 1, 0, 6, 3, 2, 0, 0, 4, 0, 6, 1, 0, 0, 0, 0, 0, 3, 0, 2, 0, 7, 6, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]))
-puzzle = {key: model.new_int_var_from_domain(cp_model.Domain.FromValues(PuzzleRange), 'puzzle' + str(key)) for key in product(range(1, N + 1), range(1, N + 1))}
+start = Array([range(1, N + 1), range(1, N + 1)], Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 8, 4, 0, 1, 0, 7, 0, 0, 0, 0, 0, 8, 5, 0, 3, 0, 0, 2, 6, 8, 0, 9, 0, 4, 0, 0, 0, 7, 0, 0, 0, 9, 0, 0, 0, 5, 0, 1, 0, 6, 3, 2, 0, 0, 4, 0, 6, 1, 0, 0, 0, 0, 0, 3, 0, 2, 0, 7, 6, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]))
+puzzle = IntVarArray('puzzle', [range(1, N + 1), range(1, N + 1)], PuzzleRange)
 for i in PuzzleRange:
     for j in PuzzleRange:
         if start[i, j] > 0:
@@ -49,12 +52,12 @@ for i in PuzzleRange:
         else:
             model.Add(True)
 for i in PuzzleRange:
-    alldifferent_40([puzzle[i, j] for j in PuzzleRange])
+    alldifferent_40(Array([puzzle[i, j] for j in PuzzleRange]))
 for j in PuzzleRange:
-    alldifferent_40([puzzle[i, j] for i in PuzzleRange])
+    alldifferent_40(Array([puzzle[i, j] for i in PuzzleRange]))
 for a in SubSquareRange:
     for o in SubSquareRange:
-        alldifferent_40([puzzle[(a - 1) * S + a1, (o - 1) * S + o1] for a1 in SubSquareRange for o1 in SubSquareRange])
+        alldifferent_40(Array([puzzle[(a - 1) * S + a1, (o - 1) * S + o1] for a1 in SubSquareRange for o1 in SubSquareRange]))
 solver = cp_model.CpSolver()
-solution_printer = VarArraySolutionPrinter(PuzzleRange, digs, puzzle, S, N)
+solution_printer = SolutionPrinter(PuzzleRange, digs, puzzle, S, N)
 status = solver.solve(model, solution_printer)

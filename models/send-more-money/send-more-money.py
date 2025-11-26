@@ -1,10 +1,13 @@
+import uuid
 import math
 from ortools.sat.python import cp_model
 from mors_lib import *
 from itertools import product
 model = cp_model.CpModel()
+import mors_lib
+mors_lib.model = model
 
-class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
+class SolutionPrinter(cp_model.CpSolverSolutionCallback):
 
     def __init__(self, S, E, N, D, M, O, R, Y):
         cp_model.CpSolverSolutionCallback.__init__(self)
@@ -33,7 +36,7 @@ def analyse_all_different_43(x):
 
 def all_different_42(x):
     analyse_all_different_43(array1d(x))
-    ortools_all_different(model, array1d(x))
+    ortools_all_different(array1d(x))
 
 def alldifferent_41(x):
     all_different_42(array1d(x))
@@ -46,7 +49,7 @@ O = model.new_int_var_from_domain(cp_model.Domain.FromValues(range(0, 9 + 1)), '
 R = model.new_int_var_from_domain(cp_model.Domain.FromValues(range(0, 9 + 1)), 'R')
 Y = model.new_int_var_from_domain(cp_model.Domain.FromValues(range(0, 9 + 1)), 'Y')
 model.Add(1000 * S + 100 * E + 10 * N + D + 1000 * M + 100 * O + 10 * R + E == 10000 * M + 1000 * O + 100 * N + 10 * E + Y)
-alldifferent_41([S, E, N, D, M, O, R, Y])
+alldifferent_41(Array([S, E, N, D, M, O, R, Y]))
 solver = cp_model.CpSolver()
-solution_printer = VarArraySolutionPrinter(S, E, N, D, M, O, R, Y)
+solution_printer = SolutionPrinter(S, E, N, D, M, O, R, Y)
 status = solver.solve(model, solution_printer)

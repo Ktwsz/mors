@@ -2,7 +2,7 @@ from ir_python import *
 import ast
 
 SOLUTION_PRINTER_TEMPLATE = """
-class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
+class SolutionPrinter(cp_model.CpSolverSolutionCallback):
     def __init__(self):
         cp_model.CpSolverSolutionCallback.__init__(self)
         self.__solution_count = 0
@@ -44,7 +44,7 @@ class Emitter:
         self.let_map = {}
 
     def init_file(self):    
-        self.ast_tree.body.append(ast.parse("import math\nfrom ortools.sat.python import cp_model\nfrom mors_lib import *\nfrom itertools import product\n\n\nmodel=cp_model.CpModel()\n"))
+        self.ast_tree.body.append(ast.parse("import uuid\nimport math\nfrom ortools.sat.python import cp_model\nfrom mors_lib import *\nfrom itertools import product\n\n\nmodel=cp_model.CpModel()\nimport mors_lib\nmors_lib.model = model"))
 
         template = ast.parse(SOLUTION_PRINTER_TEMPLATE).body[0]
         self.ast_tree.body.append(template)
@@ -67,7 +67,7 @@ class Emitter:
 
     def finalize_file(self):
         self.ast_tree.body.append(ast.parse("solver = cp_model.CpSolver()"))
-        self.ast_tree.body.append(ast.parse(f"solution_printer = VarArraySolutionPrinter({", ".join(self.solution_printer_params)})"))
+        self.ast_tree.body.append(ast.parse(f"solution_printer = SolutionPrinter({", ".join(self.solution_printer_params)})"))
         self.ast_tree.body.append(ast.parse("status = solver.solve(model, solution_printer)\n"))
 
     def ast_const(self, decl: DeclConst):
@@ -79,17 +79,19 @@ class Emitter:
                     id = decl.id
                 return ast.parse(f"{id} = {self.ast_expr(decl.value, STATE_DEFAULT)}")
             case "int_set" | "float_set" | "bool_set":
-                return ast.parse(f"{decl.id} = set({self.ast_expr(decl.value,STATE_DEFAULT)})")
+                value = self.ast_expr(decl.value,STATE_DEFAULT)
+                if isinstance(decl.value.get(), LiteralSet):
+                    return ast.parse(f"{decl.id} = {value}")
+
+                return ast.parse(f"{decl.id} = set({value})")
             case "array":
                 expr = self.ast_expr(decl.value, STATE_DEFAULT)
                 if type(decl.value.get()) == LiteralArray:
                     dimensions = decl.type.dims
                     if len(dimensions) == 1:
-                        expr = f"zip({self.ast_expr(dimensions[0], STATE_DEFAULT)},{expr})"
+                        expr = f"Array({self.ast_expr(dimensions[0], STATE_DEFAULT)},{expr})"
                     else:
-                        expr = f"zip(product({", ".join([self.ast_expr(dimensions[i], STATE_DEFAULT) for i in range(len(dimensions))])}),{expr})"
-
-                    expr =f"dict({expr})"
+                        expr = f"Array([{", ".join([self.ast_expr(dimensions[i], STATE_DEFAULT) for i in range(len(dimensions))])}],{expr})"
                 return ast.parse(f"{decl.id} = {expr}")
             case _:
                 return ""
@@ -101,12 +103,14 @@ class Emitter:
             return self.ast_UnaryOp(expr.get(), state)
         elif (type(expr.get())==LiteralInt):
             return str(expr.get().value)
+        elif (type(expr.get())==LiteralFloat):
+            return str(expr.get().value)
         elif (type(expr.get())==LiteralBool):
             if is_constraint(state):
                 if is_stmt(state):
                     return f"model.Add({expr.get().value})"
 
-                return f"mors_lib_bool(model, model.Add({expr.get().value}), model.Add({not expr.get().value}))"
+                return f"mors_lib_bool({expr.get().value}, {not expr.get().value})"
 
             return str(expr.get().value)
         elif (type(expr.get())==LiteralArray):
@@ -131,8 +135,8 @@ class Emitter:
 
                 if expr.get().is_var and expr.get().expr_type.type() != 'array':
                     return f"self.value({name})"
-                else:
-                    return name
+
+                return name
             else:
                 if expr.get().id == "def":
                     return "def_"
@@ -148,12 +152,10 @@ class Emitter:
         elif (type(expr.get())==LetIn):
             return self.ast_LetIn(expr.get(), state)
         elif(type(expr.get())==ArrayAccess):
-            if is_output(state):
-                return f"self.value({self.ast_expr(expr.get().arr, state)}[({", ".join([self.ast_expr(ix,state) for ix in expr.get().indexes])})])"
-            else:
-                if expr.get().is_index_var_type:
-                    return f"access(model, {self.ast_expr(expr.get().arr, state)}, ({", ".join([self.ast_expr(ix,state) for ix in expr.get().indexes])}))"
-                return f"{self.ast_expr(expr.get().arr, state)}[({", ".join([self.ast_expr(ix,state) for ix in expr.get().indexes])})]"
+            access = f"{self.ast_expr(expr.get().arr, state)}[({", ".join([self.ast_expr(ix,state) for ix in expr.get().indexes])})]"
+            if is_output(state) and expr.get().is_var:
+                    return f"self.value({access})"
+            return access
         else :
             return ""
 
@@ -175,7 +177,7 @@ class Emitter:
                 rhs = self.ast_expr(bin_op.rhs, state)
 
                 if bin_op.lhs.get().is_var and bin_op.rhs.get().is_var:
-                    return f"mult(model, {lhs}, {rhs})"
+                    return f"mult({lhs}, {rhs})"
 
                 return f"({lhs}) * ({rhs})"
             case BinOp.OpKind.MOD :
@@ -183,7 +185,7 @@ class Emitter:
                 rhs = self.ast_expr(bin_op.rhs, state)
 
                 if is_constraint(state):
-                    return f"mod_(model, {lhs}, {rhs})"
+                    return f"mod_({lhs}, {rhs})"
 
                 return f"({lhs}) % ({rhs})"
             case BinOp.OpKind.IDIV :
@@ -217,7 +219,7 @@ class Emitter:
 
                     if bin_op.lhs.get().expr_type.type() == "int":
                         not_op = f"({lhs}) != ({rhs})"
-                        return f"mors_lib_bool(model, model.Add({op}), model.Add({not_op}))"
+                        return f"mors_lib_bool({op}, {not_op})"
                     else:
                         return f"model.Add({op})"
 
@@ -233,7 +235,7 @@ class Emitter:
 
                     if bin_op.lhs.get().expr_type.type() == "int":
                         not_op = f"({lhs}) == ({rhs})"
-                        return f"mors_lib_bool(model, model.Add({op}), model.Add({not_op}))"
+                        return f"mors_lib_bool({op}, {not_op})"
                     else:
                         return f"model.Add({op})"
                 return op
@@ -248,7 +250,7 @@ class Emitter:
 
                     if bin_op.lhs.get().expr_type.type() == "int":
                         not_op = f"({lhs}) < ({rhs})"
-                        return f"mors_lib_bool(model, model.Add({op}), model.Add({not_op}))"
+                        return f"mors_lib_bool({op}, {not_op})"
                     else:
                         return f"model.Add({op})"
                 return op
@@ -263,7 +265,7 @@ class Emitter:
 
                     if bin_op.lhs.get().expr_type.type() == "int":
                         not_op = f"({lhs}) <= ({rhs})"
-                        return f"mors_lib_bool(model, model.Add({op}), model.Add({not_op}))"
+                        return f"mors_lib_bool({op}, {not_op})"
                     else:
                         return f"model.Add({op})"
                 return op
@@ -278,7 +280,7 @@ class Emitter:
 
                     if bin_op.lhs.get().expr_type.type() == "int":
                         not_op = f"({lhs}) >= ({rhs})"
-                        return f"mors_lib_bool(model, model.Add({op}), model.Add({not_op}))"
+                        return f"mors_lib_bool({op}, {not_op})"
                     else:
                         return f"model.Add({op})"
                 return op
@@ -293,7 +295,7 @@ class Emitter:
 
                     if bin_op.lhs.get().expr_type.type() == "int":
                         not_op = f"({lhs}) > ({rhs})"
-                        return f"mors_lib_bool(model, model.Add({op}), model.Add({not_op}))"
+                        return f"mors_lib_bool({op}, {not_op})"
                     else:
                         return f"model.Add({op})"
                 return op
@@ -308,49 +310,61 @@ class Emitter:
                 if is_constraint(state):
                     if is_stmt(state):
                         return f"{self.ast_expr(bin_op.lhs, state)}\n{self.ast_expr(bin_op.rhs, state)}"
-                    return f"and_(model, {self.ast_expr(bin_op.lhs, STATE_CONSTRAINT_EXPR)}, {self.ast_expr(bin_op.rhs, STATE_CONSTRAINT_EXPR)})"
+                    return f"and_({self.ast_expr(bin_op.lhs, STATE_CONSTRAINT_EXPR)}, {self.ast_expr(bin_op.rhs, STATE_CONSTRAINT_EXPR)})"
 
                 return f"({self.ast_expr(bin_op.lhs, state)}) and ({self.ast_expr(bin_op.rhs, state)})"
             case BinOp.OpKind.OR:
                 if is_constraint(state):
+                    lhs = self.ast_expr(bin_op.lhs, STATE_CONSTRAINT_EXPR)
+                    rhs = self.ast_expr(bin_op.rhs, STATE_CONSTRAINT_EXPR)
                     if is_stmt(state):
-                        return f"model.Add(or_(model, {self.ast_expr(bin_op.lhs, STATE_CONSTRAINT_EXPR)}, {self.ast_expr(bin_op.rhs, STATE_CONSTRAINT_EXPR)}) == True)"
-                    return f"or_(model, {self.ast_expr(bin_op.lhs, STATE_CONSTRAINT_EXPR)}, {self.ast_expr(bin_op.rhs, STATE_CONSTRAINT_EXPR)})"
+                        return f"model.add_bool_or({lhs}, {rhs})"
+                    return f"or_({lhs}, {rhs})"
 
                 return f"({self.ast_expr(bin_op.lhs, state)}) or ({self.ast_expr(bin_op.rhs, state)})"
             case BinOp.OpKind.XOR:
                 if is_constraint(state):
+                    lhs = self.ast_expr(bin_op.lhs, STATE_CONSTRAINT_EXPR)
+                    rhs = self.ast_expr(bin_op.rhs, STATE_CONSTRAINT_EXPR)
                     if is_stmt(state):
-                        return f"model.Add(xor_(model, {self.ast_expr(bin_op.lhs, STATE_CONSTRAINT_EXPR)}, {self.ast_expr(bin_op.rhs, STATE_CONSTRAINT_EXPR)}) == True)"
-                    return f"xor_(model, {self.ast_expr(bin_op.lhs, STATE_CONSTRAINT_EXPR)}, {self.ast_expr(bin_op.rhs, STATE_CONSTRAINT_EXPR)})"
+                        return f"model.add_bool_xor({lhs}, {rhs})"
+                    return f"xor_({lhs}, {rhs})"
 
                 return f"bool({self.ast_expr(bin_op.lhs, state)}) != bool({self.ast_expr(bin_op.rhs, state)})"
             case BinOp.OpKind.IMPL:
                 if is_constraint(state):
+                    lhs = self.ast_expr(bin_op.lhs, STATE_CONSTRAINT_EXPR)
+                    rhs = self.ast_expr(bin_op.rhs, STATE_CONSTRAINT_EXPR)
                     if is_stmt(state):
-                        return f"model.Add(impl_(model, {self.ast_expr(bin_op.lhs, STATE_CONSTRAINT_EXPR)}, {self.ast_expr(bin_op.rhs, STATE_CONSTRAINT_EXPR)}) == True)"
-                    return f"impl_(model, {self.ast_expr(bin_op.lhs, STATE_CONSTRAINT_EXPR)}, {self.ast_expr(bin_op.rhs, STATE_CONSTRAINT_EXPR)})"
+                        return f"model.add_implication({lhs}, {rhs})"
+                    return f"impl_({lhs}, {rhs})"
 
                 return f"" #TODO
             case BinOp.OpKind.RIMPL:
                 if is_constraint(state):
+                    lhs = self.ast_expr(bin_op.lhs, STATE_CONSTRAINT_EXPR)
+                    rhs = self.ast_expr(bin_op.rhs, STATE_CONSTRAINT_EXPR)
                     if is_stmt(state):
-                        return f"model.Add(impl_(model, {self.ast_expr(bin_op.rhs, STATE_CONSTRAINT_EXPR)}, {self.ast_expr(bin_op.lhs, STATE_CONSTRAINT_EXPR)}) == True)"
-                    return f"impl_(model, {self.ast_expr(bin_op.rhs, STATE_CONSTRAINT_EXPR)}, {self.ast_expr(bin_op.lhs, STATE_CONSTRAINT_EXPR)})"
+                        return f"model.add_implication({rhs}, {lhs})"
+                    return f"impl_({self.ast_expr(bin_op.rhs, STATE_CONSTRAINT_EXPR)}, {self.ast_expr(bin_op.lhs, STATE_CONSTRAINT_EXPR)})"
 
                 return f"" #TODO
             case BinOp.OpKind.EQUIV:
                 if is_constraint(state):
+                    lhs = self.ast_expr(bin_op.lhs, STATE_CONSTRAINT_EXPR)
+                    rhs = self.ast_expr(bin_op.rhs, STATE_CONSTRAINT_EXPR)
                     if is_stmt(state):
-                        return f"model.Add(equiv_(model, {self.ast_expr(bin_op.lhs, STATE_CONSTRAINT_EXPR)}, {self.ast_expr(bin_op.rhs, STATE_CONSTRAINT_EXPR)}) == True)"
-                    return f"equiv_(model, {self.ast_expr(bin_op.lhs, STATE_CONSTRAINT_EXPR)}, {self.ast_expr(bin_op.rhs, STATE_CONSTRAINT_EXPR)})"
+                        return f"model.Add({lhs} == {rhs})"
+                    return f"equiv_({lhs}, {rhs})"
 
                 return f"({self.ast_expr(bin_op.lhs, state)}) == ({self.ast_expr(bin_op.rhs, state)})"
             case BinOp.OpKind.IN:
                 if is_constraint(state):
+                    lhs = self.ast_expr(bin_op.lhs, STATE_CONSTRAINT_EXPR)
+                    rhs = self.ast_expr(bin_op.rhs, STATE_CONSTRAINT_EXPR)
                     if is_stmt(state):
-                        return f"model.Add(in_(model, {self.ast_expr(bin_op.lhs, STATE_CONSTRAINT_EXPR)}, {self.ast_expr(bin_op.rhs, STATE_CONSTRAINT_EXPR)}) == True)"
-                    return f"in_(model, {self.ast_expr(bin_op.lhs, STATE_CONSTRAINT_EXPR)}, {self.ast_expr(bin_op.rhs, STATE_CONSTRAINT_EXPR)})"
+                        return f"model.Add(in_({lhs}, {rhs}) == True)"
+                    return f"in_({lhs}, {rhs})"
 
                 return f"({self.ast_expr(bin_op.lhs, state)}) in ({self.ast_expr(bin_op.rhs, state)})"
             case BinOp.OpKind.DIFF:
@@ -406,36 +420,28 @@ class Emitter:
         if is_constraint(state) and is_expr(state) and call.id + "_reif" in self.tree.functions:
             if (call.id + "_reif", state) not in self.to_generate:
                 self.to_generate.append((call.id + "_reif", state))
-            return f"{call.id + "_reif"}(model, {", ".join([self.ast_expr(arg, STATE_DEFAULT) for arg in call.args])})"
+            return f"{call.id + "_reif"}({", ".join([self.ast_expr(arg, STATE_DEFAULT) for arg in call.args])})"
 
         match(call.id):
-            case "format_29" | "format_30" | "format_31" | "format_32" | "format_33" | "format_40" | "format_41" | "format_42" | "show" :
+            case "format_29" | "format_30" | "format_31" | "format_32" | "format_33" | "format_37" | "format_40" | "format_41" | "format_42" | "show" :
                 if is_id_expr_array(call.args[0]): 
-                    if call.args[0].get().is_var:
-                        return f"str([ self.value(v) for v in {self.ast_expr(call.args[0], state)}.values()])"
-                    else:
-                        return f"str([ self.value(v) for v in {self.ast_expr(call.args[0], state)}])"
+                    return f"str([ self.value(v) for v in {self.ast_expr(call.args[0], state)}])"
                 return f"str({self.ast_expr(call.args[0], state)})"
             case "card":
-                arg = self.ast_expr(call.args[0], STATE_DEFAULT)
-                if is_id_expr_array(call.args[0]): 
-                    arg += '.values()'
-                return f"max({arg})"
+                return f"max({self.ast_expr(call.args[0], STATE_DEFAULT)})"
             case "enum_next":
                 return f"{self.ast_expr(call.args[1], STATE_DEFAULT)} + 1"
             case "to_enum" | "to_enum_31":
                 return f"{self.ast_expr(call.args[1], state)}"
             case "arg_min":
                 return f"arg_min({self.ast_expr(call.args[0], STATE_DEFAULT)})"
-            case "min" | "max":
-                args = []
-                for arg in call.args:
-                    args.append(self.ast_expr(arg, STATE_DEFAULT))
-                    if is_id_expr_array(arg): 
-                        args[-1] += '.values()'
-                return f"{call.id}({", ".join(args)})"
+            # case "min" | "max":
+            #     args = []
+            #     for arg in call.args:
+            #         args.append(self.ast_expr(arg, STATE_DEFAULT))
+            #     return f"{call.id}({", ".join(args)})"
             case "int_min":
-                return f"int_min(model, {", ".join([self.ast_expr(arg, STATE_DEFAULT) for arg in call.args])})"
+                return f"int_min({", ".join([self.ast_expr(arg, STATE_DEFAULT) for arg in call.args])})"
             case "sum":
                 return f"sum({self.ast_expr(call.args[0], STATE_DEFAULT)})"
             case "ceil":
@@ -453,16 +459,31 @@ class Emitter:
             case "ub" | "lb" | "ub_array" | "lb_array":
                 return f"{call.id}({self.ast_expr(call.args[0], state)})"
             case "assert":
+                if len(call.args) == 3:
+                    args = [self.ast_expr(call.args[0], STATE_DEFAULT), self.ast_expr(call.args[1], STATE_DEFAULT)]
+                    if is_constraint(state):
+                        args.append(self.ast_expr(call.args[2], STATE_CONSTRAINT_EXPR))
+                    else:
+                        args.append(self.ast_expr(call.args[2], STATE_DEFAULT))
+
+                    if is_constraint(state) and is_stmt(state):
+                        return f"model.Add(assert_({", ".join(args)})  == True)"
+                    return f"assert_({", ".join(args)})"
+
                 return f"assert_({", ".join([self.ast_expr(arg, STATE_DEFAULT) for arg in call.args])})"
             case "log":
                 return f"math.log({self.ast_expr(call.args[1], STATE_DEFAULT)})" 
             case "int2float":
                 return f"float({self.ast_expr(call.args[0], STATE_DEFAULT)})" 
             case "bool2int":
-                return f"bool2int(model, {self.ast_expr(call.args[0], STATE_CONSTRAINT_EXPR)})" 
+                return f"bool2int({self.ast_expr(call.args[0], STATE_CONSTRAINT_EXPR)})" 
+            case "set2array":
+                return f"Array({self.ast_expr(call.args[0], state)})"
+            case "default":
+                return self.ast_expr(call.args[0], state)
             case "abs":
                 if call.args[0].get().is_var:
-                    return f"abs_(model, {self.ast_expr(call.args[0], state)})"
+                    return f"abs_({self.ast_expr(call.args[0], state)})"
 
                 return f"abs({self.ast_expr(call.args[0], STATE_DEFAULT)})" 
             case "forall":
@@ -470,39 +491,39 @@ class Emitter:
                     if is_stmt(state):
                         return self.ast_Comprehension(call.args[0].get(), state)
 
-                    return f"forall_(model, {self.ast_expr(call.args[0], STATE_CONSTRAINT_EXPR)})"
+                    return f"forall_({self.ast_expr(call.args[0], STATE_CONSTRAINT_EXPR)})"
 
                 return f"all({self.ast_expr(call.args[0], STATE_DEFAULT)})"
             case "fzn_all_different_int":
-                return f"ortools_all_different(model, {self.ast_expr(call.args[0], STATE_DEFAULT)})"
+                return f"ortools_all_different({self.ast_expr(call.args[0], STATE_DEFAULT)})"
             case "ortools_table_int" | "ortools_table_bool":
-                return f"ortools_allowed_assignments(model, {self.ast_expr(call.args[0], STATE_DEFAULT)}, {self.ast_expr(call.args[1], STATE_DEFAULT)})"
+                return f"ortools_allowed_assignments({self.ast_expr(call.args[0], STATE_DEFAULT)}, {self.ast_expr(call.args[1], STATE_DEFAULT)})"
             case "ortools_inverse":
-                return f"ortools_inverse(model, {", ".join([self.ast_expr(arg, STATE_DEFAULT) for arg in call.args])})"
+                return f"ortools_inverse({", ".join([self.ast_expr(arg, STATE_DEFAULT) for arg in call.args])})"
             case "fzn_cumulative":
-                return f"ortools_cumulative(model, {", ".join([self.ast_expr(arg, STATE_DEFAULT) for arg in call.args])})"
+                return f"ortools_cumulative({", ".join([self.ast_expr(arg, STATE_DEFAULT) for arg in call.args])})"
             case "fzn_disjunctive_strict":
-                return f"ortools_disjunctive_strict(model, {", ".join([self.ast_expr(arg, STATE_DEFAULT) for arg in call.args])})"
+                return f"ortools_disjunctive_strict({", ".join([self.ast_expr(arg, STATE_DEFAULT) for arg in call.args])})"
             case "fzn_disjunctive":
-                return f"ortools_disjunctive(model, {", ".join([self.ast_expr(arg, STATE_DEFAULT) for arg in call.args])})"
+                return f"ortools_disjunctive({", ".join([self.ast_expr(arg, STATE_DEFAULT) for arg in call.args])})"
             case "ortools_circuit":
-                return f"ortools_circuit(model, {", ".join([self.ast_expr(arg, STATE_DEFAULT) for arg in call.args])})"
+                return f"ortools_circuit({", ".join([self.ast_expr(arg, STATE_DEFAULT) for arg in call.args])})"
             case "ortools_subcircuit":
-                return f"ortools_subcircuit(model, {", ".join([self.ast_expr(arg, STATE_DEFAULT) for arg in call.args])})"
+                return f"ortools_subcircuit({", ".join([self.ast_expr(arg, STATE_DEFAULT) for arg in call.args])})"
             case "ortools_count_eq":
-                return f"ortools_count_eq(model, {", ".join([self.ast_expr(arg, STATE_DEFAULT) for arg in call.args])})"
+                return f"ortools_count_eq({", ".join([self.ast_expr(arg, STATE_DEFAULT) for arg in call.args])})"
             case "ortools_count_eq_cst":
-                return f"ortools_count_eq_cst(model, {", ".join([self.ast_expr(arg, STATE_DEFAULT) for arg in call.args])})"
+                return f"ortools_count_eq_cst({", ".join([self.ast_expr(arg, STATE_DEFAULT) for arg in call.args])})"
             case "fzn_diffn":
-                return f"ortools_diffn(model, {", ".join([self.ast_expr(arg, STATE_DEFAULT) for arg in call.args])})"
+                return f"ortools_diffn({", ".join([self.ast_expr(arg, STATE_DEFAULT) for arg in call.args])})"
             case "fzn_diffn_nonstrict":
-                return f"ortools_diffn_nonstrict(model, {", ".join([self.ast_expr(arg, STATE_DEFAULT) for arg in call.args])})"
+                return f"ortools_diffn_nonstrict({", ".join([self.ast_expr(arg, STATE_DEFAULT) for arg in call.args])})"
             case "ortools_network_flow_cost":
-                return f"ortools_network_flow_cost(model, {", ".join([self.ast_expr(arg, STATE_DEFAULT) for arg in call.args])})"
+                return f"ortools_network_flow_cost({", ".join([self.ast_expr(arg, STATE_DEFAULT) for arg in call.args])})"
             case "ortools_network_flow":
-                return f"ortools_network_flow(model, {", ".join([self.ast_expr(arg, STATE_DEFAULT) for arg in call.args])})"
+                return f"ortools_network_flow({", ".join([self.ast_expr(arg, STATE_DEFAULT) for arg in call.args])})"
             case "ortools_regular":
-                return f"ortools_regular(model, {", ".join([self.ast_expr(arg, STATE_DEFAULT) for arg in call.args])})"
+                return f"ortools_regular({", ".join([self.ast_expr(arg, STATE_DEFAULT) for arg in call.args])})"
             case "show_int":
                 return f"show_int({self.ast_expr(call.args[0],state)}, {self.ast_expr(call.args[1],state)})"
             case "if_then_else":
@@ -527,7 +548,11 @@ class Emitter:
         for constraint in let_in.constraints:
             let_fn.body.append(ast.parse(self.ast_expr(constraint, STATE_CONSTRAINT)))
         
-        in_expr = ast.Return(ast.parse(self.ast_expr(let_in.in_expr, state)).body[-1].value)
+        in_expr = ast.parse(self.ast_expr(let_in.in_expr, state))
+
+        if is_expr(state):
+            in_expr = ast.Return(in_expr.body[-1].value)
+
         let_fn.body.append(in_expr)
 
         return let_fn
@@ -539,26 +564,32 @@ class Emitter:
         function = self.tree.functions[function_id]
         fn = ast.FunctionDef(function.id)
 
-        # if function_id.endswith("_reif"):
-        #     fn.args = ast.arguments(args =  [ast.arg(arg="model")] + [ast.arg(arg=fn_arg.id) for fn_arg in function.params[:-1]])
-        # else:
         fn.args = ast.arguments(args = [ast.arg(arg=fn_arg.id) for fn_arg in function.params])
+        is_reif = function_id.endswith("_reif")
+        if is_reif:
+            fn.args.args.pop()
 
-
-        # if function_id.endswith("_reif") and type(function.body.get()) == BinOp and function.body.get().kind == BinOp.OpKind.EQUIV: # should always be true for _reif
-        #     fn.body = ast.parse(self.ast_expr(function.body.get().rhs, state)).body
-        # else:
         self.let_in_scope.append([])
+        
+        if is_reif:
+            state = STATE_CONSTRAINT
+
         fn.body = ast.parse(self.ast_expr(function.body, state)).body
-        if is_expr(state):
-            fn.body = [ ast.Return(fn.body[-1].value) ]
 
         for (let_in, let_state) in self.let_in_scope[-1]:
             let_fn = self.generate_LetIn(let_in, let_state)
             fn.body.insert(0, ast.fix_missing_locations(let_fn))
 
-        self.ast_tree.body.insert(self.function_place, ast.fix_missing_locations(fn))
         self.let_in_scope.pop()
+
+        if is_reif:
+            fn.body.insert(0, ast.parse('b = model.new_bool_var(str(uuid.uuid4()))').body[0])
+            fn.body.append(ast.parse("return b").body[0])
+
+        if is_expr(state):
+            fn.body[-1] = ast.Return(fn.body[-1].value)
+
+        self.ast_tree.body.insert(self.function_place, ast.fix_missing_locations(fn))
 
 
     def ast_Comprehension(self, compr: Comprehension, state):
@@ -570,7 +601,7 @@ class Emitter:
                 current.body.append(ast.parse(self.ast_expr(compr.body, state)))
             return ast.unparse(ast.fix_missing_locations(if_py))
         else:
-            return f"[{self.ast_expr(compr.body, state)}  {self.ast_generator(compr.generators, STATE_DEFAULT)}]"
+            return f"Array([{self.ast_expr(compr.body, state)}  {self.ast_generator(compr.generators, STATE_DEFAULT)}])"
 
     def ast_IfThenElse(self, ite: IfThenElse, state):
         if is_constraint(state) and is_stmt(state):
@@ -585,7 +616,8 @@ class Emitter:
         else:
             current_orelse = ast.parse(self.ast_expr(ite.else_expr, state)).body[0].value
             for cond, body in ite.if_then[::-1]:
-                current_cond = ast.parse(self.ast_expr(cond, state)).body[0].value
+                cond_state = state if not (is_constraint(state) and is_expr(state)) else STATE_DEFAULT
+                current_cond = ast.parse(self.ast_expr(cond, cond_state)).body[0].value
                 current_body = ast.parse(self.ast_expr(body, state)).body[0].value
                 current_orelse = ast.IfExp(current_cond, current_body, current_orelse)
 
@@ -599,8 +631,6 @@ class Emitter:
             for generator in generators:
                 if type(generator) == Iterator:
                     iter = self.ast_expr(generator.in_expr, state if is_output(state) else STATE_DEFAULT)
-                    if is_id_expr_array(generator.in_expr):
-                        iter += '.values()'
                     current.body.append(ast.For(target=ast.Name(generator.variable.id), iter=ast.parse(iter).body[0].value))
                 else:
                     current.body.append(ast.If(ast.parse(self.ast_expr(generator, state if is_output(state) else STATE_DEFAULT)).body[0].value))
@@ -611,8 +641,6 @@ class Emitter:
             for generator in generators:
                 if type(generator) == Iterator:
                     iter = self.ast_expr(generator.in_expr, state)
-                    if is_id_expr_array(generator.in_expr):
-                        iter += '.values()'
                     gen+= f"for {generator.variable.id} in {iter} "
                 else:
                     gen += f"if {self.ast_expr(generator, state)} "
@@ -636,10 +664,10 @@ class Emitter:
                 return ast.parse(f"{decl.id} = {self.ast_var_Array(decl, STATE_DEFAULT)}")
             case _:
                 return ""
-        #switch case which variable
+
     def ast_constraint(self, decl):
         self.ast_tree.body.append(ast.parse(self.ast_expr(decl, STATE_CONSTRAINT)))
-        #not a clue so far
+
     def unparse_ast_tree(self, file_to_write):
         file_to_write.write(ast.unparse(self.ast_tree))
 
@@ -648,19 +676,26 @@ class Emitter:
 
     def ast_var_Array(self, var: DeclVariable, state):
         dimensions = var.type.dims
-        new_id = f"\"{var.id}\" + str(key)"
+        domain = self.ast_expr(var.domain, STATE_DEFAULT) if var.domain is not None else 'None'
+        inner_type = var.type.inner_type.get()
+
+        match(inner_type.type()):
+            case "int":
+                if len(dimensions)==1:
+                    return f"IntVarArray(\"{var.id}\", {self.ast_expr(dimensions[0], state)}, {domain})"
+                return f"IntVarArray(\"{var.id}\", [{", ".join([self.ast_expr(dimensions[i], state) for i in range(len(dimensions))])}], {domain})"
+            case "bool":
+                if len(dimensions)==1:
+                    return f"BoolVarArray(\"{var.id}\", {self.ast_expr(dimensions[0], state)})"
+                return f"BoolVarArray(\"{var.id}\", [{", ".join([self.ast_expr(dimensions[i], state) for i in range(len(dimensions))])}])"
+            case _:
+                return ""
         
-        if len(dimensions)==1:
-            return f"{{key: {self.ast_declare_var(new_id, var.domain)} for key in {self.ast_expr(dimensions[0], state)} }}"
-        else:
-            return f"{{key: {self.ast_declare_var(new_id, var.domain)} for key in product({", ".join([self.ast_expr(dimensions[i], state) for i in range(len(dimensions))])}) }}"
-
-
-    def ast_LiteralArray(self, litarr: LiteralArray, state):
-        return "[" + ", ".join([
+    def ast_LiteralArray(self, litarr: LiteralArray, state): # TODO - must be wrapped in Array() sometimes, maybe always?
+        return "Array([" + ", ".join([
             self.ast_expr(expr, state)
             for expr in litarr.value
-        ]) + "]"
+        ]) + "])"
 
     def ast_LiteralSet(self, litset: LiteralSet, state):
         if len(litset.value) == 0:
@@ -672,9 +707,6 @@ class Emitter:
         ]) + "}"
 
     def ast_LetIn(self, let_in: LetIn, state):
-        if is_stmt(state) and is_constraint(state):
-            state = STATE_CONSTRAINT_EXPR
-
         self.let_in_scope[-1].append((let_in, state))
 
         return f"{let_in.id}()"
@@ -687,7 +719,7 @@ class Emitter:
         else:
             ...
 
-def hello_world(tree: Tree, file_path: str):
+def main(tree: Tree, file_path: str):
     print("hello from python")
     emitter = Emitter(tree)
     file_to_write = open(file_path, "w")

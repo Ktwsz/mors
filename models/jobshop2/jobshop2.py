@@ -1,10 +1,13 @@
+import uuid
 import math
 from ortools.sat.python import cp_model
 from mors_lib import *
 from itertools import product
 model = cp_model.CpModel()
+import mors_lib
+mors_lib.model = model
 
-class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
+class SolutionPrinter(cp_model.CpSolverSolutionCallback):
 
     def __init__(self, end, JOB, TASK, digs, s, tasks):
         cp_model.CpSolverSolutionCallback.__init__(self)
@@ -28,15 +31,15 @@ class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
         return self.__solution_count
 
 def no_overlap(s1, d1, s2, d2):
-    model.Add(or_(model, mors_lib_bool(model, model.Add(s1 + d1 <= s2), model.Add(s1 + d1 > s2)), mors_lib_bool(model, model.Add(s2 + d2 <= s1), model.Add(s2 + d2 > s1))) == True)
+    model.add_bool_or(mors_lib_bool(s1 + d1 <= s2, s1 + d1 > s2), mors_lib_bool(s2 + d2 <= s1, s2 + d2 > s1))
 jobs = 5
 JOB = set(range(1, jobs + 1))
 tasks = 5
 TASK = set(range(1, tasks + 1))
-d = dict(zip(product(JOB, TASK), [1, 4, 5, 3, 6, 3, 2, 7, 1, 2, 4, 4, 4, 4, 4, 1, 1, 1, 6, 8, 7, 3, 2, 2, 1]))
-total = sum([d[i, j] for i in JOB for j in TASK])
+d = Array([JOB, TASK], Array([1, 4, 5, 3, 6, 3, 2, 7, 1, 2, 4, 4, 4, 4, 4, 1, 1, 1, 6, 8, 7, 3, 2, 2, 1]))
+total = sum(Array([d[i, j] for i in JOB for j in TASK]))
 digs = math.ceil(math.log(float(total)))
-s = {key: model.new_int_var_from_domain(cp_model.Domain.FromValues(range(0, total + 1)), 's' + str(key)) for key in product(JOB, TASK)}
+s = IntVarArray('s', [JOB, TASK], range(0, total + 1))
 end = model.new_int_var_from_domain(cp_model.Domain.FromValues(range(0, total + 1)), 'end')
 for i in JOB:
     for j in range(1, tasks - 1 + 1):
@@ -49,5 +52,5 @@ for j in TASK:
                 no_overlap(s[i, j], d[i, j], s[k, j], d[k, j])
 model.minimize(end)
 solver = cp_model.CpSolver()
-solution_printer = VarArraySolutionPrinter(end, JOB, TASK, digs, s, tasks)
+solution_printer = SolutionPrinter(end, JOB, TASK, digs, s, tasks)
 status = solver.solve(model, solution_printer)

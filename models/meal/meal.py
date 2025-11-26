@@ -1,10 +1,13 @@
+import uuid
 import math
 from ortools.sat.python import cp_model
 from mors_lib import *
 from itertools import product
 model = cp_model.CpModel()
+import mors_lib
+mors_lib.model = model
 
-class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
+class SolutionPrinter(cp_model.CpSolverSolutionCallback):
 
     def __init__(self, main, name, side, dessert, budget):
         cp_model.CpSolverSolutionCallback.__init__(self)
@@ -32,7 +35,7 @@ class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
         return self.__solution_count
 
 def fzn_table_int(x, t):
-    ortools_allowed_assignments(model, x, array1d(t))
+    ortools_allowed_assignments(x, array1d(t))
 
 def table_32(x, t):
     assert_(index_set_2of2(t) == index_set(x), 'The second dimension of the table must equal the number of variables ' + 'in the first argument')
@@ -45,20 +48,20 @@ FOOD = set(range(1, 9 + 1))
 icecream = 1
 banana = 2
 chocolatecake = 3
-desserts = set({icecream, banana, chocolatecake})
+desserts = {icecream, banana, chocolatecake}
 lasagna = 4
 steak = 5
 rice = 6
-mains = set({lasagna, steak, rice})
+mains = {lasagna, steak, rice}
 chips = 7
 brocolli = 8
 beans = 9
-sides = set({chips, brocolli, beans})
+sides = {chips, brocolli, beans}
 FEATURE = set(range(1, 6 + 1))
-dd = dict(zip(product(FOOD, FEATURE), [icecream, 1200, 50, 10, 120, 400, banana, 800, 120, 5, 20, 120, chocolatecake, 2500, 400, 20, 100, 600, lasagna, 3000, 200, 100, 250, 450, steak, 1800, 800, 50, 100, 1200, rice, 1200, 50, 5, 20, 100, chips, 2000, 50, 200, 200, 250, brocolli, 700, 100, 10, 10, 125, beans, 1900, 250, 60, 90, 150]))
-main = {key: model.new_int_var(-4611686018427387, 4611686018427387, 'main' + str(key)) for key in FEATURE}
-side = {key: model.new_int_var(-4611686018427387, 4611686018427387, 'side' + str(key)) for key in FEATURE}
-dessert = {key: model.new_int_var(-4611686018427387, 4611686018427387, 'dessert' + str(key)) for key in FEATURE}
+dd = Array([FOOD, FEATURE], Array([icecream, 1200, 50, 10, 120, 400, banana, 800, 120, 5, 20, 120, chocolatecake, 2500, 400, 20, 100, 600, lasagna, 3000, 200, 100, 250, 450, steak, 1800, 800, 50, 100, 1200, rice, 1200, 50, 5, 20, 100, chips, 2000, 50, 200, 200, 250, brocolli, 700, 100, 10, 10, 125, beans, 1900, 250, 60, 90, 150]))
+main = IntVarArray('main', FEATURE, None)
+side = IntVarArray('side', FEATURE, None)
+dessert = IntVarArray('dessert', FEATURE, None)
 budget = model.new_int_var(-4611686018427387, 4611686018427387, 'budget')
 name = 1
 energy = 2
@@ -66,9 +69,9 @@ protein = 3
 salt = 4
 fat = 5
 cost = 6
-model.Add(in_(model, main[name], mains) == True)
-model.Add(in_(model, side[name], sides) == True)
-model.Add(in_(model, dessert[name], desserts) == True)
+model.Add(in_(main[name], mains) == True)
+model.Add(in_(side[name], sides) == True)
+model.Add(in_(dessert[name], desserts) == True)
 table_32(main, dd)
 table_32(side, dd)
 table_32(dessert, dd)
@@ -79,5 +82,5 @@ model.Add(main[fat] + side[fat] + dessert[fat] <= max_fat)
 model.Add(budget == main[cost] + side[cost] + dessert[cost])
 model.minimize(budget)
 solver = cp_model.CpSolver()
-solution_printer = VarArraySolutionPrinter(main, name, side, dessert, budget)
+solution_printer = SolutionPrinter(main, name, side, dessert, budget)
 status = solver.solve(model, solution_printer)

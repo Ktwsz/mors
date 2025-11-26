@@ -1,10 +1,13 @@
+import uuid
 import math
 from ortools.sat.python import cp_model
 from mors_lib import *
 from itertools import product
 model = cp_model.CpModel()
+import mors_lib
+mors_lib.model = model
 
-class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
+class SolutionPrinter(cp_model.CpSolverSolutionCallback):
 
     def __init__(self, x):
         cp_model.CpSolverSolutionCallback.__init__(self)
@@ -14,7 +17,7 @@ class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
     def on_solution_callback(self) -> None:
         self.__solution_count += 1
         print('x = ', end='')
-        print(str([self.value(v) for v in self.x.values()]), end='')
+        print(str([self.value(v) for v in self.x]), end='')
         print('\n', end='')
 
     @property
@@ -23,13 +26,13 @@ class VarArraySolutionPrinter(cp_model.CpSolverSolutionCallback):
 n = 5
 OBJ = set(range(1, n + 1))
 capacity = 200
-profit = dict(zip(OBJ, [1300, 1000, 520, 480, 325]))
-size = dict(zip(OBJ, [90, 72, 43, 40, 33]))
-x = {key: model.new_int_var(-4611686018427387, 4611686018427387, 'x' + str(key)) for key in OBJ}
+profit = Array(OBJ, Array([1300, 1000, 520, 480, 325]))
+size = Array(OBJ, Array([90, 72, 43, 40, 33]))
+x = IntVarArray('x', OBJ, None)
 for i in OBJ:
     model.Add(x[i] >= 0)
-model.Add(sum([size[i] * x[i] for i in OBJ]) <= capacity)
-model.maximize(sum([profit[i] * x[i] for i in OBJ]))
+model.Add(sum(Array([size[i] * x[i] for i in OBJ])) <= capacity)
+model.maximize(sum(Array([profit[i] * x[i] for i in OBJ])))
 solver = cp_model.CpSolver()
-solution_printer = VarArraySolutionPrinter(x)
+solution_printer = SolutionPrinter(x)
 status = solver.solve(model, solution_printer)
