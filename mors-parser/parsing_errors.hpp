@@ -8,8 +8,9 @@
 #include <string>
 #include <variant>
 #include <vector>
-
-#include <fmt/format.h>
+#include <print>
+#include <format>
+#include <cmath>
 
 namespace parser::err {
 
@@ -58,7 +59,7 @@ void print_message(Error const& e);
 
 } // namespace parser::err
 
-template <> class fmt::v11::formatter<parser::err::Unsupported::Location> {
+template <> class std::formatter<parser::err::Unsupported::Location> {
 public:
   constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
   template <typename Context>
@@ -78,7 +79,8 @@ public:
 
     std::string line;
     size_t line_ctr = 1;
-    size_t max_line_width = floor(log10f(static_cast<float>(location.last_line)) + 1);
+    size_t max_line_width = floor(std::log10f(static_cast<float>(location.last_line)) + 1);
+    auto isspace = [](char c) { return static_cast<bool>(std::isspace(c));};
 
     while (line_ctr <= location.last_line && std::getline(file, line)) {
       if (line_ctr >= location.first_line) {

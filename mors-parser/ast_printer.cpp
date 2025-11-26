@@ -1,72 +1,70 @@
 #include "ast_printer.hpp"
 
-#include <fmt/base.h>
-#include <fmt/format.h>
-
 #include <ranges>
+#include <print>
 
 namespace parser {
 namespace {
 void ind(int const indent) {
   for (int i = 0; i < indent; i += 2)
-    fmt::print("| ");
+    std::print("| ");
 }
 } // namespace
 
 void PrintModelVisitor::print_type(MiniZinc::Type const& type,
                                    int const indent) {
   ind(indent);
-  fmt::println("Type:");
+  std::println("Type:");
 
   ind(indent + 2);
-  fmt::println("Decl: {}", type.isPar() ? "parameter" : "variable");
+  std::println("Decl: {}", type.isPar() ? "parameter" : "variable");
 
   ind(indent + 2);
-  fmt::println("Set: {}", type.isSet());
+  std::println("Set: {}", type.isSet());
 
   ind(indent + 2);
-  fmt::println("Base Type:");
+  std::println("Base Type:");
 
   ind(indent + 4);
   switch (type.bt()) {
   case MiniZinc::Type::BaseType::BT_BOOL: {
-    fmt::println("BT_BOOL");
+    std::println("BT_BOOL");
     break;
   }
   case MiniZinc::Type::BaseType::BT_INT: {
-    fmt::println("BT_INT");
+    std::println("BT_INT");
     break;
   }
   case MiniZinc::Type::BaseType::BT_FLOAT: {
-    fmt::println("BT_FLOAT");
+    std::println("BT_FLOAT");
     break;
   }
   case MiniZinc::Type::BaseType::BT_STRING: {
-    fmt::println("BT_STRING");
+    std::println("BT_STRING");
     break;
   }
   case MiniZinc::Type::BaseType::BT_ANN: {
-    fmt::println("BT_ANN");
+    std::println("BT_ANN");
     break;
   }
   case MiniZinc::Type::BaseType::BT_TUPLE: {
-    fmt::println("BT_TUPLE");
+    std::println("BT_TUPLE");
     break;
   }
   case MiniZinc::Type::BaseType::BT_RECORD: {
-    fmt::println("BT_RECORD");
+    std::println("BT_RECORD");
     break;
   }
   case MiniZinc::Type::BaseType::BT_TOP: {
-    fmt::println("BT_TOP");
+    std::println("BT_TOP");
     break;
   }
   case MiniZinc::Type::BaseType::BT_BOT: {
-    fmt::println("BT_BOT");
+    std::println("BT_BOT");
     break;
   }
   case MiniZinc::Type::BaseType::BT_UNKNOWN: {
-    fmt::println("BT_UNKNOWN");
+    std::println("BT_UNKNOWN");
     break;
   }
   }
@@ -79,30 +77,30 @@ void PrintModelVisitor::print_var_decl(MiniZinc::VarDecl* var_decl,
     return;
 
   ind(indent);
-  fmt::println("variable declaration");
+  std::println("variable declaration");
 
   ind(indent + 2);
-  fmt::println("id: {}", var_decl->id()->v().c_str());
+  std::println("id: {}", var_decl->id()->v().c_str());
 
   ind(indent + 2);
-  fmt::println("toplevel: {}", var_decl->toplevel());
+  std::println("toplevel: {}", var_decl->toplevel());
 
   ind(indent + 2);
-  fmt::println("introduced: {}", var_decl->introduced());
+  std::println("introduced: {}", var_decl->introduced());
 
   print_type_inst(var_decl->ti(), indent + 2);
 
   ind(indent + 2);
   if (var_decl->item()->loc().filename().empty())
-    fmt::println("loc: empty");
+    std::println("loc: empty");
   else
-    fmt::println("loc: {}", var_decl->item()->loc().filename().c_str());
+    std::println("loc: {}", var_decl->item()->loc().filename().c_str());
 
   ind(indent + 2);
   if (var_decl->e() == nullptr) {
-    fmt::println("expr: null");
+    std::println("expr: null");
   } else {
-    fmt::println("expr: ");
+    std::println("expr: ");
     match_expr(var_decl->e(), indent + 4);
   }
 }
@@ -110,18 +108,18 @@ void PrintModelVisitor::print_var_decl(MiniZinc::VarDecl* var_decl,
 void PrintModelVisitor::print_type_inst(MiniZinc::TypeInst* type_inst,
                                         int const indent) {
   ind(indent);
-  fmt::println("type inst:");
+  std::println("type inst:");
 
   print_type(type_inst->type(), indent + 2);
 
   ind(indent + 2);
-  fmt::println("Array: {}", type_inst->isarray());
+  std::println("Array: {}", type_inst->isarray());
 
   ind(indent + 2);
-  fmt::println("Enum: {}", type_inst->isEnum());
+  std::println("Enum: {}", type_inst->isEnum());
 
   ind(indent + 2);
-  fmt::println("ranges:");
+  std::println("ranges:");
 
   for (auto const& r : type_inst->ranges()) {
     print_type_inst(r, indent + 4);
@@ -129,9 +127,9 @@ void PrintModelVisitor::print_type_inst(MiniZinc::TypeInst* type_inst,
 
   ind(indent + 2);
   if (type_inst->domain() == nullptr) {
-    fmt::println("domain: null");
+    std::println("domain: null");
   } else {
-    fmt::println("domain: ");
+    std::println("domain: ");
     match_expr(type_inst->domain(), indent + 4);
   }
 }
@@ -140,28 +138,28 @@ void PrintModelVisitor::print_fn_call(MiniZinc::Call* call, int const indent) {
   auto const functionItem = model.matchFn(env, call, true, false);
 
   ind(indent);
-  fmt::println("function call");
+  std::println("function call");
 
   ind(indent + 2);
-  fmt::println("is_bool: {}", MiniZinc::Expression::type(call).isbool());
+  std::println("is_bool: {}", MiniZinc::Expression::type(call).isbool());
 
   ind(indent + 2);
-  fmt::println("id: {}", functionItem->id().c_str());
+  std::println("id: {}", functionItem->id().c_str());
 
   if (functionItem->e()) {
     ind(indent + 2);
-    fmt::println("return:");
+    std::println("return:");
     print_type_inst(functionItem->ti(), indent + 4);
 
     ind(indent + 2);
-    fmt::println("function params: ");
+    std::println("function params: ");
     for (auto const ix : std::views::iota(0u, functionItem->paramCount())) {
       print_var_decl(functionItem->param(ix), indent + 4);
       functionItem->param(ix)->e(call->arg(ix));
     }
 
     ind(indent + 2);
-    fmt::println("function body: ");
+    std::println("function body: ");
 
     match_expr(functionItem->e(), indent + 4);
 
@@ -169,111 +167,111 @@ void PrintModelVisitor::print_fn_call(MiniZinc::Call* call, int const indent) {
       functionItem->param(ix)->e(nullptr);
 
     ind(indent + 2);
-    fmt::println("args:");
+    std::println("args:");
     for (auto const& arg : call->args()) {
       match_expr(arg, indent + 4);
     }
 
   } else if (functionItem->builtins.e != nullptr) {
     ind(indent + 2);
-    fmt::println("builtin: e");
+    std::println("builtin: e");
 
     ind(indent + 2);
-    fmt::println("result:");
+    std::println("result:");
     match_expr(functionItem->builtins.e(env, call), indent + 4);
 
   } else if (functionItem->builtins.b != nullptr) {
 
     ind(indent + 2);
-    fmt::println("builtin: b");
+    std::println("builtin: b");
 
     ind(indent + 2);
-    fmt::println("result: {}", functionItem->builtins.b(env, call));
+    std::println("result: {}", functionItem->builtins.b(env, call));
 
   } else if (functionItem->builtins.f != nullptr) {
 
     ind(indent + 2);
-    fmt::println("builtin: f");
+    std::println("builtin: f");
 
     ind(indent + 2);
-    fmt::println("result: {}", functionItem->builtins.f(env, call).toDouble());
+    std::println("result: {}", functionItem->builtins.f(env, call).toDouble());
 
   } else if (functionItem->builtins.fs != nullptr) {
 
     ind(indent + 2);
-    fmt::println("builtin: fs");
+    std::println("builtin: fs");
 
   } else if (functionItem->builtins.i != nullptr) {
 
     ind(indent + 2);
-    fmt::println("builtin: i");
+    std::println("builtin: i");
 
     ind(indent + 2);
-    fmt::println("result: {}", functionItem->builtins.i(env, call).toInt());
+    std::println("result: {}", functionItem->builtins.i(env, call).toInt());
 
   } else if (functionItem->builtins.s != nullptr) {
 
     ind(indent + 2);
-    fmt::println("builtin: s");
+    std::println("builtin: s");
 
   } else if (functionItem->builtins.str != nullptr) {
 
     ind(indent + 2);
-    fmt::println("builtin: str");
+    std::println("builtin: str");
   }
 }
 
 void PrintModelVisitor::print_ite(MiniZinc::ITE* ite, int const indent) {
   for (unsigned int i = 0; i < ite->size(); i++) {
     ind(indent);
-    fmt::println("if-condition: ");
+    std::println("if-condition: ");
     match_expr(ite->ifExpr(i), indent + 2);
 
     ind(indent);
-    fmt::println("if-body: ");
+    std::println("if-body: ");
     match_expr(ite->thenExpr(i), indent + 2);
   }
 
   ind(indent);
-  fmt::println("else: ");
+  std::println("else: ");
   match_expr(ite->elseExpr(), indent + 2);
 }
 
 void PrintModelVisitor::print_let_expr(MiniZinc::Let* let, int const indent) {
   ind(indent);
-  fmt::println("let: ");
+  std::println("let: ");
 
   ind(indent + 2);
-  fmt::println("declarations");
+  std::println("declarations");
 
   for (auto e : let->let()) {
     match_expr(e, indent + 4);
   }
 
   ind(indent);
-  fmt::println("in: ");
+  std::println("in: ");
 
   match_expr(let->in(), indent + 2);
-  fmt::print("\n");
+  std::print("\n");
 }
 
 void PrintModelVisitor::print_int_lit(MiniZinc::IntLit* int_lit,
                                       int const indent) {
   ind(indent);
-  fmt::println("integer: {}", MiniZinc::IntLit::v(int_lit).toInt());
+  std::println("integer: {}", MiniZinc::IntLit::v(int_lit).toInt());
 }
 
 void PrintModelVisitor::print_set_lit(MiniZinc::SetLit* set_lit,
                                       int const indent) {
   ind(indent);
-  fmt::println("set:");
+  std::println("set:");
 
   if (auto* isv = set_lit->isv(); isv != nullptr) {
     ind(indent + 2);
-    fmt::println("range:");
+    std::println("range:");
 
     ind(indent + 4);
-    fmt::println("{}...{}", isv->min().toInt(), isv->max().toInt());
+    std::println("{}...{}", isv->min().toInt(), isv->max().toInt());
     return;
   }
 
@@ -285,177 +283,177 @@ void PrintModelVisitor::print_set_lit(MiniZinc::SetLit* set_lit,
 void PrintModelVisitor::print_float_lit(MiniZinc::FloatLit* float_lit,
                                         int const indent) {
   ind(indent);
-  fmt::println("float");
+  std::println("float");
   ind(indent + 2);
-  fmt::println("value: {}", MiniZinc::FloatLit::v(float_lit).toDouble());
+  std::println("value: {}", MiniZinc::FloatLit::v(float_lit).toDouble());
 }
 
 void PrintModelVisitor::print_bin_op(MiniZinc::BinOp* bin_op,
                                      int const indent) {
   ind(indent);
-  fmt::println("Bin Op");
+  std::println("Bin Op");
 
   // print_type(MiniZinc::Expression::type(bin_op), indent + 2);
 
   ind(indent + 2);
-  fmt::println("lhs: ");
+  std::println("lhs: ");
   match_expr(bin_op->lhs(), indent + 4);
 
   ind(indent + 2);
-  fmt::print("op: ");
+  std::print("op: ");
   switch (bin_op->op()) {
   case MiniZinc::BOT_DOTDOT: {
-    fmt::println("..");
+    std::println("..");
     break;
   }
   case MiniZinc::BOT_NQ: {
-    fmt::println("!=");
+    std::println("!=");
     break;
   }
   case MiniZinc::BOT_PLUS: {
-    fmt::println("BOT_PLUS");
+    std::println("BOT_PLUS");
     break;
   }
   case MiniZinc::BOT_MINUS: {
-    fmt::println("BOT_MINUS");
+    std::println("BOT_MINUS");
     break;
   }
   case MiniZinc::BOT_MULT: {
-    fmt::println("BOT_MULT");
+    std::println("BOT_MULT");
     break;
   }
   case MiniZinc::BOT_DIV: {
-    fmt::println("BOT_DIV");
+    std::println("BOT_DIV");
     break;
   }
   case MiniZinc::BOT_IDIV: {
-    fmt::println("BOT_IDIV");
+    std::println("BOT_IDIV");
     break;
   }
   case MiniZinc::BOT_MOD: {
-    fmt::println("BOT_MOD");
+    std::println("BOT_MOD");
     break;
   }
   case MiniZinc::BOT_POW: {
-    fmt::println("BOT_POW");
+    std::println("BOT_POW");
     break;
   }
   case MiniZinc::BOT_LE: {
-    fmt::println("BOT_LE");
+    std::println("BOT_LE");
     break;
   }
   case MiniZinc::BOT_LQ: {
-    fmt::println("BOT_LQ");
+    std::println("BOT_LQ");
     break;
   }
   case MiniZinc::BOT_GR: {
-    fmt::println("BOT_GR");
+    std::println("BOT_GR");
     break;
   }
   case MiniZinc::BOT_GQ: {
-    fmt::println("BOT_GQ");
+    std::println("BOT_GQ");
     break;
   }
   case MiniZinc::BOT_EQ: {
-    fmt::println("BOT_EQ");
+    std::println("BOT_EQ");
     break;
   }
   case MiniZinc::BOT_IN: {
-    fmt::println("BOT_IN");
+    std::println("BOT_IN");
     break;
   }
   case MiniZinc::BOT_SUBSET: {
-    fmt::println("BOT_SUBSET");
+    std::println("BOT_SUBSET");
     break;
   }
   case MiniZinc::BOT_SUPERSET: {
-    fmt::println("BOT_SUPERSET");
+    std::println("BOT_SUPERSET");
     break;
   }
   case MiniZinc::BOT_UNION: {
-    fmt::println("BOT_UNION");
+    std::println("BOT_UNION");
     break;
   }
   case MiniZinc::BOT_DIFF: {
-    fmt::println("BOT_DIFF");
+    std::println("BOT_DIFF");
     break;
   }
   case MiniZinc::BOT_SYMDIFF: {
-    fmt::println("BOT_SYMDIFF");
+    std::println("BOT_SYMDIFF");
     break;
   }
   case MiniZinc::BOT_INTERSECT: {
-    fmt::println("BOT_INTERSECT");
+    std::println("BOT_INTERSECT");
     break;
   }
   case MiniZinc::BOT_PLUSPLUS: {
-    fmt::println("BOT_PLUSPLUS");
+    std::println("BOT_PLUSPLUS");
     break;
   }
   case MiniZinc::BOT_EQUIV: {
-    fmt::println("BOT_EQUIV");
+    std::println("BOT_EQUIV");
     break;
   }
   case MiniZinc::BOT_IMPL: {
-    fmt::println("BOT_IMPL");
+    std::println("BOT_IMPL");
     break;
   }
   case MiniZinc::BOT_RIMPL: {
-    fmt::println("BOT_RIMPL");
+    std::println("BOT_RIMPL");
     break;
   }
   case MiniZinc::BOT_OR: {
-    fmt::println("BOT_OR");
+    std::println("BOT_OR");
     break;
   }
   case MiniZinc::BOT_AND: {
-    fmt::println("BOT_AND");
+    std::println("BOT_AND");
     break;
   }
   case MiniZinc::BOT_XOR: {
-    fmt::println("BOT_XOR");
+    std::println("BOT_XOR");
     break;
   }
   }
 
   ind(indent + 2);
-  fmt::println("rhs: ");
+  std::println("rhs: ");
   match_expr(bin_op->rhs(), indent + 4);
 }
 
 void PrintModelVisitor::print_un_op(MiniZinc::UnOp* un_op, int const indent) {
   ind(indent);
-  fmt::println("Unary Op");
+  std::println("Unary Op");
 
   ind(indent + 2);
-  fmt::print("op: ");
+  std::print("op: ");
   switch (un_op->op()) {
   case MiniZinc::UOT_NOT: {
-    fmt::println("UOT_NOT");
+    std::println("UOT_NOT");
     break;
   }
   case MiniZinc::UOT_PLUS: {
-    fmt::println("UOT_PLUS");
+    std::println("UOT_PLUS");
     break;
   }
   case MiniZinc::UOT_MINUS: {
-    fmt::println("UOT_MINUS");
+    std::println("UOT_MINUS");
     break;
   }
   }
 
   ind(indent + 2);
-  fmt::println("expr: ");
+  std::println("expr: ");
   match_expr(un_op->e(), indent + 4);
 }
 
 void PrintModelVisitor::print_comprehension(MiniZinc::Comprehension* comp,
                                             int const indent) {
   ind(indent);
-  fmt::println("comprehension");
+  std::println("comprehension");
 
   ind(indent + 2);
-  fmt::println("generators:");
+  std::println("generators:");
 
   for (auto const i : std::views::iota(0u, comp->numberOfGenerators())) {
 
@@ -465,26 +463,26 @@ void PrintModelVisitor::print_comprehension(MiniZinc::Comprehension* comp,
 
     if (comp->in(i) != nullptr) {
       ind(indent + 4);
-      fmt::println("in:");
+      std::println("in:");
       match_expr(comp->in(i), indent + 6);
     }
 
     if (comp->where(i) != nullptr) {
       ind(indent + 4);
-      fmt::println("where:");
+      std::println("where:");
       match_expr(comp->where(i), indent + 6);
     }
   }
 
   ind(indent + 2);
-  fmt::println("body:");
+  std::println("body:");
   match_expr(comp->e(), indent + 4);
 }
 
 void PrintModelVisitor::print_array_lit(MiniZinc::ArrayLit* array_lit,
                                         int const indent) {
   ind(indent);
-  fmt::println("ARRAYLIT");
+  std::println("ARRAYLIT");
 
   for (auto const& expr : array_lit->getVec()) {
     match_expr(expr, indent + 2);
@@ -494,14 +492,14 @@ void PrintModelVisitor::print_array_lit(MiniZinc::ArrayLit* array_lit,
 void PrintModelVisitor::print_array_access(MiniZinc::ArrayAccess* array_access,
                                            int const indent) {
   ind(indent);
-  fmt::println("Array access");
+  std::println("Array access");
 
   ind(indent + 2);
-  fmt::println("array:");
+  std::println("array:");
   match_expr(array_access->v(), indent + 4);
 
   ind(indent + 2);
-  fmt::println("indexes:");
+  std::println("indexes:");
   for (auto& ix : array_access->idx()) {
     match_expr(ix, indent + 4);
   }
@@ -510,17 +508,17 @@ void PrintModelVisitor::print_array_access(MiniZinc::ArrayAccess* array_access,
 void PrintModelVisitor::print_solve_type(MiniZinc::SolveI* solve_item) {
   switch (solve_item->st()) {
   case MiniZinc::SolveI::SolveType::ST_MAX: {
-    fmt::println("MAX");
+    std::println("MAX");
     match_expr(solve_item->e(), 2);
     break;
   }
   case MiniZinc::SolveI::SolveType::ST_MIN: {
-    fmt::println("MIN");
+    std::println("MIN");
     match_expr(solve_item->e(), 2);
     break;
   }
   case MiniZinc::SolveI::SolveType::ST_SAT: {
-    fmt::println("SAT");
+    std::println("SAT");
     break;
   }
   }
@@ -547,14 +545,14 @@ void PrintModelVisitor::match_expr(MiniZinc::Expression* expr,
   case MiniZinc::Expression::E_BOOLLIT: {
     auto* bool_lit = MiniZinc::Expression::cast<MiniZinc::BoolLit>(expr);
     ind(indent);
-    fmt::println("bool: {}", bool_lit->v());
+    std::println("bool: {}", bool_lit->v());
     break;
   }
   case MiniZinc::Expression::E_STRINGLIT: {
     auto* string_lit = MiniZinc::Expression::cast<MiniZinc::StringLit>(expr);
 
     ind(indent);
-    fmt::println("string: {}", string_lit->v().c_str() != nullptr
+    std::println("string: {}", string_lit->v().c_str() != nullptr
                                    ? string_lit->v().c_str()
                                    : "nullptr");
     break;
@@ -562,12 +560,12 @@ void PrintModelVisitor::match_expr(MiniZinc::Expression* expr,
   case MiniZinc::Expression::E_ID: {
     auto* id = MiniZinc::Expression::cast<MiniZinc::Id>(expr);
     ind(indent);
-    fmt::println("id: {}", id->v().c_str());
+    std::println("id: {}", id->v().c_str());
     break;
   }
   case MiniZinc::Expression::E_ANON: {
     ind(indent);
-    fmt::println("E_ANON");
+    std::println("E_ANON");
     break;
   }
   case MiniZinc::Expression::E_ARRAYLIT: {
@@ -585,7 +583,7 @@ void PrintModelVisitor::match_expr(MiniZinc::Expression* expr,
   }
   case MiniZinc::Expression::E_FIELDACCESS: {
     ind(indent);
-    fmt::println("E_FIELDACCESS");
+    std::println("E_FIELDACCESS");
     break;
   }
   case MiniZinc::Expression::E_COMP: {
@@ -626,12 +624,12 @@ void PrintModelVisitor::match_expr(MiniZinc::Expression* expr,
   }
   case MiniZinc::Expression::E_TI: {
     ind(indent);
-    fmt::println("E_TI");
+    std::println("E_TI");
     break;
   }
   case MiniZinc::Expression::E_TIID: {
     ind(indent);
-    fmt::println("E_TIID");
+    std::println("E_TIID");
     break;
   }
   }

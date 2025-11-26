@@ -2,8 +2,6 @@
 #include "parsing_errors.hpp"
 #include "utils.hpp"
 
-#include <fmt/base.h>
-#include <fmt/format.h>
 #include <minizinc/ast.hh>
 #include <minizinc/flatten_internal.hh>
 #include <minizinc/type.hh>
@@ -15,6 +13,8 @@
 #include <string_view>
 #include <utility>
 #include <variant>
+#include <print>
+#include <format>
 
 namespace parser {
 namespace {
@@ -547,16 +547,16 @@ auto Transformer::map(MiniZinc::Expression* expr) -> ast::Expr try {
   case MiniZinc::VarDecl::eid:
     assert(false && "Should not reach var decl through this function");
   case MiniZinc::AnonVar::eid:
-    fmt::println("E_ANON");
+    std::println("E_ANON");
     assert(false);
   case MiniZinc::FieldAccess::eid:
-    fmt::println("E_FIELDACCESS");
+    std::println("E_FIELDACCESS");
     assert(false);
   case MiniZinc::TypeInst::eid:
-    fmt::println("E_TI");
+    std::println("E_TI");
     assert(false);
   case MiniZinc::TIId::eid:
-    fmt::println("E_TIID");
+    std::println("E_TIID");
     assert(false);
   }
 } catch (err::Unsupported& e) {
@@ -702,7 +702,7 @@ auto Transformer::map(MiniZinc::ITE* ite) -> ast::Expr {
 
 auto Transformer::map(MiniZinc::Let* let) -> ast::Expr {
   let_in_ctr++;
-  std::string id = fmt::format("let_in_{}", let_in_ctr);
+  std::string id = std::format("let_in_{}", let_in_ctr);
 
   auto scope = stack.scope();
 

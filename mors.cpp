@@ -2,8 +2,8 @@
 #include "parser_opts.hpp"
 
 #include <sstream>
+#include <print>
 
-#include <fmt/base.h>
 #include <pybind11/embed.h>
 #include <pybind11/pybind11.h>
 
@@ -15,7 +15,7 @@ int main(int argc, char** argv) {
   if (!opts) {
     std::stringstream man_page;
     man_page << opts.error();
-    fmt::println("{}", man_page.view());
+    std::println("{}", man_page.view());
     return 0;
   }
 
@@ -47,7 +47,7 @@ int main(int argc, char** argv) {
     hello_world(*result, opts->get_output_file());
 
   } catch (py::error_already_set const& e) {
-    fmt::println("python binding err:");
-    fmt::println("{}", e.what());
+    std::println("python binding err:");
+    std::println("{}", e.what());
   }
 }

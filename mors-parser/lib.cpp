@@ -5,9 +5,7 @@
 
 #include <sstream>
 #include <string_view>
-
-#include <fmt/base.h>
-#include <fmt/format.h>
+#include <print>
 
 #include <minizinc/ast.hh>
 #include <minizinc/flattener.hh>
@@ -28,13 +26,13 @@ namespace {
 void log_flags(ParserOpts const& opts) {
 
   if (opts.verbose)
-    fmt::println("std path: {}", opts.stdlib_dir);
+    std::println("std path: {}", opts.stdlib_dir);
 
   if (opts.verbose)
-    fmt::println("OR-Tools path: {}", opts.ortools_include_dir);
+    std::println("OR-Tools path: {}", opts.ortools_include_dir);
 
   if (opts.verbose)
-    fmt::println("output file: {}", opts.get_output_file());
+    std::println("output file: {}", opts.get_output_file());
 }
 
 auto create_flags(ParserOpts const& opts) -> std::vector<std::string> {
@@ -82,7 +80,7 @@ auto main(ParserOpts const& opts) -> std::expected<ast::Tree, err::Error> {
       return std::unexpected{std::move(*err)};
 
     if (auto const warnings_view = flattener_log.view(); !warnings_view.empty())
-      fmt::println("MiniZinc Parser returned warnings:\n{}", warnings_view);
+      std::println("MiniZinc Parser returned warnings:\n{}", warnings_view);
 
     try {
       flt.flatten("", "stdin");
@@ -97,7 +95,7 @@ auto main(ParserOpts const& opts) -> std::expected<ast::Tree, err::Error> {
     }
 
     if (auto const warnings_view = flattener_log.view(); !warnings_view.empty())
-      fmt::println("MiniZinc Parser returned warnings:\n{}", warnings_view);
+      std::println("MiniZinc Parser returned warnings:\n{}", warnings_view);
 
     auto& model = *flt.getEnv()->model();
 
@@ -106,17 +104,17 @@ auto main(ParserOpts const& opts) -> std::expected<ast::Tree, err::Error> {
       MiniZinc::register_builtins(*flt.getEnv());
       PrintModelVisitor vis{model, flt.getEnv()->envi(), opts.model_path};
 
-      fmt::println("--- VAR DECLS ---");
+      std::println("--- VAR DECLS ---");
       for (auto& var_decl : model.vardecls()) {
         vis.print_var_decl(var_decl.e(), 0);
       }
 
-      fmt::println("--- CONSTRAINTS ---");
+      std::println("--- CONSTRAINTS ---");
       for (auto& constraint : model.constraints()) {
         vis.match_expr(constraint.e());
       }
 
-      fmt::println("--- SOLVE ---");
+      std::println("--- SOLVE ---");
       vis.print_solve_type(model.solveItem());
       if (model.solveItem()->st() != MiniZinc::SolveI::ST_SAT) {
         for (auto& var_decl : model.vardecls()) {
@@ -129,7 +127,7 @@ auto main(ParserOpts const& opts) -> std::expected<ast::Tree, err::Error> {
         }
       }
 
-      fmt::println("--- OUTPUT ---");
+      std::println("--- OUTPUT ---");
       vis.match_expr(model.outputItem()->e());
 
       return std::unexpected{err::Unsupported{}};
