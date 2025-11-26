@@ -1,2 +1,514 @@
-# Minizinc -> ORtoolS
-Transpiler from MiniZinc language input to OR-Tools Python input.
+<!-- Improved compatibility of back to top link: See: https://github.com/othneildrew/Best-README-Template/pull/73 -->
+<a id="readme-top"></a>
+
+<!-- PROJECT LOGO -->
+<br />
+<div align="center">
+  <!-- <a href="https://github.com/othneildrew/Best-README-Template">
+    <img src="images/logo.png" alt="Logo" width="80" height="80">
+  </a> -->
+
+  <h3 align="center">Mors</h3>
+
+  <p align="center">
+    MiniZinc to OR-Tools transpiler
+    <!-- <br />
+    <a href="https://github.com/othneildrew/Best-README-Template"><strong>Explore the docs »</strong></a>
+    <br />
+    <br />
+    <a href="https://github.com/othneildrew/Best-README-Template">View Demo</a>
+    &middot;
+    <a href="https://github.com/othneildrew/Best-README-Template/issues/new?labels=bug&template=bug-report---.md">Report Bug</a>
+    &middot;
+    <a href="https://github.com/othneildrew/Best-README-Template/issues/new?labels=enhancement&template=feature-request---.md">Request Feature</a> -->
+  </p>
+</div>
+
+
+
+  <summary>Table of Contents</summary>
+  <ol>
+    <li>
+      <a href="#about-the-project">About The Project</a>
+      <ul>
+        <li><a href="#overview">Overview</a></li>
+        <li><a href="#global-constraints">Global constraints</a></li>
+        <li><a href="#reifications">Reifications</a></li>
+      </ul>
+    </li>
+    <li>
+      <a href="#getting-started">Getting Started</a>
+      <ul>
+        <li><a href="#prerequisites">Prerequisites</a></li>
+        <li><a href="#build-from-source">Build from source</a></li>
+        <li><a href="#installing-minizinc-stdlib-and-or-tools-redefinitions">Installing MiniZinc stdlib and OR-Tools redefinitions</a></li>
+        <li><a href="#installation">Installation</a></li>
+      </ul>
+    </li>
+    <li><a href="#usage">Usage</a></li>
+    <li><a href="#roadmap">Roadmap</a></li>
+    <li><a href="#license">License</a></li>
+  </ol>
+
+
+
+<!-- ABOUT THE PROJECT -->
+## About The Project
+
+This cli tool is a transpiler, which takes MiniZinc model as an input and outputs OR-Tools CP-SAT model in Python. The project strives to combine high abstraction level and readability of MiniZinc with native OR-Tools interface. The transpiler supports all functionalities of MiniZinc and translates them into Python, OR-Tools compatible, code.
+
+Mors will be most useful to:
+  1. People who already implemented model and want to include it in a containerized application but are unable to run it without the robust MiniZinc tool package.
+  2. People who want to migrate their system from MiniZinc to an OR-Tools environment.
+  3. People who want to run their model with different parameters each time, without recompiling.
+
+### Overview
+
+Consider the model `xkcd` and its transpilation listed below. All parameters and variables are translated according Python types. We have our own implementation of arrays, which supports different indexing sets and array access constraints. Constraints are translated based on the context, the first constraint becomes a loop, second one is sum with array comprehension. Output is implemented in a class `SolutionPrinter`, which extends `cp_model.CpSolverSolutionCallback`.
+
+<table>
+<tr>
+<th>MiniZinc</th>
+<th>Mors output</th>
+</tr>
+<tr>
+<td style="text-align: center;"><a href="models/xkcd/xkcd.mzn">xkcd.mzn</a></th>
+<td style="text-align: center;"><a href="models/xkcd/xkcd.py">xkcd.py</a></th>
+</tr>
+<tr>
+<td>
+  
+```minizinc
+int: menu_length = 6;
+int: money_limit = 1505;
+array[1..menu_length] of int: menu_prices =
+  [215, 275, 335, 355, 420,580];
+array[1..menu_length] of string: menu_names =
+  ["fruit", "fries", "salad", "wings", "sticks", "sampler"];
+
+array[1..menu_length] of var int: order;
+
+constraint forall([order[i] >= 0 | i in 1..menu_length]);
+constraint
+  sum([
+    order[i] * menu_prices[i] 
+    | i in 1..menu_length
+  ]) == money_limit;
+
+solve satisfy; 
+
+output [
+  menu_names[i] ++ ": " ++ show(order[i]) ++ "\n"
+  | i in 1..menu_length
+];
+```
+  
+</td>
+<td>
+
+```Python
+from ortools.sat.python import cp_model
+from mors_lib import *
+
+model = cp_model.CpModel()
+
+menu_length = 6
+money_limit = 1505
+menu_prices = Array(range(1, menu_length + 1), Array([215, 275, 335, 355, 420, 580]))
+menu_names = Array(
+    range(1, menu_length + 1),
+    Array(["fruit", "fries", "salad", "wings", "sticks", "sampler"]),
+)
+order = IntVarArray("order", range(1, menu_length + 1), None)
+
+for i in range(1, menu_length + 1):
+    model.Add(order[i] >= 0)
+
+model.Add(
+    sum(Array([order[i] * menu_prices[i] for i in range(1, menu_length + 1)]))
+    == money_limit
+)
+
+solver = cp_model.CpSolver()
+solution_printer = SolutionPrinter(menu_length, menu_names, order)
+status = solver.solve(model, solution_printer)
+
+# def on_solution_callback(self) -> None:
+#   self.__solution_count += 1
+#   for i in range(1, self.menu_length + 1):
+#     print(
+#       self.menu_names[i] + ": " + str(self.value(self.order[i])) + "\n",
+#       end="",
+#     )
+```
+
+</td>
+</tr>
+</table>
+
+### Global constraints
+
+Global constraints are transpiled based on the OR-Tools redefinitions for FlatZinc. We provide wrapper implementations, which add the constraint to model, for all redefined constraints.
+
+Example result for model using `alldifferent` constraint.
+<table>
+<tr>
+<th>MiniZinc</th>
+<th>Mors output</th>
+</tr>
+<tr>
+<td style="text-align: center;"><a href="models/queens/queens.mzn">nqueens.mzn</a></th>
+<td style="text-align: center;"><a href="models/queens/queens.py">nqueens.py</a></th>
+</tr>
+<tr>
+<td>
+  
+```minizinc
+
+int: n = 10;
+
+array [1..n] of var 1..n: q;
+
+include "alldifferent.mzn";
+
+constraint alldifferent(q);
+constraint alldifferent(i in 1..n)(q[i] + i);
+constraint alldifferent(i in 1..n)(q[i] - i);
+
+
+solve satisfy;
+
+output [
+  if fix(q[i]) = j then "Q " else ". " endif ++
+ 	if j = n then "\n" else "" endif
+  | i, j in 1..n
+];
+
+```
+  
+</td>
+<td>
+
+```Python
+from ortools.sat.python import cp_model
+from mors_lib import *
+
+model = cp_model.CpModel()
+
+def all_different_41(x):
+    ortools_all_different(array1d(x)) # defined in mors_lib
+
+def alldifferent_40(x):
+    all_different_41(array1d(x))
+
+n = 10
+q = IntVarArray("q", range(1, n + 1), range(1, n + 1))
+alldifferent_40(q)
+alldifferent_40(Array([q[i] + i for i in range(1, n + 1)]))
+alldifferent_40(Array([q[i] - i for i in range(1, n + 1)]))
+
+solver = cp_model.CpSolver()
+solution_printer = VarArraySolutionPrinter(n, q)
+status = solver.solve(model, solution_printer)
+
+# def on_solution_callback(self) -> None:
+#   self.__solution_count += 1
+#   for i in range(1, self.n + 1):
+#     for j in range(1, self.n + 1):
+#       print(
+#         ("Q " if self.value(self.q[i]) == j else ". ")
+#         + ("\n" if j == self.n else ""),
+#         end="",
+#       )
+
+```
+
+</td>
+</tr>
+</table>
+
+### Reifications
+
+We implement functions, which reify the OR-Tools `Constraint` objects to boolean literals, so that constraints can be composed together using logical operators, just like in MiniZinc.
+
+The stable marriage model uses array access constraints as well as implications. These constraints can be defined in a single line expressions, thanks to our reification abstraction.
+
+<table>
+<tr>
+<th>MiniZinc</th>
+<th>Mors output</th>
+</tr>
+<tr>
+<td style="text-align: center;"><a href="models/stable-marriage/stable-marriage.mzn">stable_marriage.mzn</a></th>
+<td style="text-align: center;"><a href="models/stable-marriage/stable-marriage.py">stable_marriage.py</a></th>
+</tr>
+<tr>
+<td>
+  
+```minizinc
+int: n = 5;
+
+enum Men = _(1..n);
+enum Women = _(1..n);
+
+array[Women, Men] of int: rankWomen =
+ [| 1, 2, 4, 3, 5,
+  | 3, 5, 1, 2, 4,
+  | 5, 4, 2, 1, 3,
+  | 1, 3, 5, 4, 2,
+  | 4, 2, 3, 5, 1 |];
+array[Men, Women] of int: rankMen =
+ [| 5, 1, 2, 4, 3,
+  | 4, 1, 3, 2, 5,
+  | 5, 3, 2, 4, 1,
+  | 1, 5, 4, 3, 2,
+  | 4, 3, 2, 1, 5 |];
+
+array[Men] of var Women: wife;
+array[Women] of var Men: husband;
+
+% assignment
+constraint forall (m in Men) (husband[wife[m]]=m);
+constraint forall (w in Women) (wife[husband[w]]=w);
+% ranking
+constraint forall (m in Men, o in Women) (
+     rankMen[m,o] < rankMen[m,wife[m]] -> 
+         rankWomen[o,husband[o]] < rankWomen[o,m] );
+
+constraint forall (w in Women, o in Men) (
+     rankWomen[w,o] < rankWomen[w,husband[w]] -> 
+         rankMen[o,wife[o]] < rankMen[o,w] );
+solve satisfy;
+
+output ["wives= \(wife)\nhusbands= \(husband)\n"];
+```
+  
+</td>
+<td>
+
+```Python
+from ortools.sat.python import cp_model
+from mors_lib import *
+
+model = cp_model.CpModel()
+
+n = 5
+Men = set(range(1, max(range(1, n + 1)) + 1))
+Women = set(range(1, max(range(1, n + 1)) + 1))
+rankWomen = Array(
+    [Women, Men],
+    Array([1, 2, 4, 3, 5, 3, 5, 1, 2, 4, 5, 4, 2, 1, 3, 1, 3, 5, 4, 2, 4, 2, 3, 5, 1]),
+)
+rankMen = Array(
+    [Men, Women],
+    Array([5, 1, 2, 4, 3, 4, 1, 3, 2, 5, 5, 3, 2, 4, 1, 1, 5, 4, 3, 2, 4, 3, 2, 1, 5]),
+)
+wife = IntVarArray("wife", Men, Women)
+husband = IntVarArray("husband", Women, Men)
+for m in Men:
+    model.Add(husband[wife[m]] == m)
+for w in Women:
+    model.Add(wife[husband[w]] == w)
+for m in Men:
+    for o in Women:
+        model.add_implication(
+            mors_lib_bool(
+                rankMen[m, o] < rankMen[m, wife[m]],
+                rankMen[m, o] >= rankMen[m, wife[m]],
+            ),
+            mors_lib_bool(
+                rankWomen[o, husband[o]] < rankWomen[o, m],
+                rankWomen[o, husband[o]] >= rankWomen[o, m],
+            ),
+        )
+for w in Women:
+    for o in Men:
+        model.add_implication(
+            mors_lib_bool(
+                rankWomen[w, o] < rankWomen[w, husband[w]],
+                rankWomen[w, o] >= rankWomen[w, husband[w]],
+            ),
+            mors_lib_bool(
+                rankMen[o, wife[o]] < rankMen[o, w],
+                rankMen[o, wife[o]] >= rankMen[o, w],
+            ),
+        )
+solver = cp_model.CpSolver()
+solution_printer = VarArraySolutionPrinter(wife, husband)
+status = solver.solve(model, solution_printer)
+
+# def on_solution_callback(self) -> None:
+#   self.__solution_count += 1
+#   print(
+#     "wives= "
+#     + (
+#       str([self.value(v) for v in self.wife])
+#       + ("\nhusbands= " + (str([self.value(v) for v in self.husband]) + "\n"))
+#     ),
+#     end="",
+# )
+```
+
+</td>
+</tr>
+</table>
+
+### Inputting model's paremeters at runtime
+
+Mors provides the ability to load parameters at runtime from JSON file. Simply add the flag `--runtime-parameters` and you don't have to provide the data at compile time.
+
+```sh
+mors build models/stable-marriage/stable-marriage.mzn --runtime-parameters
+```
+
+Parameters will use `mors_lib` function `load_from_json`, which will extract the values out of a JSON file.
+
+```Python
+n = load_from_json('n')
+Men = set(range(1, max(range(1, n + 1)) + 1))
+Women = set(range(1, max(range(1, n + 1)) + 1))
+rankWomen = load_from_json('rankWomen')
+rankMen = load_from_json('rankMen')
+wife = IntVarArray('wife', Men, Women)
+husband = IntVarArray('husband', Women, Men)
+```
+
+Pass the JSON file, when you run the model. <!-- TODO - more info on the JSON format -->
+
+```sh
+python models/stable-marriage/stable-marraige.py params.json
+```
+
+You can still pass datafiles at compile time, only the parameters without set value will be read at runtime.
+
+```sh
+mors build models/stable-marriage/stable-marriage.mzn part_of_data.dzn --runtime-parameters
+```
+
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+<!-- GETTING STARTED -->
+## Getting Started
+
+
+### Prerequisites
+* GCC compiler, version 15 or higher
+* CMake
+* Python 3.13
+* Conan
+
+### Build from source
+#### Conan setup
+1. Create Conan profile
+    ```sh
+    conan profile detect
+    ```
+2. In the profile file (`∼/.conan2/profiles/default`) set the following parameters.
+    ```toml
+    [ settings ]
+    ...
+    compiler.cppstd=23
+    compiler.libcxx=libstdc++11
+    ...
+    ```
+#### Compilation
+1. Download the source code
+    ```sh
+    git clone https://github.com/Ktwsz/mors.git
+    cd mors
+    ```
+2. Install Conan dependencies
+    ```sh
+    conan install . --build=missing -s build_type=Debug
+    ```
+3. Run CMake
+    ```sh
+    cd build
+    cmake .. --preset conan-debug
+    cmake --build Debug
+    ```
+
+### Installing MiniZinc stdlib and OR-Tools redefinitions
+In order for mors to work, you need to have minizinc standard library installed (visible to the compiler) in version 2.9.3 as well as OR-Tools' redefinitions. We provide the minimal setup in the `share` directory. For more help with installation run mors with flag `check-installation`
+```sh
+mors check-installation
+```
+
+This command will help you identify where MiniZinc searches for stdlib and solvers.
+
+You can also refer to MiniZinc documentation [Configuration files](https://docs.minizinc.dev/en/stable/command_line.html#configuration-files)
+
+### Installation
+TBD &ndash; for now, we do not provide pre-built packages, nor automatic installation scripts.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+
+
+<!-- USAGE EXAMPLES -->
+## Usage
+### Run mors
+For sample models, look at `models` directory.
+```sh
+./build/Debug/mors build models/sudoku/sudoku.mzn models/sudoku/sudoku.dzn
+```
+
+### Run the model
+#### Setup
+In order to run the transpiled model you must install python library `or-tools` and make the `mors_lib` visible to the transpiled script (you can just copy the `mors_lib` folder to the same directory as the model). Here is a sample setup using venv
+
+1. Create venv
+    ```sh
+    python3.13 -m venv venv
+    source venv/scripts/activate
+    ```
+
+2. Install `or-tools`
+    ```sh
+    pip install or-tools
+    ```
+3. Link the `mors_lib` in venv
+    ```sh
+    ln -s ../../../../mors_lib venv/lib/python3.13/site-packages/mors_lib
+    ```
+
+#### Run model
+```sh
+python models/sudoku/sudoku.py
+```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+
+
+<!-- ROADMAP -->
+## Roadmap
+
+- [x] Full MiniZinc syntax support (excluding TypeInsts and Annotations)
+- [x] Integer variables and constraints
+- [x] Boolean variables and constraints
+- [x] Redefinitions
+- [x] Reifications
+- [x] MiniZinc standard library reimplementation
+- [x] Input JSON with model parameters at runtime
+- [ ] Format the Python generated code using formatter
+- [ ] Float, Set variables and constraints
+- [ ] Option, record and tuple types
+- [ ] TypeInst
+- [ ] Annotations
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+
+<!-- LICENSE -->
+## License
+
+Distributed under the Mozilla Public License Version 2.0. See `LICENSE.txt` for more information.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+
+[C++]: https://img.shields.io/badge/c++-%2300599C.svg?style=for-the-badge&logo=c%2B%2B&logoColor=white
+[Python]: https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54
+[CMake]: https://img.shields.io/badge/CMake-%23008FBA.svg?style=for-the-badge&logo=cmake&logoColor=white
+[Conan]: https://img.shields.io/badge/conan-%236699CB.svg?style=for-the-badge&logo=conan&logoColor=white
