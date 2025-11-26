@@ -2,9 +2,8 @@ import uuid
 import math
 from ortools.sat.python import cp_model
 from mors_lib import *
-from itertools import product
-model = cp_model.CpModel()
 import mors_lib
+model = cp_model.CpModel()
 mors_lib.model = model
 
 class SolutionPrinter(cp_model.CpSolverSolutionCallback):

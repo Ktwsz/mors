@@ -1,6 +1,9 @@
 from ir_python import *
 import ast
 
+# CONSTANTS
+# ----------------------------------------------------------
+
 SOLUTION_PRINTER_TEMPLATE = """
 class SolutionPrinter(cp_model.CpSolverSolutionCallback):
     def __init__(self):
@@ -15,11 +18,26 @@ class SolutionPrinter(cp_model.CpSolverSolutionCallback):
         return self.__solution_count
 """
 
+INCLUDES = """
+import uuid
+import math
+from ortools.sat.python import cp_model
+from mors_lib import *
+import mors_lib
+
+model=cp_model.CpModel()
+mors_lib.model = model
+"""
+
 STATE_DEFAULT = 1
 STATE_OUTPUT = 2
 STATE_CONSTRAINT = 3
 STATE_CONSTRAINT_EXPR = 4
 
+# ----------------------------------------------------------
+
+# IS STATE OR TYPE HELPER FUNCTIONS
+# ----------------------------------------------------------
 def is_output(state):
     return state == STATE_OUTPUT
 
@@ -35,6 +53,8 @@ def is_stmt(state):
 def is_id_expr_array(expr: ExprHandle):
     return type(expr.get()) == IdExpr and expr.get().expr_type.type() == 'array' 
 
+# ----------------------------------------------------------
+
 class Emitter:
     def __init__(self, tree):
         self.ast_tree = ast.Module()
@@ -44,7 +64,7 @@ class Emitter:
         self.let_map = {}
 
     def init_file(self):    
-        self.ast_tree.body.append(ast.parse("import uuid\nimport math\nfrom ortools.sat.python import cp_model\nfrom mors_lib import *\nfrom itertools import product\n\n\nmodel=cp_model.CpModel()\nimport mors_lib\nmors_lib.model = model"))
+        self.ast_tree.body.append(ast.parse(INCLUDES))
 
         template = ast.parse(SOLUTION_PRINTER_TEMPLATE).body[0]
         self.ast_tree.body.append(template)
@@ -63,7 +83,6 @@ class Emitter:
         self.solution_printer_params.append(name)
         self.solution_printer_constructor.args.args.append(ast.arg(arg=name))
         self.solution_printer_constructor.body.append(ast.parse(f"self.{name}={name}").body[0])
-
 
     def finalize_file(self):
         self.ast_tree.body.append(ast.parse("solver = cp_model.CpSolver()"))
@@ -415,7 +434,6 @@ class Emitter:
             case UnaryOp.OpKind.MINUS:
                 return f"-({self.ast_expr(unary_op.expr, state)}"
 
-
     def ast_Call(self, call: Call, state):
         if is_constraint(state) and is_expr(state) and call.id + "_reif" in self.tree.functions:
             if (call.id + "_reif", state) not in self.to_generate:
@@ -591,7 +609,6 @@ class Emitter:
 
         self.ast_tree.body.insert(self.function_place, ast.fix_missing_locations(fn))
 
-
     def ast_Comprehension(self, compr: Comprehension, state):
         if is_stmt(state):
             if_py, current = self.ast_generator(compr.generators, state)
@@ -622,7 +639,6 @@ class Emitter:
                 current_orelse = ast.IfExp(current_cond, current_body, current_orelse)
 
             return ast.unparse(ast.fix_missing_locations(current_orelse))
-
 
     def ast_generator(self, generators: list[Generator], state):
         if is_stmt(state):
@@ -719,8 +735,8 @@ class Emitter:
         else:
             ...
 
+# ----------------------------------------------------------
 def main(tree: Tree, file_path: str):
-    print("hello from python")
     emitter = Emitter(tree)
     file_to_write = open(file_path, "w")
     emitter.init_file()
@@ -750,3 +766,4 @@ def main(tree: Tree, file_path: str):
     emitter.finalize_file()
     emitter.unparse_ast_tree(file_to_write)
     file_to_write.close()
+# ----------------------------------------------------------
