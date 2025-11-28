@@ -46,7 +46,7 @@
       </ul>
     </li>
     <li><a href="#usage">Usage</a></li>
-    <li><a href="#roadmap">Roadmap</a></li>
+    <li><a href="#further-development">Further development</a></li>
     <li><a href="#license">License</a></li>
   </ol>
 
@@ -148,7 +148,7 @@ status = solver.solve(model, solution_printer)
 
 ### Global constraints
 
-Global constraints are transpiled based on the OR-Tools redefinitions for FlatZinc. We provide wrapper implementations, which add the constraint to model, for all redefined constraints.
+Global constraints are transpiled based on the OR-Tools redefinitions for FlatZinc. We provide wrapper implementations, which add the constraint to the `CpModel` instance, for all redefined constraints.
 
 Example result for model using `alldifferent` constraint.
 <table>
@@ -405,7 +405,7 @@ mors build models/stable-marriage/stable-marriage.mzn part_of_data.dzn --runtime
     conan profile detect
     ```
 2. In the profile file (`∼/.conan2/profiles/default`) set the following parameters.
-    ```toml
+    ```
     [ settings ]
     ...
     compiler.cppstd=23
@@ -483,20 +483,19 @@ python models/sudoku/sudoku.py
 
 
 <!-- ROADMAP -->
-## Roadmap
+## Further development
 
-- [x] Full MiniZinc syntax support (excluding TypeInsts and Annotations)
-- [x] Integer variables and constraints
-- [x] Boolean variables and constraints
-- [x] Redefinitions
-- [x] Reifications
-- [x] MiniZinc standard library reimplementation
-- [x] Input JSON with model parameters at runtime
-- [ ] Format the Python generated code using formatter
-- [ ] Float, Set variables and constraints
-- [ ] Option, record and tuple types
-- [ ] TypeInst
-- [ ] Annotations
+Future plans for developing mors include:
+- Reifications for float variables
+- Reifications for set variables and constraints
+- Additional data types: Option, record and tuple types
+- Support for TypeInst
+- Support for Annotations
+- Extending `mors_lib` with more MiniZinc stdlib functions
+- Slicing arrays in `Array` type
+- Adding `run` option to mors, to immediately run the transpiled model
+- Formating the Python generated code using formatter
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
