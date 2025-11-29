@@ -3,9 +3,9 @@
 #include "parsing_errors.hpp"
 #include "transformer.hpp"
 
+#include <print>
 #include <sstream>
 #include <string_view>
-#include <print>
 
 #include <minizinc/ast.hh>
 #include <minizinc/flattener.hh>
@@ -23,23 +23,16 @@ constexpr std::string_view include = "-I"sv;
 
 namespace {
 
-void log_flags(ParserOpts const& opts) {
-
-  if (opts.verbose)
-    std::println("std path: {}", opts.stdlib_dir);
-
-  if (opts.verbose)
-    std::println("OR-Tools path: {}", opts.ortools_include_dir);
-
-  if (opts.verbose)
-    std::println("output file: {}", opts.get_output_file());
-}
-
 auto create_flags(ParserOpts const& opts) -> std::vector<std::string> {
   std::string_view check = opts.runtime_parameters ? flags::model_check_only
                                                    : flags::instance_check_only;
-  return {opts.model_path, std::string{check}, std::string{flags::include},
-          opts.ortools_include_dir};
+  std::vector flags = {opts.model_path, std::string{check}};
+  flags.reserve(2 + 2 * opts.include_dirs.size());
+  for (auto const& include_dir : opts.include_dirs) {
+    flags.push_back(std::string{flags::include});
+    flags.push_back(include_dir);
+  }
+  return flags;
 }
 
 auto feed_flags(MiniZinc::Flattener& flt, ParserOpts const& opts,
@@ -70,11 +63,8 @@ auto feed_flags(MiniZinc::Flattener& flt, ParserOpts const& opts,
 auto main(ParserOpts const& opts) -> std::expected<ast::Tree, err::Error> {
   ast::Tree tree;
   {
-    log_flags(opts);
-
     std::ostringstream flattener_os, flattener_log;
     MiniZinc::Flattener flt{flattener_os, flattener_log, opts.stdlib_dir};
-    flt.setFlagVerbose(opts.verbose);
 
     if (auto err = feed_flags(flt, opts, flattener_os, flattener_log); err)
       return std::unexpected{std::move(*err)};

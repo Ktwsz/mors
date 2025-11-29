@@ -243,7 +243,7 @@ auto Transformer::map(MiniZinc::VarDecl* var_decl, bool const is_global,
                       bool const check_id, bool const ignore_optional)
     -> ast::VarDecl {
   if (check_id &&
-      (!var_decl->item()->loc().filename().endsWith(opts.model_path) ||
+      (!var_decl->item()->loc().filename().endsWith(opts.model_file) ||
        var_decl->id()->str() == "_objective"))
     throw Ignore{};
 

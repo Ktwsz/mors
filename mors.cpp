@@ -1,7 +1,6 @@
 #include "lib.hpp"
 #include "parser_opts.hpp"
 
-#include <sstream>
 #include <print>
 
 #include <pybind11/embed.h>
@@ -13,15 +12,13 @@ int main(int argc, char** argv) {
   auto const opts = parser::ParserOpts::create(argc, argv);
 
   if (!opts) {
-    std::stringstream man_page;
-    man_page << opts.error();
-    std::println("{}", man_page.view());
-    return 0;
+    std::println("{}", opts.error());
+    return 1;
   }
 
-  if (opts->installation_check) {
-      parser::ParserOpts::run_installation_check();
-      return 0;
+  if (opts->command == parser::ParserOpts::Command::CheckInstallation) {
+    parser::ParserOpts::run_installation_check();
+    return 0;
   }
 
   opts->dump_warnings();
@@ -29,7 +26,7 @@ int main(int argc, char** argv) {
 
   if (!result) {
     parser::err::print_message(result.error());
-    return 0;
+    return 1;
   }
 
   if (opts->print_ast)
@@ -40,8 +37,7 @@ int main(int argc, char** argv) {
   using namespace py::literals;
 
   try {
-    py::function emitter_main =
-        py::module_::import("emitter").attr("main");
+    py::function emitter_main = py::module_::import("emitter").attr("main");
     auto parser_python = py::module::import("ir_python");
 
     emitter_main(*result, opts->get_output_file());
