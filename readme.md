@@ -1,8 +1,4 @@
-<!-- Improved compatibility of back to top link: See: https://github.com/othneildrew/Best-README-Template/pull/73 -->
-<a id="readme-top"></a>
-
 <!-- PROJECT LOGO -->
-<br />
 <div align="center">
   <!-- <a href="https://github.com/othneildrew/Best-README-Template">
     <img src="images/logo.png" alt="Logo" width="80" height="80">
@@ -396,37 +392,20 @@ mors build models/stable-marriage/stable-marriage.mzn part_of_data.dzn --runtime
 * GCC compiler, version 15 or higher
 * CMake
 * Python 3.13
-* Conan
 
 ### Build from source
-#### Conan setup
-1. Create Conan profile
-    ```sh
-    conan profile detect
-    ```
-2. In the profile file (`∼/.conan2/profiles/default`) set the following parameters.
-    ```
-    [ settings ]
-    ...
-    compiler.cppstd=23
-    compiler.libcxx=libstdc++11
-    ...
-    ```
 #### Compilation
 1. Download the source code
     ```sh
     git clone https://github.com/Ktwsz/mors.git
     cd mors
     ```
-2. Install Conan dependencies
-    ```sh
-    conan install . --build=missing -s build_type=Debug
-    ```
 3. Run CMake
     ```sh
+    mkdir build
     cd build
-    cmake .. --preset conan-debug
-    cmake --build Debug
+    cmake ..
+    cmake --build .
     ```
 
 ### Installing MiniZinc stdlib and OR-Tools redefinitions
@@ -436,6 +415,8 @@ mors check-installation
 ```
 
 This command will help you identify where MiniZinc searches for stdlib and solvers.
+
+If you want to manually specify the paths, use flags `--stdlib-dir` and `--search-dir`.
 
 You can also refer to MiniZinc documentation [Configuration files](https://docs.minizinc.dev/en/stable/command_line.html#configuration-files)
 
@@ -451,7 +432,7 @@ TBD &ndash; for now, we do not provide pre-built packages, nor automatic install
 ### Run mors
 For sample models, look at `models` directory.
 ```sh
-./build/Debug/mors build models/sudoku/sudoku.mzn models/sudoku/sudoku.dzn
+mors build models/sudoku/sudoku.mzn models/sudoku/sudoku.dzn
 ```
 
 ### Run the model
@@ -464,13 +445,13 @@ In order to run the transpiled model you must install python library `or-tools` 
     source venv/scripts/activate
     ```
 
-2. Install `or-tools`
+2. Install `or-tools` and `multimethod`
     ```sh
-    pip install or-tools
+    pip install or-tools multimethod
     ```
-3. Link the `mors_lib` in venv
+3. Move the `mors_lib` to venv
     ```sh
-    ln -s ../../../../mors_lib venv/lib/python3.13/site-packages/mors_lib
+    mv mors_lib venv/lib/python3.13/site-packages
     ```
 
 #### Run model
@@ -488,13 +469,13 @@ python models/sudoku/sudoku.py
 Future plans for developing mors include:
 - Reifications for float variables
 - Reifications for set variables and constraints
-- Additional data types: Option, record and tuple types
+- Additional data types: option, record and tuple types
 - Support for TypeInst
 - Support for Annotations
 - Extending `mors_lib` with more MiniZinc stdlib functions
 - Slicing arrays in `Array` type
 - Adding `run` option to mors, to immediately run the transpiled model
-- Formating the Python generated code using formatter
+- Formatting the Python generated code using formatter
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
