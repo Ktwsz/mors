@@ -1,22 +1,9 @@
-<!-- PROJECT LOGO -->
+<a id="readme-top"></a>
 <div align="center">
-  <!-- <a href="https://github.com/othneildrew/Best-README-Template">
-    <img src="images/logo.png" alt="Logo" width="80" height="80">
-  </a> -->
-
   <h3 align="center">Mors</h3>
 
   <p align="center">
     MiniZinc to OR-Tools transpiler
-    <!-- <br />
-    <a href="https://github.com/othneildrew/Best-README-Template"><strong>Explore the docs »</strong></a>
-    <br />
-    <br />
-    <a href="https://github.com/othneildrew/Best-README-Template">View Demo</a>
-    &middot;
-    <a href="https://github.com/othneildrew/Best-README-Template/issues/new?labels=bug&template=bug-report---.md">Report Bug</a>
-    &middot;
-    <a href="https://github.com/othneildrew/Best-README-Template/issues/new?labels=enhancement&template=feature-request---.md">Request Feature</a> -->
   </p>
 </div>
 
@@ -30,6 +17,7 @@
         <li><a href="#overview">Overview</a></li>
         <li><a href="#global-constraints">Global constraints</a></li>
         <li><a href="#reifications">Reifications</a></li>
+        <li><a href="#inputting-model-parameters-at-runtime">Inputting model paremeters at runtime</a></li>
       </ul>
     </li>
     <li>
@@ -349,12 +337,12 @@ status = solver.solve(model, solution_printer)
 </tr>
 </table>
 
-### Inputting model's paremeters at runtime
+### Inputting model parameters at runtime
 
 Mors provides the ability to load parameters at runtime from JSON file. Simply add the flag `--runtime-parameters` and you don't have to provide the data at compile time.
 
 ```sh
-mors build models/stable-marriage/stable-marriage.mzn --runtime-parameters
+mors build models/stable-marriage-json/stable-marriage-json.mzn --runtime-parameters
 ```
 
 Parameters will use `mors_lib` function `load_from_json`, which will extract the values out of a JSON file.
@@ -363,16 +351,16 @@ Parameters will use `mors_lib` function `load_from_json`, which will extract the
 n = load_from_json('n')
 Men = set(range(1, max(range(1, n + 1)) + 1))
 Women = set(range(1, max(range(1, n + 1)) + 1))
-rankWomen = load_from_json('rankWomen')
-rankMen = load_from_json('rankMen')
+rankWomen = load_array_from_json('rankWomen', 'int', Women, Men)
+rankMen = load_array_from_json('rankMen', 'int', Men, Women)
 wife = IntVarArray('wife', Men, Women)
 husband = IntVarArray('husband', Women, Men)
 ```
 
-Pass the JSON file, when you run the model. <!-- TODO - more info on the JSON format -->
+Pass the JSON file, when you run the model. The JSON should be in the same format, as described in [MiniZinc documentation](https://docs.minizinc.dev/en/stable/spec.html#json-support).
 
 ```sh
-python models/stable-marriage/stable-marraige.py params.json
+python models/stable-marriage-json/stable-marriage-json.py models/stable-marriage-json/params.json
 ```
 
 You can still pass datafiles at compile time, only the parameters without set value will be read at runtime.
@@ -402,7 +390,6 @@ mors build models/stable-marriage/stable-marriage.mzn part_of_data.dzn --runtime
     ```
 3. Run CMake
     ```sh
-    mkdir build
     cd build
     cmake ..
     cmake --build .

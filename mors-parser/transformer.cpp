@@ -7,14 +7,14 @@
 #include <minizinc/type.hh>
 
 #include <algorithm>
+#include <format>
 #include <functional>
 #include <optional>
+#include <print>
 #include <ranges>
 #include <string_view>
 #include <utility>
 #include <variant>
-#include <print>
-#include <format>
 
 namespace parser {
 namespace {
@@ -266,12 +266,35 @@ auto Transformer::map(MiniZinc::VarDecl* var_decl, bool const is_global,
   if (is_global && std::holds_alternative<ast::DeclConst>(var)) {
     auto& const_decl = std::get<ast::DeclConst>(var);
     if (!const_decl.value) {
+      bool const is_decl_array =
+          std::holds_alternative<ast::types::Array>(const_decl.type);
+      bool const is_decl_set = utils::is_type_set(const_decl.type);
+      std::string call_id = is_decl_array ? "load_array_from_json"
+                          : is_decl_set   ? "load_set_from_json"
+                                          : "load_from_json";
+
       const_decl.value = ast::ptr(ast::Call{
-          .id = "load_from_json",
+          .id = call_id,
           .args = {ast::ptr(ast::LiteralString{const_decl.id})},
           .expr_type = utils::var_type(var),
           .is_var = false,
       });
+
+      if (is_decl_array) {
+        auto& args = std::get<ast::Call>(**const_decl.value).args;
+        auto const& decl_array = std::get<ast::types::Array>(const_decl.type);
+
+        args.push_back(ast::ptr(ast::LiteralString{
+            utils::outer_type_to_string(*decl_array.inner_type)}));
+
+        for (auto const& dim : decl_array.dims) {
+          if (!dim)
+            throw err::Unsupported{.message =
+                                       "Specify the array's indexing set"};
+
+          args.push_back(*dim);
+        }
+      }
     }
   }
 

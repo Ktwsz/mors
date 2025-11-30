@@ -15,7 +15,19 @@ template <typename T>
 concept HasIsVar = requires(T t) {
   { t.is_var } -> std::same_as<bool&>;
 };
+
+struct SetTemplate {
+  template <typename T> bool operator()(ast::types::Set<T> const& _) {
+    return true;
+  }
+};
+
 } // namespace
+
+auto is_type_set(ast::Type const& t) -> bool {
+  return std::visit(
+      overloaded{SetTemplate{}, [](auto const& _) { return false; }}, t);
+}
 
 auto expr_type(ast::Expr const& expr) -> ast::Type {
   return std::visit(
@@ -79,13 +91,15 @@ auto is_unsupported_var_type(ast::Type const& type) -> bool {
   return std::visit(
       utils::overloaded{[](ast::types::Int const&) { return false; },
                         [](ast::types::Bool const&) { return false; },
-                        [](ast::types::Array const& arr) { return is_unsupported_var_type(*arr.inner_type); },
+                        [](ast::types::Array const& arr) {
+                          return is_unsupported_var_type(*arr.inner_type);
+                        },
                         [](auto const&) { return true; }},
       type);
 }
 
 auto type_to_string(ast::Type const& type) -> std::string {
-    using std::operator""s;
+  using std::operator""s;
   return std::visit(
       utils::overloaded{
           [](ast::types::Int const&) { return "int"s; },
@@ -96,8 +110,30 @@ auto type_to_string(ast::Type const& type) -> std::string {
           [](ast::types::IntSet const&) { return "set of int"s; },
           [](ast::types::FloatSet const&) { return "set of float"s; },
           [](ast::types::BoolSet const&) { return "set of bool"s; },
-          [](ast::types::UnspecifiedSet const&) { return "set of unspecified"s; },
-          [](ast::types::Array const& arr) { return "array of " + type_to_string(*arr.inner_type); },
+          [](ast::types::UnspecifiedSet const&) {
+            return "set of unspecified"s;
+          },
+          [](ast::types::Array const& arr) {
+            return "array of " + type_to_string(*arr.inner_type);
+          },
+      },
+      type);
+}
+
+auto outer_type_to_string(ast::Type const& type) -> std::string {
+  using std::operator""s;
+  return std::visit(
+      utils::overloaded{
+          [](ast::types::Int const&) { return "int"s; },
+          [](ast::types::Bool const&) { return "bool"s; },
+          [](ast::types::Float const&) { return "float"s; },
+          [](ast::types::String const&) { return "str"s; },
+          [](ast::types::Unspecified const&) { return "unspecified"s; },
+          [](ast::types::IntSet const&) { return "set"s; },
+          [](ast::types::FloatSet const&) { return "set"s; },
+          [](ast::types::BoolSet const&) { return "set"s; },
+          [](ast::types::UnspecifiedSet const&) { return "set"s; },
+          [](ast::types::Array const&) { return "array"s; },
       },
       type);
 }
