@@ -29,7 +29,13 @@
         <li><a href="#installation">Installation</a></li>
       </ul>
     </li>
-    <li><a href="#usage">Usage</a></li>
+    <li>
+    <a href="#usage">Usage</a>
+    <ul>
+        <li><a href="#run-mors">Run mors</a></li>
+        <li><a href="#run-the-model">Run the model</a></li>
+      </ul>
+    </li>
     <li><a href="#further-development">Further development</a></li>
     <li><a href="#license">License</a></li>
   </ol>
@@ -50,18 +56,8 @@ Mors will be most useful to:
 
 Consider the model `xkcd` and its transpilation listed below. All parameters and variables are translated according Python types. We have our own implementation of arrays, which supports different indexing sets and array access constraints. Constraints are translated based on the context, the first constraint becomes a loop, second one is sum with array comprehension. Output is implemented in a class `SolutionPrinter`, which extends `cp_model.CpSolverSolutionCallback`.
 
-<table>
-<tr>
-<th>MiniZinc</th>
-<th>Mors output</th>
-</tr>
-<tr>
-<td style="text-align: center;"><a href="models/xkcd/xkcd.mzn">xkcd.mzn</a></th>
-<td style="text-align: center;"><a href="models/xkcd/xkcd.py">xkcd.py</a></th>
-</tr>
-<tr>
-<td>
-  
+#### MiniZinc
+[xkcd.mzn](models/xkcd/xkcd.mzn)
 ```minizinc
 int: menu_length = 6;
 int: money_limit = 1505;
@@ -86,9 +82,9 @@ output [
   | i in 1..menu_length
 ];
 ```
-  
-</td>
-<td>
+
+#### Mors output
+[xkcd.py](models/xkcd/xkcd.py)
 
 ```Python
 from ortools.sat.python import cp_model
@@ -126,26 +122,16 @@ status = solver.solve(model, solution_printer)
 #     )
 ```
 
-</td>
-</tr>
-</table>
-
 ### Global constraints
 
 Global constraints are transpiled based on the OR-Tools redefinitions for FlatZinc. We provide wrapper implementations, which add the constraint to the `CpModel` instance, for all redefined constraints.
 
 Example result for model using `alldifferent` constraint.
-<table>
-<tr>
-<th>MiniZinc</th>
-<th>Mors output</th>
-</tr>
-<tr>
-<td style="text-align: center;"><a href="models/queens/queens.mzn">nqueens.mzn</a></th>
-<td style="text-align: center;"><a href="models/queens/queens.py">nqueens.py</a></th>
-</tr>
-<tr>
-<td>
+
+#### MiniZinc
+
+[nqueens.mzn](models/queens/queens.mzn)
+
   
 ```minizinc
 
@@ -170,8 +156,8 @@ output [
 
 ```
   
-</td>
-<td>
+#### Mors output
+[nqueens.py](models/queens/queens.py)
 
 ```Python
 from ortools.sat.python import cp_model
@@ -207,27 +193,17 @@ status = solver.solve(model, solution_printer)
 
 ```
 
-</td>
-</tr>
-</table>
-
 ### Reifications
 
 We implement functions, which reify the OR-Tools `Constraint` objects to boolean literals, so that constraints can be composed together using logical operators, just like in MiniZinc.
 
 The stable marriage model uses array access constraints as well as implications. These constraints can be defined in a single line expressions, thanks to our reification abstraction.
 
-<table>
-<tr>
-<th>MiniZinc</th>
-<th>Mors output</th>
-</tr>
-<tr>
-<td style="text-align: center;"><a href="models/stable-marriage/stable-marriage.mzn">stable_marriage.mzn</a></th>
-<td style="text-align: center;"><a href="models/stable-marriage/stable-marriage.py">stable_marriage.py</a></th>
-</tr>
-<tr>
-<td>
+#### MiniZinc
+
+
+[stable_marriage.mzn](models/stable-marriage/stable-marriage.mzn)
+
   
 ```minizinc
 int: n = 5;
@@ -266,9 +242,8 @@ solve satisfy;
 
 output ["wives= \(wife)\nhusbands= \(husband)\n"];
 ```
-  
-</td>
-<td>
+#### Mors output
+[stable_marriage.py](models/stable-marriage/stable-marriage.py)
 
 ```Python
 from ortools.sat.python import cp_model
@@ -332,10 +307,6 @@ status = solver.solve(model, solution_printer)
 #     end="",
 # )
 ```
-
-</td>
-</tr>
-</table>
 
 ### Inputting model parameters at runtime
 
@@ -405,10 +376,13 @@ This command will help you identify where MiniZinc searches for stdlib and solve
 
 If you want to manually specify the paths, use flags `--stdlib-dir` and `--search-dir`.
 
-You can also refer to MiniZinc documentation [Configuration files](https://docs.minizinc.dev/en/stable/command_line.html#configuration-files)
+You can also refer to MiniZinc documentation [Configuration files](https://docs.minizinc.dev/en/stable/command_line.html#configuration-files).
 
 ### Installation
-TBD &ndash; for now, we do not provide pre-built packages, nor automatic installation scripts.
+TBD &ndash; for now, we do not provide pre-built packages.
+
+#### Manual installation
+If you built the project from source and wish to install the resulting binary, make sure that `emitter` and `ir_python` Python modules, as well as `share` directory provided in this repository, are visible to the `mors` binary. The simplest solution is to copy these directories to the same directory as the binary. You can also take inspiration from [setup_project.sh](setup_project.sh) script.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
