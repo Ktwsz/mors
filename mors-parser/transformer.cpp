@@ -284,9 +284,6 @@ auto Transformer::map(MiniZinc::VarDecl* var_decl, bool const is_global,
         auto& args = std::get<ast::Call>(**const_decl.value).args;
         auto const& decl_array = std::get<ast::types::Array>(const_decl.type);
 
-        args.push_back(ast::ptr(ast::LiteralString{
-            utils::outer_type_to_string(*decl_array.inner_type)}));
-
         for (auto const& dim : decl_array.dims) {
           if (!dim)
             throw err::Unsupported{.message =

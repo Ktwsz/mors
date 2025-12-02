@@ -17,7 +17,7 @@ concept HasIsVar = requires(T t) {
 };
 
 struct SetTemplate {
-  template <typename T> bool operator()(ast::types::Set<T> const& _) {
+  template <typename T> bool operator()(ast::types::Set<T> const&) {
     return true;
   }
 };
@@ -116,24 +116,6 @@ auto type_to_string(ast::Type const& type) -> std::string {
           [](ast::types::Array const& arr) {
             return "array of " + type_to_string(*arr.inner_type);
           },
-      },
-      type);
-}
-
-auto outer_type_to_string(ast::Type const& type) -> std::string {
-  using std::operator""s;
-  return std::visit(
-      utils::overloaded{
-          [](ast::types::Int const&) { return "int"s; },
-          [](ast::types::Bool const&) { return "bool"s; },
-          [](ast::types::Float const&) { return "float"s; },
-          [](ast::types::String const&) { return "str"s; },
-          [](ast::types::Unspecified const&) { return "unspecified"s; },
-          [](ast::types::IntSet const&) { return "set"s; },
-          [](ast::types::FloatSet const&) { return "set"s; },
-          [](ast::types::BoolSet const&) { return "set"s; },
-          [](ast::types::UnspecifiedSet const&) { return "set"s; },
-          [](ast::types::Array const&) { return "array"s; },
       },
       type);
 }
