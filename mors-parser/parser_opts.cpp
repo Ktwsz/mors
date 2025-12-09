@@ -41,6 +41,20 @@ std::vector<std::string> get_string_list(MiniZinc::AssignI* ai) {
   throw MiniZinc::ConfigException(
       "invalid configuration item (right hand side must be a list of strings)");
 }
+
+auto mzn_stdlib_dir() -> std::string {
+#ifdef _WIN32
+  if (wchar_t* MZNSTDLIBDIR = _wgetenv(L"MZN_STDLIB_DIR")) {
+    return wide_to_utf8(MZNSTDLIBDIR);
+  }
+#else
+  if (char* MZNSTDLIBDIR = getenv("MZN_STDLIB_DIR")) {
+    return std::string(MZNSTDLIBDIR);
+  }
+#endif
+  return std::string{};
+}
+
 } // namespace
 
 auto help_command(ParserOpts& opts) -> clipp::parameter {
@@ -200,6 +214,12 @@ void ParserOpts::run_installation_check() {
   std::println("==== Installation check ====");
   std::vector<std::string> _solverPath;
   std::string _mznlibDir;
+
+  if (std::string share_directory = mzn_stdlib_dir(); !share_directory.empty())
+    std::println("Environment variable MZN_STDLIB_DIR: {}", share_directory);
+  else
+    std::println("Environment variable MZN_STDLIB_DIR empty");
+
   auto paths = MiniZinc::FileUtils::get_env_list("MZN_SOLVER_PATH");
 
   if (!paths.empty())
