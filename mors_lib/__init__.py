@@ -7,6 +7,14 @@ from multimethod import multimethod
 
 model = None
 
+import sys
+import json
+
+class JsonParams:
+    if len(sys.argv) == 2:
+        with open(sys.argv[1], 'r') as file:
+            data_file = json.load(file)
+
 @multimethod
 def containts_intvar(v: tuple) -> bool:
     # if isinstance(idx, Iterable):
@@ -113,6 +121,51 @@ class Array:
         if containts_intvar(idx):
             return access(self, idx)
         return self.values[idx]
+
+def load_from_json(name):
+    if JsonParams.data_file is None:
+        raise AssertionError("Must specify the JSON param file")
+    return JsonParams.data_file[name]
+
+def coerce_set(s):
+    if isinstance(s, dict):
+        s = s["set"]
+
+    result = set()
+    for v in s:
+        if isinstance(v, list) or isinstance(v, tuple):
+            for i in range(v[0], v[1] + 1):
+                result.add(i)
+            continue
+
+        result.add(v)
+    return result
+
+def load_array_from_json(name, *dims):
+    if JsonParams.data_file is None:
+        raise AssertionError("Must specify the JSON param file")
+
+    arr = JsonParams.data_file[name]
+    for _ in range(len(dims)-1):
+        new_arr = []
+        for a in arr:
+            new_arr.extend(a)
+        arr = new_arr
+
+    is_set = lambda x: isinstance(x, list) or (isinstance(x, dict) and "set" in x)
+    if len(arr) > 0 and is_set(arr[0]):
+        for i in range(len(arr)):
+            arr[i] = coerce_set(arr[i])
+
+    if len(dims) > 1:
+        return Array(list(dims), arr)
+    return Array(dims[0], arr)
+
+def load_set_from_json(name):
+    if JsonParams.data_file is None:
+        raise AssertionError("Must specify the JSON param file")
+
+    return coerce_set(JsonParams.data_file[name])
 
 def values_from_flat_interval(interval):
     values = []
