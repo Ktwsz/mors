@@ -382,7 +382,7 @@ You can also refer to MiniZinc documentation [Configuration files](https://docs.
 TBD &ndash; for now, we do not provide pre-built packages.
 
 #### Manual installation
-If you built the project from source and wish to install the resulting binary, make sure that `emitter` and `ir_python` Python modules, as well as `share` directory provided in this repository, are visible to the `mors` binary. The simplest solution is to copy these directories to the same directory as the binary. You can also take inspiration from [setup_project.sh](setup_project.sh) script.
+If you built the project from source and wish to install the resulting binary, make sure that `emitter` and `ir_python` Python modules, as well as `share` directory provided in this repository, are visible to the `mors` binary. The simplest solution is to copy these directories to the same directory as the binary. You can also take inspiration from [setup_project.sh](setup_project.sh) script or the [install-scripts branch](https://github.com/Ktwsz/mors/tree/install-scripts).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
