@@ -402,13 +402,13 @@ In order to run the transpiled model you must install python library `or-tools` 
 
 1. Create venv
     ```sh
-    python3.13 -m venv venv
+    python3.13 -m venv venv --system-site-packages
     source venv/scripts/activate
     ```
 
 2. Install `or-tools` and `multimethod`
     ```sh
-    pip install or-tools multimethod
+    pip install requirements.txt
     ```
 3. Move the `mors_lib` to venv
     ```sh

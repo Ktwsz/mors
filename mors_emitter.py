@@ -1,4 +1,4 @@
-from ir_python import *
+from mors_ir import *
 import ast
 
 # CONSTANTS

@@ -12,7 +12,7 @@ namespace py = pybind11;
 
 namespace ast = parser::ast;
 
-PYBIND11_MODULE(ir_python, m) {
+PYBIND11_MODULE(mors_ir, m) {
   py::class_<ast::ExprHandle>(m, "ExprHandle")
       .def("get", [](ast::ExprHandle& expr) { return *expr; });
 

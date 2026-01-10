@@ -29,7 +29,7 @@ FetchContent_MakeAvailable(pybind11_ep)
 add_subdirectory(mors-parser)
 add_subdirectory(ir)
 
-add_dependencies(mors ir_python clipp)
+add_dependencies(mors mors_ir clipp)
 
 target_link_libraries(mors PUBLIC mors-parser 
                                   ${Python3_LIBRARIES}

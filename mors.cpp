@@ -37,8 +37,8 @@ int main(int argc, char** argv) {
   using namespace py::literals;
 
   try {
-    py::function emitter_main = py::module_::import("emitter").attr("main");
-    auto parser_python = py::module::import("ir_python");
+    py::function emitter_main = py::module_::import("mors_emitter").attr("main");
+    auto parser_python = py::module::import("mors_ir");
 
     emitter_main(*result, opts->get_output_file());
 
